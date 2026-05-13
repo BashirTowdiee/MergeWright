@@ -68,7 +68,7 @@ Purpose: create a new run directory and execute selected phases (or dry-run them
 Usage:
 
 ```bash
-npm run agent -- run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--dry-run] [--verbose]
+npm run agent -- run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--dry-run] [--verbose] [--stream-codex]
 ```
 
 Required args:
@@ -89,6 +89,7 @@ Common flags:
 - `--allow-writes` (builder/fix only, requires write safety pass)
 - `--dry-run`
 - `--verbose`
+- `--stream-codex` (stream raw Codex stdout/stderr live; artefacts still captured)
 
 Examples:
 
@@ -103,7 +104,8 @@ Notes:
 - creates `runs/<project>/<run-id>/`
 - `--dry-run` skips Codex and checks execution while recording skipped/dry-run artifacts
 - prints live phase progress to terminal while running
-- does not stream full Codex stdout/stderr to terminal (see run artefacts instead)
+- default mode does not stream full Codex stdout/stderr to terminal (see run artefacts instead)
+- `--stream-codex` enables live raw Codex stdout/stderr streaming while preserving run artefacts
 
 ## `continue-run`
 
@@ -112,7 +114,7 @@ Purpose: resume selected phases in an existing run directory.
 Usage:
 
 ```bash
-npm run agent -- continue-run <run-id> --config <config-path> [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--dry-run] [--verbose]
+npm run agent -- continue-run <run-id> --config <config-path> [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--dry-run] [--verbose] [--stream-codex]
 ```
 
 Required args:
@@ -130,6 +132,7 @@ Common flags:
 - `--allow-writes` (builder/fix only, requires write safety pass)
 - `--dry-run`
 - `--verbose`
+- `--stream-codex` (stream raw Codex stdout/stderr live; artefacts still captured)
 
 Examples:
 
@@ -145,6 +148,7 @@ Notes:
 - `--execute-planner` is not supported
 - `--preset` is not supported
 - prints live continuation phase progress to terminal while running
+- default mode stays concise; use `--stream-codex` to watch Codex output live
 
 ## `list-runs`
 

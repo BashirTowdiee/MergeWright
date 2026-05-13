@@ -121,6 +121,64 @@ test("--allow-writes parses for continue-run", () => {
   assert.equal(args.allowWrites, true);
 });
 
+test("--stream-codex parses for run and stays independent from verbose", () => {
+  const args = parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--stream-codex"]);
+  assert.equal(args.streamCodex, true);
+  assert.equal(args.verbose, false);
+});
+
+test("--stream-codex parses for continue-run", () => {
+  const args = parseArgs(["continue-run", "run-1", "--config", "configs/acme.json", "--execute-builder", "--stream-codex"]);
+  assert.equal(args.streamCodex, true);
+});
+
+test("unsupported commands reject --stream-codex", () => {
+  assert.throws(
+    () => parseArgs(["list-runs", "--config", "configs/acme.json", "--stream-codex"]),
+    /--stream-codex is only supported for run and continue-run/
+  );
+});
+
+test("check-write-safety rejects --stream-codex", () => {
+  assert.throws(
+    () => parseArgs(["check-write-safety", "--config", "configs/acme.json", "--stream-codex"]),
+    /--stream-codex is only supported for run and continue-run/
+  );
+});
+
+test("show-run rejects --stream-codex", () => {
+  assert.throws(
+    () => parseArgs(["show-run", "run-1", "--config", "configs/acme.json", "--stream-codex"]),
+    /--stream-codex is only supported for run and continue-run/
+  );
+});
+
+test("open-run rejects --stream-codex", () => {
+  assert.throws(
+    () => parseArgs(["open-run", "run-1", "--config", "configs/acme.json", "--stream-codex"]),
+    /--stream-codex is only supported for run and continue-run/
+  );
+});
+
+test("init-project rejects --stream-codex", () => {
+  assert.throws(
+    () => parseArgs(["init-project", "My App", "--workspace", "/tmp/app", "--stream-codex"]),
+    /--stream-codex is only supported for run and continue-run/
+  );
+});
+
+test("--verbose alone does not enable streamCodex", () => {
+  const args = parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--verbose"]);
+  assert.equal(args.verbose, true);
+  assert.equal(args.streamCodex, false);
+});
+
+test("--stream-codex does not enable verbose", () => {
+  const args = parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--stream-codex"]);
+  assert.equal(args.streamCodex, true);
+  assert.equal(args.verbose, false);
+});
+
 test("list-runs rejects --allow-writes", () => {
   assert.throws(
     () => parseArgs(["list-runs", "--config", "configs/acme.json", "--allow-writes"]),

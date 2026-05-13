@@ -119,6 +119,7 @@ Live progress output is printed during `run`, `continue-run`, and `check-write-s
 
 Use `--verbose` to include extra diagnostics (config path, model/reasoning/sandbox details, check command lines, and additional artefact path detail).
 Codex stdout/stderr is still captured in run artefacts, but not streamed to terminal by default.
+Use `--stream-codex` with `run`/`continue-run` to stream raw Codex stdout/stderr live while preserving all artefact capture.
 
 ## Using Presets
 

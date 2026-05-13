@@ -75,7 +75,7 @@ No git mutation commands are used.
 5. Run checks with `--run-checks` when ready.
 6. Commit manually (and push manually if desired).
 
-Note: full Codex stdout/stderr remains in run artefacts (`*-stdout.log`, `*-stderr.log`) and is not streamed to terminal by default.
+Note: full Codex stdout/stderr remains in run artefacts (`*-stdout.log`, `*-stderr.log`). Streaming is off by default; use `--stream-codex` to view live raw Codex output while preserving artefacts.
 
 Auto-commit and auto-push are intentionally unsupported.
 

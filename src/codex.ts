@@ -55,7 +55,13 @@ export interface CodexExecutionResult {
   skipped: boolean;
 }
 
-export type CodexExecutor = (request: CodexExecutionRequest) => Promise<CodexExecutionResult>;
+export interface CodexExecutionOptions {
+  streamOutput?: boolean;
+  onStdoutChunk?: (chunk: string) => void;
+  onStderrChunk?: (chunk: string) => void;
+}
+
+export type CodexExecutor = (request: CodexExecutionRequest, options?: CodexExecutionOptions) => Promise<CodexExecutionResult>;
 
 export function parseCodexExecHelp(helpText: string): CodexExecCapabilities {
   return {
@@ -143,7 +149,8 @@ export function buildCodexExecArgs(request: CodexExecutionRequest, capabilities:
 
 export async function executeCodex(
   request: CodexExecutionRequest,
-  capabilities: CodexExecCapabilities = DEFAULT_CODEX_EXEC_CAPABILITIES
+  capabilities: CodexExecCapabilities = DEFAULT_CODEX_EXEC_CAPABILITIES,
+  options: CodexExecutionOptions = {}
 ): Promise<CodexExecutionResult> {
   const built = buildCodexExecArgs(request, capabilities);
 
@@ -174,13 +181,62 @@ export async function executeCodex(
 
   let stdout = "";
   let stderr = "";
+  let streamCallbackError: Error | undefined;
+  let killRequested = false;
+  const emitStdout =
+    options.onStdoutChunk ??
+    (options.streamOutput
+      ? (chunk: string) => {
+          process.stdout.write(chunk);
+        }
+      : undefined);
+  const emitStderr =
+    options.onStderrChunk ??
+    (options.streamOutput
+      ? (chunk: string) => {
+          process.stderr.write(chunk);
+        }
+      : undefined);
   child.stdout.setEncoding("utf8");
   child.stderr.setEncoding("utf8");
+  const requestKill = (): void => {
+    if (killRequested || child.killed) {
+      return;
+    }
+    killRequested = true;
+    try {
+      child.kill("SIGTERM");
+    } catch {
+      // swallow kill race errors and rely on close event
+    }
+  };
   child.stdout.on("data", (chunk: string) => {
     stdout += chunk;
+    if (streamCallbackError) {
+      return;
+    }
+    try {
+      emitStdout?.(chunk);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      streamCallbackError = new Error(`Codex stream callback failed during stdout streaming: ${message}`);
+      stderr += `${stderr.endsWith("\n") || stderr.length === 0 ? "" : "\n"}${streamCallbackError.message}\n`;
+      requestKill();
+    }
   });
   child.stderr.on("data", (chunk: string) => {
     stderr += chunk;
+    if (streamCallbackError) {
+      return;
+    }
+    try {
+      emitStderr?.(chunk);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      streamCallbackError = new Error(`Codex stream callback failed during stderr streaming: ${message}`);
+      stderr += `${stderr.endsWith("\n") || stderr.length === 0 ? "" : "\n"}${streamCallbackError.message}\n`;
+      requestKill();
+    }
   });
 
   child.stdin.write(built.promptStdin);
@@ -193,10 +249,18 @@ export async function executeCodex(
 
   const durationMs = Date.now() - startedAt;
   let outputLastMessage = "";
-  try {
-    outputLastMessage = await readFile(path.resolve(request.outputLastMessagePath), "utf8");
-  } catch {
-    throw new Error(`Codex execution completed but output-last-message file was not readable: ${request.outputLastMessagePath}`);
+  if (!streamCallbackError) {
+    try {
+      outputLastMessage = await readFile(path.resolve(request.outputLastMessagePath), "utf8");
+    } catch {
+      throw new Error(`Codex execution completed but output-last-message file was not readable: ${request.outputLastMessagePath}`);
+    }
+  } else {
+    try {
+      outputLastMessage = await readFile(path.resolve(request.outputLastMessagePath), "utf8");
+    } catch {
+      outputLastMessage = "";
+    }
   }
 
   return {
@@ -208,7 +272,7 @@ export async function executeCodex(
     exitCode: exit.code,
     signal: exit.signal,
     durationMs,
-    success: exit.code === 0,
+    success: exit.code === 0 && !streamCallbackError,
     outputLastMessagePath: path.resolve(request.outputLastMessagePath),
     outputLastMessage,
     skipped: false

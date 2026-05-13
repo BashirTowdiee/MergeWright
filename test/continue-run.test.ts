@@ -216,6 +216,99 @@ test("continue-run emits phase progress logs", async () => {
   assert.doesNotMatch(text, /builder stderr marker/);
 });
 
+test("continue-run stream mode emits codex stream boundaries on success", async () => {
+  const fx = await makeFixture();
+  const progress = makeProgressCapture();
+  await continueRun({
+    runId: fx.runId,
+    configArg: fx.configArg,
+    executeBuilder: true,
+    dryRun: false,
+    verbose: false,
+    streamCodex: true,
+    orchestratorRoot: fx.orchestratorRoot,
+    progressLogger: progress.logger,
+    codexExecutor: async (request, streamOptions) => {
+      streamOptions?.onStdoutChunk?.("builder live out\n");
+      return {
+        command: "codex",
+        args: [],
+        cwd: fx.orchestratorRoot,
+        stdout: "builder live out\n",
+        stderr: "",
+        exitCode: 0,
+        signal: null,
+        durationMs: 1,
+        success: true,
+        outputLastMessagePath: request.outputLastMessagePath,
+        outputLastMessage: "builder result",
+        skipped: false
+      };
+    }
+  });
+  const text = progress.lines.join("\n");
+  assert.match(text, /\[builder\] Codex stream start/);
+  assert.match(text, /\[builder\] Codex stream end/);
+});
+
+test("continue-run passes codex stream callbacks when --stream-codex is enabled", async () => {
+  const fx = await makeFixture();
+  const streamOptionCalls: Array<{ hasStdout: boolean; hasStderr: boolean }> = [];
+  await continueRun({
+    runId: fx.runId,
+    configArg: fx.configArg,
+    executeBuilder: true,
+    dryRun: false,
+    verbose: false,
+    streamCodex: true,
+    orchestratorRoot: fx.orchestratorRoot,
+    codexExecutor: async (request, streamOptions) => {
+      streamOptionCalls.push({
+        hasStdout: typeof streamOptions?.onStdoutChunk === "function",
+        hasStderr: typeof streamOptions?.onStderrChunk === "function"
+      });
+      streamOptions?.onStdoutChunk?.("live-out");
+      streamOptions?.onStderrChunk?.("live-err");
+      return {
+        command: "codex",
+        args: [],
+        cwd: fx.orchestratorRoot,
+        stdout: "captured-out",
+        stderr: "captured-err",
+        exitCode: 0,
+        signal: null,
+        durationMs: 1,
+        success: true,
+        outputLastMessagePath: request.outputLastMessagePath,
+        outputLastMessage: "builder result",
+        skipped: false
+      };
+    }
+  });
+  assert.equal(streamOptionCalls.length, 1);
+  assert.equal(streamOptionCalls[0]?.hasStdout, true);
+  assert.equal(streamOptionCalls[0]?.hasStderr, true);
+});
+
+test("continue-run dry-run with --stream-codex does not execute codex", async () => {
+  const fx = await makeFixture();
+  let calls = 0;
+  await continueRun({
+    runId: fx.runId,
+    configArg: fx.configArg,
+    executeBuilder: true,
+    dryRun: true,
+    verbose: false,
+    streamCodex: true,
+    orchestratorRoot: fx.orchestratorRoot,
+    codexExecutor: async () => {
+      calls += 1;
+      throw new Error("should not execute");
+    }
+  });
+  assert.equal(calls, 0);
+});
+
 test("continue-run failure logs include failed phase and diagnostics", async () => {
   const fx = await makeFixture();
   const progress = makeProgressCapture();
@@ -251,6 +344,45 @@ test("continue-run failure logs include failed phase and diagnostics", async () 
   const text = progress.lines.join("\n");
   assert.match(text, /Run failed during phase: builder/);
   assert.match(text, /Diagnostics: /);
+});
+
+test("continue-run stream mode emits codex stream boundaries on failure", async () => {
+  const fx = await makeFixture();
+  const progress = makeProgressCapture();
+  await assert.rejects(
+    () =>
+      continueRun({
+        runId: fx.runId,
+        configArg: fx.configArg,
+        executeBuilder: true,
+        dryRun: false,
+        verbose: false,
+        streamCodex: true,
+        orchestratorRoot: fx.orchestratorRoot,
+        progressLogger: progress.logger,
+        codexExecutor: async (request, streamOptions) => {
+          streamOptions?.onStderrChunk?.("builder live err\n");
+          return {
+            command: "codex",
+            args: [],
+            cwd: fx.orchestratorRoot,
+            stdout: "",
+            stderr: "builder live err\n",
+            exitCode: 2,
+            signal: null,
+            durationMs: 1,
+            success: false,
+            outputLastMessagePath: request.outputLastMessagePath,
+            outputLastMessage: "builder failure",
+            skipped: false
+          };
+        }
+      }),
+    /Builder execution failed/
+  );
+  const text = progress.lines.join("\n");
+  assert.match(text, /\[builder\] Codex stream start/);
+  assert.match(text, /\[builder\] Codex stream end/);
 });
 
 test("builder continuation fails if already executed", async () => {

@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { chmod, mkdtemp, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import {
   buildCodexExecArgs,
+  executeCodex,
   parseCodexExecHelp,
   validateCodexExecutionRequest,
   DEFAULT_CODEX_EXEC_CAPABILITIES,
@@ -160,4 +164,122 @@ test("reviewer role uses provided model and reasoning effort", () => {
   assert.equal(command.args.join(" ").includes("plan this stage"), false);
   assert.ok(command.args.includes("-s"));
   assert.ok(command.args.includes("read-only"));
+});
+
+test("executeCodex streams chunk callbacks and still captures full stdout/stderr", async () => {
+  const binDir = await mkdtemp(path.join(os.tmpdir(), "codex-bin-"));
+  const codexPath = path.join(binDir, "codex");
+  await writeFile(
+    codexPath,
+    `#!/usr/bin/env node
+const fs = require("node:fs");
+const args = process.argv.slice(2);
+const outputIndex = args.indexOf("-o");
+const outputPath = outputIndex >= 0 ? args[outputIndex + 1] : null;
+process.stdout.write("stdout-chunk-1\\n");
+process.stderr.write("stderr-chunk-1\\n");
+setTimeout(() => {
+  process.stdout.write("stdout-chunk-2\\n");
+  process.stderr.write("stderr-chunk-2\\n");
+  if (outputPath) fs.writeFileSync(outputPath, "# last message\\n", "utf8");
+  process.exit(0);
+}, 10);
+`,
+    "utf8"
+  );
+  await chmod(codexPath, 0o755);
+
+  const originalPath = process.env.PATH;
+  process.env.PATH = `${binDir}:${originalPath ?? ""}`;
+  try {
+    const outputLastMessagePath = path.join(binDir, "output-last-message.md");
+    const stdoutChunks: string[] = [];
+    const stderrChunks: string[] = [];
+    const result = await executeCodex(
+      { ...requestBase, outputLastMessagePath, orchestratorRoot: binDir },
+      fullCaps,
+      {
+        onStdoutChunk: (chunk) => stdoutChunks.push(chunk),
+        onStderrChunk: (chunk) => stderrChunks.push(chunk)
+      }
+    );
+    assert.deepEqual(stdoutChunks, ["stdout-chunk-1\n", "stdout-chunk-2\n"]);
+    assert.deepEqual(stderrChunks, ["stderr-chunk-1\n", "stderr-chunk-2\n"]);
+    assert.equal(result.stdout, "stdout-chunk-1\nstdout-chunk-2\n");
+    assert.equal(result.stderr, "stderr-chunk-1\nstderr-chunk-2\n");
+    assert.equal(result.outputLastMessage, "# last message\n");
+    assert.equal(result.success, true);
+  } finally {
+    process.env.PATH = originalPath;
+  }
+});
+
+test("executeCodex fails closed when stdout stream callback throws", async () => {
+  const binDir = await mkdtemp(path.join(os.tmpdir(), "codex-bin-"));
+  const codexPath = path.join(binDir, "codex");
+  await writeFile(
+    codexPath,
+    `#!/usr/bin/env node
+process.stdout.write("stdout-before\\n");
+setTimeout(() => process.stdout.write("stdout-after\\n"), 20);
+setTimeout(() => process.stderr.write("stderr-after\\n"), 30);
+setTimeout(() => process.exit(0), 80);
+`,
+    "utf8"
+  );
+  await chmod(codexPath, 0o755);
+
+  const originalPath = process.env.PATH;
+  process.env.PATH = `${binDir}:${originalPath ?? ""}`;
+  try {
+    const result = await executeCodex(
+      { ...requestBase, outputLastMessagePath: path.join(binDir, "out.md"), orchestratorRoot: binDir },
+      fullCaps,
+      {
+        onStdoutChunk: () => {
+          throw new Error("stdout boom");
+        }
+      }
+    );
+    assert.equal(result.success, false);
+    assert.match(result.stderr, /Codex stream callback failed during stdout streaming: stdout boom/);
+    assert.match(result.stdout, /stdout-before/);
+  } finally {
+    process.env.PATH = originalPath;
+  }
+});
+
+test("executeCodex fails closed when stderr stream callback throws", async () => {
+  const binDir = await mkdtemp(path.join(os.tmpdir(), "codex-bin-"));
+  const codexPath = path.join(binDir, "codex");
+  await writeFile(
+    codexPath,
+    `#!/usr/bin/env node
+process.stderr.write("stderr-before\\n");
+setTimeout(() => process.stdout.write("stdout-after\\n"), 20);
+setTimeout(() => process.stderr.write("stderr-after\\n"), 30);
+setTimeout(() => process.exit(0), 80);
+`,
+    "utf8"
+  );
+  await chmod(codexPath, 0o755);
+
+  const originalPath = process.env.PATH;
+  process.env.PATH = `${binDir}:${originalPath ?? ""}`;
+  try {
+    const result = await executeCodex(
+      { ...requestBase, outputLastMessagePath: path.join(binDir, "out.md"), orchestratorRoot: binDir },
+      fullCaps,
+      {
+        onStderrChunk: () => {
+          throw new Error("stderr boom");
+        }
+      }
+    );
+    assert.equal(result.success, false);
+    assert.match(result.stderr, /stderr-before/);
+    assert.match(result.stderr, /Codex stream callback failed during stderr streaming: stderr boom/);
+  } finally {
+    process.env.PATH = originalPath;
+  }
 });

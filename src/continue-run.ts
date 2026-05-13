@@ -1,7 +1,7 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { executeCheckCommand, resolveCheckCommandCwd } from "./commands.js";
-import { executeCodex, type CodexExecutor } from "./codex.js";
+import { DEFAULT_CODEX_EXEC_CAPABILITIES, executeCodex, type CodexExecutor } from "./codex.js";
 import { loadAndValidateConfig, resolveConfigPath } from "./config.js";
 import { loadPromptTemplates, renderTemplate, type TemplateVariables } from "./prompts.js";
 import { formatDurationMs, NOOP_PROGRESS_LOGGER, type ProgressLogger } from "./progress-logger.js";
@@ -20,6 +20,7 @@ export interface ContinueOptions {
   executeFix?: boolean;
   runChecks?: boolean;
   allowWrites?: boolean;
+  streamCodex?: boolean;
   dryRun: boolean;
   verbose: boolean;
   orchestratorRoot: string;
@@ -95,10 +96,24 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
   const before = snapshotStatuses(metadata);
   const artefacts: string[] = [];
   const metadataWriter = options.metadataWriter ?? writeRunMetadata;
-  const codexExecutor = options.codexExecutor ?? executeCodex;
+  const codexExecutor: CodexExecutor =
+    options.codexExecutor ??
+    ((request, execOptions) => executeCodex(request, DEFAULT_CODEX_EXEC_CAPABILITIES, execOptions));
   const writeAuditPreCapture = options.writeAuditPreCapture ?? captureWriteAuditPreState;
   const writeAuditPostCapture = options.writeAuditPostCapture ?? captureWriteAuditPostStateAndWriteArtefacts;
   const checkCommandExecutor = options.checkCommandExecutor ?? executeCheckCommand;
+  const runCodexPhase = async (phase: "builder" | "reviewer" | "fix-planning" | "fix", action: () => Promise<void>): Promise<void> => {
+    if (!options.streamCodex) {
+      await action();
+      return;
+    }
+    progressLogger.codexStreamStart(phase);
+    try {
+      await action();
+    } finally {
+      progressLogger.codexStreamEnd(phase);
+    }
+  };
 
   const updatePhase = async (phase: RunPhaseName, status: RunPhaseStatus, reason?: string, phaseArtefacts?: string[]) => {
     updateRunPhase(metadata, phase, {
@@ -322,17 +337,27 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         const prompt = await readText(path.resolve(runDir, "builder-prompt.extracted.md"));
         const outputPath = path.resolve(runDir, "builder-output-last-message.md");
         progressLogger.info("[builder] waiting for Codex...");
-        const result = await codexExecutor({
-          prompt,
-          role: "builder",
-          model: config.codex.builder.model,
-          reasoningEffort: config.codex.builder.reasoningEffort,
-          workspaceRoot: metadata.workspaceRoot,
-          outputLastMessagePath: outputPath,
-          dryRun: false,
-          requireGitRepo: config.safety.requireGitRepo,
-          orchestratorRoot,
-          sandboxMode: allowWrites ? "workspace-write" : "read-only"
+        let result!: Awaited<ReturnType<typeof codexExecutor>>;
+        await runCodexPhase("builder", async () => {
+          result = await codexExecutor(
+            {
+              prompt,
+              role: "builder",
+              model: config.codex.builder.model,
+              reasoningEffort: config.codex.builder.reasoningEffort,
+              workspaceRoot: metadata.workspaceRoot,
+              outputLastMessagePath: outputPath,
+              dryRun: false,
+              requireGitRepo: config.safety.requireGitRepo,
+              orchestratorRoot,
+              sandboxMode: allowWrites ? "workspace-write" : "read-only"
+            },
+            {
+              streamOutput: options.streamCodex,
+              onStdoutChunk: (chunk) => progressLogger.codexStdout(chunk),
+              onStderrChunk: (chunk) => progressLogger.codexStderr(chunk)
+            }
+          );
         });
 
         await writeJson(runDir, "builder-command.json", { command: result.command, args: result.args, cwd: result.cwd, outputLastMessagePath: result.outputLastMessagePath, promptViaStdin: true, sandboxMode: allowWrites ? "workspace-write" : "read-only" }, artefacts, false);
@@ -410,17 +435,27 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         await updatePhase("reviewer", "unknown");
         const outputPath = path.resolve(runDir, "reviewer-output-last-message.md");
         progressLogger.info("[reviewer] waiting for Codex...");
-        const result = await codexExecutor({
-          prompt: reviewerPrompt,
-          role: "reviewer",
-          model: config.codex.reviewer.model,
-          reasoningEffort: config.codex.reviewer.reasoningEffort,
-          workspaceRoot: metadata.workspaceRoot,
-          outputLastMessagePath: outputPath,
-          dryRun: false,
-          requireGitRepo: config.safety.requireGitRepo,
-          orchestratorRoot,
-          sandboxMode: "read-only"
+        let result!: Awaited<ReturnType<typeof codexExecutor>>;
+        await runCodexPhase("reviewer", async () => {
+          result = await codexExecutor(
+            {
+              prompt: reviewerPrompt,
+              role: "reviewer",
+              model: config.codex.reviewer.model,
+              reasoningEffort: config.codex.reviewer.reasoningEffort,
+              workspaceRoot: metadata.workspaceRoot,
+              outputLastMessagePath: outputPath,
+              dryRun: false,
+              requireGitRepo: config.safety.requireGitRepo,
+              orchestratorRoot,
+              sandboxMode: "read-only"
+            },
+            {
+              streamOutput: options.streamCodex,
+              onStdoutChunk: (chunk) => progressLogger.codexStdout(chunk),
+              onStderrChunk: (chunk) => progressLogger.codexStderr(chunk)
+            }
+          );
         });
 
         if (!result.success) {
@@ -474,17 +509,27 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         await updatePhase("fixPlanning", "unknown");
         const outputPath = path.resolve(runDir, "review-to-fix-output-last-message.md");
         progressLogger.info("[fix-planning] waiting for Codex...");
-        const result = await codexExecutor({
-          prompt: reviewToFixPrompt,
-          role: "planner",
-          model: config.codex.planner.model,
-          reasoningEffort: config.codex.planner.reasoningEffort,
-          workspaceRoot: metadata.workspaceRoot,
-          outputLastMessagePath: outputPath,
-          dryRun: false,
-          requireGitRepo: config.safety.requireGitRepo,
-          orchestratorRoot,
-          sandboxMode: "read-only"
+        let result!: Awaited<ReturnType<typeof codexExecutor>>;
+        await runCodexPhase("fix-planning", async () => {
+          result = await codexExecutor(
+            {
+              prompt: reviewToFixPrompt,
+              role: "planner",
+              model: config.codex.planner.model,
+              reasoningEffort: config.codex.planner.reasoningEffort,
+              workspaceRoot: metadata.workspaceRoot,
+              outputLastMessagePath: outputPath,
+              dryRun: false,
+              requireGitRepo: config.safety.requireGitRepo,
+              orchestratorRoot,
+              sandboxMode: "read-only"
+            },
+            {
+              streamOutput: options.streamCodex,
+              onStdoutChunk: (chunk) => progressLogger.codexStdout(chunk),
+              onStderrChunk: (chunk) => progressLogger.codexStderr(chunk)
+            }
+          );
         });
 
         if (!result.success) {
@@ -587,17 +632,27 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         const prompt = await readText(path.resolve(runDir, "fix-prompt.extracted.md"));
         const outputPath = path.resolve(runDir, "fix-output-last-message.md");
         progressLogger.info("[fix] waiting for Codex...");
-        const result = await codexExecutor({
-          prompt,
-          role: "builder",
-          model: config.codex.builder.model,
-          reasoningEffort: config.codex.builder.reasoningEffort,
-          workspaceRoot: metadata.workspaceRoot,
-          outputLastMessagePath: outputPath,
-          dryRun: false,
-          requireGitRepo: config.safety.requireGitRepo,
-          orchestratorRoot,
-          sandboxMode: allowWrites ? "workspace-write" : "read-only"
+        let result!: Awaited<ReturnType<typeof codexExecutor>>;
+        await runCodexPhase("fix", async () => {
+          result = await codexExecutor(
+            {
+              prompt,
+              role: "builder",
+              model: config.codex.builder.model,
+              reasoningEffort: config.codex.builder.reasoningEffort,
+              workspaceRoot: metadata.workspaceRoot,
+              outputLastMessagePath: outputPath,
+              dryRun: false,
+              requireGitRepo: config.safety.requireGitRepo,
+              orchestratorRoot,
+              sandboxMode: allowWrites ? "workspace-write" : "read-only"
+            },
+            {
+              streamOutput: options.streamCodex,
+              onStdoutChunk: (chunk) => progressLogger.codexStdout(chunk),
+              onStderrChunk: (chunk) => progressLogger.codexStderr(chunk)
+            }
+          );
         });
 
         await writeJson(runDir, "fix-command.json", { command: result.command, args: result.args, cwd: result.cwd, outputLastMessagePath: result.outputLastMessagePath, promptViaStdin: true, sandboxMode: allowWrites ? "workspace-write" : "read-only" }, artefacts, false);

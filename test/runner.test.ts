@@ -239,6 +239,46 @@ test("default mode still does not execute planner or builder or reviewer", async
   await assert.rejects(access(path.join(result.runDir, "fix-exit.json")));
 });
 
+test("runner passes codex stream callbacks when --stream-codex is enabled", async () => {
+  const { orchestratorRoot, configPath } = await makeFixture();
+  const streamOptionCalls: Array<{ hasStdout: boolean; hasStderr: boolean }> = [];
+  await runStage({
+    stageName: "example-stage",
+    configArg: path.relative(orchestratorRoot, configPath),
+    dryRun: false,
+    executePlanner: true,
+    executeBuilder: true,
+    executeReviewer: true,
+    verbose: false,
+    streamCodex: true,
+    orchestratorRoot,
+    codexExecutor: async (request, streamOptions) => {
+      streamOptionCalls.push({
+        hasStdout: typeof streamOptions?.onStdoutChunk === "function",
+        hasStderr: typeof streamOptions?.onStderrChunk === "function"
+      });
+      streamOptions?.onStdoutChunk?.("live-out");
+      streamOptions?.onStderrChunk?.("live-err");
+      return {
+        command: "codex",
+        args: [],
+        cwd: orchestratorRoot,
+        stdout: "captured-out",
+        stderr: "captured-err",
+        exitCode: 0,
+        signal: null,
+        durationMs: 1,
+        success: true,
+        outputLastMessagePath: request.outputLastMessagePath,
+        outputLastMessage: request.role === "planner" ? "## DECISION\nBUILD\n## FINAL BUILDER PROMPT\nbuilder prompt" : "ok",
+        skipped: false
+      };
+    }
+  });
+  assert.ok(streamOptionCalls.length >= 3);
+  assert.ok(streamOptionCalls.every((call) => call.hasStdout && call.hasStderr));
+});
+
 test("executeBuilder without executePlanner fails fast before any execution or workspace writes", async () => {
   const { orchestratorRoot, configPath, workspaceRoot } = await makeFixture();
   const sentinel = path.join(workspaceRoot, "unchanged.txt");
@@ -297,6 +337,26 @@ test("executePlanner + executeBuilder + dry-run skips both executions", async ()
   const reviewerPlaceholder = await readFile(path.join(result.runDir, "reviewer-output.placeholder.md"), "utf8");
   assert.match(reviewerPlaceholder, /skipped because dryRun=true/);
   await assert.rejects(access(path.join(result.runDir, "builder-exit.json")));
+});
+
+test("run dry-run with --stream-codex does not execute codex", async () => {
+  const { orchestratorRoot, configPath } = await makeFixture();
+  let called = 0;
+  await runStage({
+    stageName: "example-stage",
+    configArg: path.relative(orchestratorRoot, configPath),
+    dryRun: true,
+    executePlanner: true,
+    executeBuilder: true,
+    verbose: false,
+    streamCodex: true,
+    orchestratorRoot,
+    codexExecutor: async () => {
+      called += 1;
+      throw new Error("should not run");
+    }
+  });
+  assert.equal(called, 0);
 });
 
 test("executePlanner + executeBuilder + executeReviewer + dry-run skips all executions and writes reviewer skipped artefact", async () => {
@@ -446,6 +506,80 @@ test("phase logs show codex waiting and do not include codex stdout/stderr paylo
   assert.match(text, /\[reviewer\] completed in /);
   assert.doesNotMatch(text, new RegExp(stdoutMarker));
   assert.doesNotMatch(text, new RegExp(stderrMarker));
+});
+
+test("stream mode emits codex stream boundaries on successful run phase", async () => {
+  const { orchestratorRoot, configPath } = await makeFixture();
+  const progress = makeProgressCapture();
+  await runStage({
+    stageName: "example-stage",
+    configArg: path.relative(orchestratorRoot, configPath),
+    dryRun: false,
+    executePlanner: true,
+    verbose: false,
+    streamCodex: true,
+    orchestratorRoot,
+    progressLogger: progress.logger,
+    codexExecutor: async (request, streamOptions) => {
+      streamOptions?.onStdoutChunk?.("planner live out\n");
+      return {
+        command: "codex",
+        args: [],
+        cwd: orchestratorRoot,
+        stdout: "planner live out\n",
+        stderr: "",
+        exitCode: 0,
+        signal: null,
+        durationMs: 1,
+        success: true,
+        outputLastMessagePath: request.outputLastMessagePath,
+        outputLastMessage: "## DECISION\nBUILD\n\n## FINAL BUILDER PROMPT\nImplement Stage D builder",
+        skipped: false
+      };
+    }
+  });
+  const text = progress.lines.join("\n");
+  assert.match(text, /\[planner\] Codex stream start/);
+  assert.match(text, /\[planner\] Codex stream end/);
+});
+
+test("stream mode emits codex stream boundaries on failed run phase", async () => {
+  const { orchestratorRoot, configPath } = await makeFixture();
+  const progress = makeProgressCapture();
+  await assert.rejects(
+    () =>
+      runStage({
+        stageName: "example-stage",
+        configArg: path.relative(orchestratorRoot, configPath),
+        dryRun: false,
+        executePlanner: true,
+        verbose: false,
+        streamCodex: true,
+        orchestratorRoot,
+        progressLogger: progress.logger,
+        codexExecutor: async (request, streamOptions) => {
+          streamOptions?.onStderrChunk?.("planner live err\n");
+          return {
+            command: "codex",
+            args: [],
+            cwd: orchestratorRoot,
+            stdout: "",
+            stderr: "planner live err\n",
+            exitCode: 2,
+            signal: null,
+            durationMs: 1,
+            success: false,
+            outputLastMessagePath: request.outputLastMessagePath,
+            outputLastMessage: "failed",
+            skipped: false
+          };
+        }
+      }),
+    /Planner execution failed/
+  );
+  const text = progress.lines.join("\n");
+  assert.match(text, /\[planner\] Codex stream start/);
+  assert.match(text, /\[planner\] Codex stream end/);
 });
 
 test("verbose mode includes model and sandbox details", async () => {

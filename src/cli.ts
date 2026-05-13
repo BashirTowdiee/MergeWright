@@ -32,6 +32,7 @@ interface ParsedArgs {
   runChecks: boolean;
   allowWrites: boolean;
   verbose: boolean;
+  streamCodex: boolean;
 }
 
 interface SummaryResult {
@@ -134,7 +135,7 @@ export async function runCommand(
   if (args.command === "run") {
     if (!args.stageName) {
       throw new Error(
-        "Usage: agent-stage run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--dry-run] [--verbose]"
+        "Usage: agent-stage run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--dry-run] [--verbose] [--stream-codex]"
       );
     }
 
@@ -152,6 +153,7 @@ export async function runCommand(
       allowWrites: args.allowWrites,
       preset: args.preset,
       verbose: args.verbose,
+      streamCodex: args.streamCodex,
       orchestratorRoot,
       progressLogger
     });
@@ -177,7 +179,7 @@ export async function runCommand(
   if (args.command === "continue-run") {
     if (!args.runId) {
       throw new Error(
-        "Usage: agent-stage continue-run <run-id> --config <config-path> [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--dry-run] [--verbose]"
+        "Usage: agent-stage continue-run <run-id> --config <config-path> [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--dry-run] [--verbose] [--stream-codex]"
       );
     }
     const result = await continueRun({
@@ -191,6 +193,7 @@ export async function runCommand(
       allowWrites: args.allowWrites,
       dryRun: args.dryRun,
       verbose: args.verbose,
+      streamCodex: args.streamCodex,
       orchestratorRoot,
       progressLogger
     });
@@ -267,7 +270,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
     executeFix: false,
     runChecks: false,
     allowWrites: false,
-    verbose: false
+    verbose: false,
+    streamCodex: false
   };
 
   if (command === "--help" || command === "-h") {
@@ -347,6 +351,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
       parsed.verbose = true;
       continue;
     }
+    if (token === "--stream-codex") {
+      parsed.streamCodex = true;
+      continue;
+    }
     if (token === "--force") {
       if (parsed.command !== "init-project") {
         throw new Error("--force is only supported for init-project");
@@ -409,6 +417,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
 
   if (parsed.allowWrites && parsed.command !== "run" && parsed.command !== "continue-run") {
     throw new Error("--allow-writes is only supported for run and continue-run");
+  }
+  if (parsed.streamCodex && parsed.command !== "run" && parsed.command !== "continue-run") {
+    throw new Error("--stream-codex is only supported for run and continue-run");
   }
 
   if (parsed.command === "run") {
@@ -480,7 +491,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
 function renderHelpText(command?: string): string {
   if (command === "run") {
     return [
-      "Usage: agent-stage run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--dry-run] [--verbose]",
+      "Usage: agent-stage run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--dry-run] [--verbose] [--stream-codex]",
       "",
       "Run options:",
       "  --config <config-path>   Required. No implicit default is used.",
@@ -493,6 +504,7 @@ function renderHelpText(command?: string): string {
       "  --execute-fix            Requires --plan-fix.",
       "  --run-checks             Runs configured checks from config when not dry-run.",
       "  --allow-writes           Enables workspace-write sandbox for builder/fix only (after safety pass).",
+      "  --stream-codex           Streams raw Codex stdout/stderr live while still writing artefacts.",
       "",
       "Safety:",
       "  - Planner/reviewer/review-to-fix stay read-only.",
@@ -503,7 +515,7 @@ function renderHelpText(command?: string): string {
 
   if (command === "continue-run") {
     return [
-      "Usage: agent-stage continue-run <run-id> --config <config-path> [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--dry-run] [--verbose]",
+      "Usage: agent-stage continue-run <run-id> --config <config-path> [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--dry-run] [--verbose] [--stream-codex]",
       "",
       "Continuation options:",
       "  --config <config-path>   Required. No implicit default is used.",
@@ -514,6 +526,7 @@ function renderHelpText(command?: string): string {
       "  --execute-fix            Continue fix execution phase for this run.",
       "  --run-checks             Continue configured checks for this run.",
       "  --allow-writes           Enables workspace-write sandbox for builder/fix only (after safety pass).",
+      "  --stream-codex           Streams raw Codex stdout/stderr live while still writing artefacts.",
       "",
       "Limitations:",
       "  - Planner continuation is not supported.",

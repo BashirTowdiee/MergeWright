@@ -6,6 +6,10 @@ export interface ProgressLogger {
   phaseSkipped(phase: string, reason: string): void;
   phaseFailed(phase: string, error: unknown): void;
   artefact(label: string, path: string): void;
+  codexStreamStart(phase: string): void;
+  codexStdout(chunk: string): void;
+  codexStderr(chunk: string): void;
+  codexStreamEnd(phase: string): void;
 }
 
 export const NOOP_PROGRESS_LOGGER: ProgressLogger = {
@@ -15,7 +19,11 @@ export const NOOP_PROGRESS_LOGGER: ProgressLogger = {
   phaseComplete: () => {},
   phaseSkipped: () => {},
   phaseFailed: () => {},
-  artefact: () => {}
+  artefact: () => {},
+  codexStreamStart: () => {},
+  codexStdout: () => {},
+  codexStderr: () => {},
+  codexStreamEnd: () => {}
 };
 
 export function createProgressLogger(
@@ -47,6 +55,20 @@ export function createProgressLogger(
     },
     artefact(label: string, filePath: string): void {
       writeLine(`[artefact] ${label}: ${filePath}`);
+    },
+    codexStreamStart(phase: string): void {
+      writeLine(`[${phase}] Codex stream start`);
+      writeLine("────────────────────────────────");
+    },
+    codexStdout(chunk: string): void {
+      process.stdout.write(chunk);
+    },
+    codexStderr(chunk: string): void {
+      process.stderr.write(chunk);
+    },
+    codexStreamEnd(phase: string): void {
+      writeLine("────────────────────────────────");
+      writeLine(`[${phase}] Codex stream end`);
     }
   };
 }

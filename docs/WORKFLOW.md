@@ -118,7 +118,7 @@ Primary inspection flow:
 2. Open the run directory (`open-run` on macOS).
 3. Inspect phase-specific files (`*-stdout.log`, `*-stderr.log`, `*-exit.json`, prompt previews, parse outputs).
 
-Terminal progress output is intentionally concise and does not stream full Codex stdout/stderr. Use run artefacts for full logs.
+Terminal progress output is intentionally concise by default and does not stream full Codex stdout/stderr. Use `--stream-codex` when you want live raw Codex output while keeping artefacts, or inspect run artefacts for full logs.
 
 ## What To Commit Manually
 
