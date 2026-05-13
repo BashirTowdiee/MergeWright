@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "projectName": "acme",
+  "workspaceRoot": "/absolute/path/to/target/repo",
+  "paths": {
+    "stagesDir": "stages/acme",
+    "promptsDir": "prompts",
+    "runsDir": "runs/acme"
+  },
+  "codex": {
+    "planner": { "model": "gpt-5.3-codex", "reasoningEffort": "high" },
+    "builder": { "model": "gpt-5.3-codex", "reasoningEffort": "medium" },
+    "reviewer": { "model": "gpt-5.3-codex", "reasoningEffort": "high" }
+  },
+  "pipeline": {
+    "finalReview": true,
+    "maxFixLoops": 1
+  },
+  "commands": {
+    "checks": []
+  },
+  "safety": {
+    "requireGitRepo": true,
+    "requireCleanStart": true,
+    "manualCommit": true,
+    "forbidAutoCommit": true,
+    "forbidAutoPush": true
+  },
+  "writeSafety": {
+    "enabled": false,
+    "allowedBranches": ["feature/*", "bugfix/*", "chore/*"],
+    "blockedPaths": [
+      ".git/",
+      ".env",
+      ".env.*",
+      "*.p12",
+      "*.mobileprovision",
+      "fastlane/",
+      "DistributionKit/"
+    ],
+    "requireCleanWorkingTree": true,
+    "requireExplicitAllowWrites": true,
+    "captureDiffBeforeAfter": true,
+    "requireReviewAfterWrites": true,
+    "autoCommit": false,
+    "autoPush": false
+  }
+}

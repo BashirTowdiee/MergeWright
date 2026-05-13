@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "projectName": "example",
+  "workspaceRoot": "/absolute/path/to/target/repo",
+  "paths": {
+    "stagesDir": "stages/example",
+    "promptsDir": "prompts",
+    "runsDir": "runs/example"
+  },
+  "codex": {
+    "planner": { "model": "gpt-5.3-codex", "reasoningEffort": "high" },
+    "builder": { "model": "gpt-5.3-codex", "reasoningEffort": "medium" },
+    "reviewer": { "model": "gpt-5.3-codex", "reasoningEffort": "high" }
+  },
+  "pipeline": {
+    "finalReview": true,
+    "maxFixLoops": 1
+  },
+  "commands": {
+    "checks": [
+      {
+        "name": "orchestrator-build",
+        "command": "npm",
+        "args": ["run", "build"],
+        "cwd": "orchestrator"
+      }
+    ]
+  },
+  "safety": {
+    "requireGitRepo": true,
+    "requireCleanStart": true,
+    "manualCommit": true,
+    "forbidAutoCommit": true,
+    "forbidAutoPush": true
+  },
+  "writeSafety": {
+    "enabled": false,
+    "allowedBranches": ["feature/*", "bugfix/*", "chore/*"],
+    "blockedPaths": [
+      ".git/",
+      ".env",
+      ".env.*",
+      "*.p12",
+      "*.mobileprovision",
+      "fastlane/",
+      "DistributionKit/"
+    ],
+    "requireCleanWorkingTree": true,
+    "requireExplicitAllowWrites": true,
+    "captureDiffBeforeAfter": true,
+    "requireReviewAfterWrites": true,
+    "autoCommit": false,
+    "autoPush": false
+  }
+}

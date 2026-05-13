@@ -1,0 +1,12 @@
+node_modules/
+dist/
+runs/*
+!runs/.gitkeep
+.env
+*.log
+configs/*.json
+!configs/*.example.json
+project-data/
+test-data/
+configs/*.local.json
+configs/*.private.json

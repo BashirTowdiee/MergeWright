@@ -1,0 +1,19 @@
+{
+  "name": "agent-stage-orchestrator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Standalone read-only Codex CLI orchestrator with staged runs, continuation, and run inspection.",
+  "type": "module",
+  "bin": {
+    "agent-stage": "dist/src/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/test/**/*.test.js",
+    "agent": "npm run build && node dist/src/cli.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.29",
+    "typescript": "^5.8.3"
+  }
+}
