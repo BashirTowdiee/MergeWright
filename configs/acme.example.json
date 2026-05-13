@@ -32,11 +32,7 @@
     "blockedPaths": [
       ".git/",
       ".env",
-      ".env.*",
-      "*.p12",
-      "*.mobileprovision",
-      "fastlane/",
-      "DistributionKit/"
+      ".env.*"
     ],
     "requireCleanWorkingTree": true,
     "requireExplicitAllowWrites": true,
