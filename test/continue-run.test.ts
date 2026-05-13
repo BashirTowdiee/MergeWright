@@ -5,10 +5,19 @@ import os from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { createProgressLogger } from "../src/progress-logger.js";
 import { continueRun } from "../src/continue-run.js";
 import type { RunMetadata } from "../src/run-metadata.js";
 
 const execFileAsync = promisify(execFile);
+
+function makeProgressCapture(verbose = false): { lines: string[]; logger: ReturnType<typeof createProgressLogger> } {
+  const lines: string[] = [];
+  return {
+    lines,
+    logger: createProgressLogger((line) => lines.push(line), { verbose })
+  };
+}
 
 async function makeFixture(): Promise<{ orchestratorRoot: string; configArg: string; runId: string; runDir: string; workspaceRoot: string }> {
   const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "orchestrator-continue-"));
@@ -167,6 +176,81 @@ test("builder continuation executes and updates metadata", async () => {
   const runMetadata = JSON.parse(await readFile(path.join(fx.runDir, "run.json"), "utf8")) as RunMetadata;
   assert.equal(runMetadata.phases.builder.status, "executed");
   assert.equal(runMetadata.status, "success");
+});
+
+test("continue-run emits phase progress logs", async () => {
+  const fx = await makeFixture();
+  const progress = makeProgressCapture();
+
+  await continueRun({
+    runId: fx.runId,
+    configArg: fx.configArg,
+    executeBuilder: true,
+    dryRun: false,
+    verbose: false,
+    orchestratorRoot: fx.orchestratorRoot,
+    progressLogger: progress.logger,
+    codexExecutor: async (request) => ({
+      command: "codex",
+      args: [],
+      cwd: fx.orchestratorRoot,
+      stdout: "builder stdout marker",
+      stderr: "builder stderr marker",
+      exitCode: 0,
+      signal: null,
+      durationMs: 1,
+      success: true,
+      outputLastMessagePath: request.outputLastMessagePath,
+      outputLastMessage: "builder result",
+      skipped: false
+    })
+  });
+
+  const text = progress.lines.join("\n");
+  assert.match(text, /Continuing run: /);
+  assert.match(text, /\[builder\] starting/);
+  assert.match(text, /\[builder\] waiting for Codex\.\.\./);
+  assert.match(text, /\[builder\] completed in /);
+  assert.match(text, /Run completed successfully/);
+  assert.doesNotMatch(text, /builder stdout marker/);
+  assert.doesNotMatch(text, /builder stderr marker/);
+});
+
+test("continue-run failure logs include failed phase and diagnostics", async () => {
+  const fx = await makeFixture();
+  const progress = makeProgressCapture();
+
+  await assert.rejects(
+    () =>
+      continueRun({
+        runId: fx.runId,
+        configArg: fx.configArg,
+        executeBuilder: true,
+        dryRun: false,
+        verbose: false,
+        orchestratorRoot: fx.orchestratorRoot,
+        progressLogger: progress.logger,
+        codexExecutor: async (request) => ({
+          command: "codex",
+          args: [],
+          cwd: fx.orchestratorRoot,
+          stdout: "",
+          stderr: "",
+          exitCode: 2,
+          signal: null,
+          durationMs: 1,
+          success: false,
+          outputLastMessagePath: request.outputLastMessagePath,
+          outputLastMessage: "builder failure",
+          skipped: false
+        })
+      }),
+    /Builder execution failed/
+  );
+
+  const text = progress.lines.join("\n");
+  assert.match(text, /Run failed during phase: builder/);
+  assert.match(text, /Diagnostics: /);
 });
 
 test("builder continuation fails if already executed", async () => {

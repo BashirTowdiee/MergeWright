@@ -5,10 +5,19 @@ import os from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { createProgressLogger } from "../src/progress-logger.js";
 import { runStage } from "../src/runner.js";
 import type { CodexExecutionResult } from "../src/codex.js";
 
 const execFileAsync = promisify(execFile);
+
+function makeProgressCapture(verbose = false): { lines: string[]; logger: ReturnType<typeof createProgressLogger> } {
+  const lines: string[] = [];
+  return {
+    lines,
+    logger: createProgressLogger((line) => lines.push(line), { verbose })
+  };
+}
 
 async function makeFixture(options?: {
   runsDir?: string;
@@ -327,6 +336,205 @@ test("executePlanner + executeBuilder + executeReviewer + dry-run skips all exec
   const content = await readFile(sentinel, "utf8");
   assert.equal(content, "initial");
   await assert.rejects(access(path.join(workspaceRoot, "runs")));
+});
+
+test("dry-run emits phase progress logs and completion summary", async () => {
+  const { orchestratorRoot, configPath } = await makeFixture();
+  const progress = makeProgressCapture();
+
+  await runStage({
+    stageName: "example-stage",
+    configArg: path.relative(orchestratorRoot, configPath),
+    dryRun: true,
+    executePlanner: true,
+    executeBuilder: true,
+    executeReviewer: true,
+    planFix: true,
+    executeFix: true,
+    runChecks: true,
+    verbose: false,
+    orchestratorRoot,
+    progressLogger: progress.logger
+  });
+
+  const text = progress.lines.join("\n");
+  assert.match(text, /Running stage: example-stage/);
+  assert.match(text, /\[planner\] skipped by dry-run/);
+  assert.match(text, /\[builder\] skipped by dry-run/);
+  assert.match(text, /\[reviewer\] skipped by dry-run/);
+  assert.match(text, /\[fix-planning\] skipped by dry-run/);
+  assert.match(text, /\[fix\] skipped by dry-run/);
+  assert.match(text, /\[checks\] skipped by dry-run/);
+  assert.match(text, /Run dry-run completed/);
+});
+
+test("phase logs show codex waiting and do not include codex stdout/stderr payloads", async () => {
+  const { orchestratorRoot, configPath } = await makeFixture();
+  const progress = makeProgressCapture();
+  const stdoutMarker = "planner-stdout-should-not-be-printed";
+  const stderrMarker = "builder-stderr-should-not-be-printed";
+  let calls = 0;
+
+  await runStage({
+    stageName: "example-stage",
+    configArg: path.relative(orchestratorRoot, configPath),
+    dryRun: false,
+    executePlanner: true,
+    executeBuilder: true,
+    executeReviewer: true,
+    verbose: false,
+    orchestratorRoot,
+    progressLogger: progress.logger,
+    codexExecutor: async (request) => {
+      calls += 1;
+      if (request.role === "planner") {
+        return {
+          command: "codex",
+          args: ["exec", "planner"],
+          cwd: orchestratorRoot,
+          stdout: stdoutMarker,
+          stderr: "",
+          exitCode: 0,
+          signal: null,
+          durationMs: 10,
+          success: true,
+          outputLastMessagePath: request.outputLastMessagePath,
+          outputLastMessage: "## DECISION\nBUILD\n\n## FINAL BUILDER PROMPT\nImplement Stage D builder",
+          skipped: false
+        };
+      }
+      if (request.role === "builder") {
+        return {
+          command: "codex",
+          args: ["exec", "builder"],
+          cwd: orchestratorRoot,
+          stdout: "",
+          stderr: stderrMarker,
+          exitCode: 0,
+          signal: null,
+          durationMs: 10,
+          success: true,
+          outputLastMessagePath: request.outputLastMessagePath,
+          outputLastMessage: "builder output",
+          skipped: false
+        };
+      }
+      return {
+        command: "codex",
+        args: ["exec", "reviewer"],
+        cwd: orchestratorRoot,
+        stdout: "reviewer stdout marker",
+        stderr: "reviewer stderr marker",
+        exitCode: 0,
+        signal: null,
+        durationMs: 10,
+        success: true,
+        outputLastMessagePath: request.outputLastMessagePath,
+        outputLastMessage: "review output",
+        skipped: false
+      };
+    }
+  });
+
+  assert.equal(calls, 3);
+  const text = progress.lines.join("\n");
+  assert.match(text, /\[planner\] waiting for Codex\.\.\./);
+  assert.match(text, /\[builder\] waiting for Codex\.\.\./);
+  assert.match(text, /\[reviewer\] waiting for Codex\.\.\./);
+  assert.match(text, /\[planner\] completed in /);
+  assert.match(text, /\[builder\] completed in /);
+  assert.match(text, /\[reviewer\] completed in /);
+  assert.doesNotMatch(text, new RegExp(stdoutMarker));
+  assert.doesNotMatch(text, new RegExp(stderrMarker));
+});
+
+test("verbose mode includes model and sandbox details", async () => {
+  const { orchestratorRoot, configPath } = await makeFixture();
+  const progress = makeProgressCapture(true);
+
+  await runStage({
+    stageName: "example-stage",
+    configArg: path.relative(orchestratorRoot, configPath),
+    dryRun: false,
+    executePlanner: true,
+    verbose: true,
+    orchestratorRoot,
+    progressLogger: progress.logger,
+    codexExecutor: async (request) => ({
+      command: "codex",
+      args: [],
+      cwd: orchestratorRoot,
+      stdout: "",
+      stderr: "",
+      exitCode: 0,
+      signal: null,
+      durationMs: 1,
+      success: true,
+      outputLastMessagePath: request.outputLastMessagePath,
+      outputLastMessage: "## DECISION\nBUILD\n\n## FINAL BUILDER PROMPT\nImplement Stage D builder",
+      skipped: false
+    })
+  });
+
+  const text = progress.lines.join("\n");
+  assert.match(text, /Config: /);
+  assert.match(text, /planner model=gpt-5\.3-codex reasoning=high sandbox=read-only/);
+});
+
+test("failure logs include failed phase and diagnostics path", async () => {
+  const { orchestratorRoot, configPath } = await makeFixture();
+  const progress = makeProgressCapture();
+
+  await assert.rejects(
+    () =>
+      runStage({
+        stageName: "example-stage",
+        configArg: path.relative(orchestratorRoot, configPath),
+        dryRun: false,
+        executePlanner: true,
+        executeBuilder: true,
+        verbose: false,
+        orchestratorRoot,
+        progressLogger: progress.logger,
+        codexExecutor: async (request) => {
+          if (request.role === "planner") {
+            return {
+              command: "codex",
+              args: [],
+              cwd: orchestratorRoot,
+              stdout: "",
+              stderr: "",
+              exitCode: 0,
+              signal: null,
+              durationMs: 1,
+              success: true,
+              outputLastMessagePath: request.outputLastMessagePath,
+              outputLastMessage: "## DECISION\nBUILD\n\n## FINAL BUILDER PROMPT\nImplement Stage D builder",
+              skipped: false
+            };
+          }
+          return {
+            command: "codex",
+            args: [],
+            cwd: orchestratorRoot,
+            stdout: "",
+            stderr: "",
+            exitCode: 2,
+            signal: null,
+            durationMs: 1,
+            success: false,
+            outputLastMessagePath: request.outputLastMessagePath,
+            outputLastMessage: "builder failure",
+            skipped: false
+          };
+        }
+      }),
+    /Builder execution failed/
+  );
+
+  const text = progress.lines.join("\n");
+  assert.match(text, /Run failed during phase: builder/);
+  assert.match(text, /Diagnostics: /);
 });
 
 test("planner execution only extracts builder prompt, renders reviewer preview, and does not call builder/reviewer executor", async () => {

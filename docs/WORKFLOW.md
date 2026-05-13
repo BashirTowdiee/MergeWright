@@ -29,6 +29,7 @@ npm run agent -- run stage-01-example --config configs/my-app.json --preset plan
 ```
 
 Use this when you want planner extraction and artefact generation before requesting later phases.
+The command now prints live phase progress so long-running Codex/check steps do not appear idle.
 
 ## D) Inspect The Run
 
@@ -116,6 +117,8 @@ Primary inspection flow:
 1. Use `show-run` for summary and warnings.
 2. Open the run directory (`open-run` on macOS).
 3. Inspect phase-specific files (`*-stdout.log`, `*-stderr.log`, `*-exit.json`, prompt previews, parse outputs).
+
+Terminal progress output is intentionally concise and does not stream full Codex stdout/stderr. Use run artefacts for full logs.
 
 ## What To Commit Manually
 

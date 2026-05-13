@@ -4,6 +4,7 @@ import { executeCheckCommand, resolveCheckCommandCwd } from "./commands.js";
 import { executeCodex, type CodexExecutor } from "./codex.js";
 import { loadAndValidateConfig, resolveConfigPath } from "./config.js";
 import { loadPromptTemplates, renderTemplate, type TemplateVariables } from "./prompts.js";
+import { formatDurationMs, NOOP_PROGRESS_LOGGER, type ProgressLogger } from "./progress-logger.js";
 import { parseReviewToFixOutput } from "./review-to-fix-output.js";
 import { captureWriteAuditPostStateAndWriteArtefacts, captureWriteAuditPreState } from "./write-audit.js";
 import { markRunFailure, markRunSuccess, toRunRelativePath, updateRunPhase, writeRunMetadata, type RunMetadata, type RunPhaseName, type RunPhaseStatus } from "./run-metadata.js";
@@ -22,6 +23,7 @@ export interface ContinueOptions {
   dryRun: boolean;
   verbose: boolean;
   orchestratorRoot: string;
+  progressLogger?: ProgressLogger;
   codexExecutor?: CodexExecutor;
   writeAuditPreCapture?: typeof captureWriteAuditPreState;
   writeAuditPostCapture?: typeof captureWriteAuditPostStateAndWriteArtefacts;
@@ -51,7 +53,9 @@ const VALID_RUN_STATUSES = new Set<RunMetadata["status"]>(["running", "success",
 const VALID_PHASE_STATUSES = new Set<RunPhaseStatus>(["unknown", "disabled", "skipped", "executed", "failed"]);
 
 export async function continueRun(options: ContinueOptions): Promise<ContinueResult> {
+  const progressLogger = options.progressLogger ?? NOOP_PROGRESS_LOGGER;
   validateRunId(options.runId);
+  progressLogger.info(`Continuing run: ${options.runId}`);
   const selected = selectedPhases(options);
   if (selected.length === 0) {
     throw new Error("continue-run requires at least one phase flag. Supported flags: --execute-builder, --execute-reviewer, --plan-fix, --execute-fix, --run-checks.");
@@ -66,12 +70,18 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
   }
 
   const orchestratorRoot = path.resolve(options.orchestratorRoot);
+  progressLogger.phaseStart("setup", "loading config");
   const configPath = resolveConfigPath(orchestratorRoot, options.configArg);
   const config = await loadAndValidateConfig(configPath);
+  progressLogger.verbose(`Config: ${configPath}`);
   const runsRoot = resolveRunsRoot(orchestratorRoot, config);
+  progressLogger.phaseStart("setup", "loading run metadata");
   const runDir = resolveRunDir(runsRoot, options.runId);
   const metadata = await readRequiredRunMetadata(runDir, options.runId);
   assertRunOwnership(metadata, runDir, runsRoot, config.projectName);
+  progressLogger.phaseComplete("setup", `run directory: ${runDir}`);
+  progressLogger.info(`Target: ${metadata.workspaceRoot}`);
+  progressLogger.info(`[continue] selected phases: ${selected.join(", ")}`);
   const projectedMetadata = cloneMetadata(metadata);
   metadata.writeAudit = metadata.writeAudit ?? { builder: { status: "not-applicable" }, fix: { status: "not-applicable" } };
   metadata.postWriteReview = metadata.postWriteReview ?? {
@@ -139,33 +149,40 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
     if (!allowWrites || options.dryRun || writeSafetyChecked) {
       if (allowWrites && options.dryRun) {
         writeSafetyState = "skipped by dry-run";
+        progressLogger.phaseSkipped("write-safety", "skipped by dry-run");
       }
       return;
     }
+    progressLogger.phaseStart("write-safety", "checking target workspace");
     if (!config.writeSafety.enabled) {
       writeSafetyState = "failed";
       const result = { ok: false, failures: ["writeSafety.enabled is false"], summary: "Write safety check failed." };
       await writeJson(runDir, "write-safety-result.json", result, artefacts, true);
+      progressLogger.artefact("write safety result", path.resolve(runDir, "write-safety-result.json"));
       try {
         await persistWriteSafetyState(writeSafetyState, "writeSafety.enabled is false", ["write-safety-result.json"]);
       } catch {
         // preserve original safety error
       }
+      progressLogger.phaseFailed("write-safety", "writeSafety.enabled is false");
       throw new Error("Write mode requested but writeSafety.enabled is false.");
     }
     const result = await checkWriteSafety({ workspaceRoot: metadata.workspaceRoot, config });
     writeSafetyChecked = true;
     writeSafetyState = result.ok ? "passed" : "failed";
     await writeJson(runDir, "write-safety-result.json", result, artefacts, true);
+    progressLogger.artefact("write safety result", path.resolve(runDir, "write-safety-result.json"));
     if (!result.ok) {
       try {
         await persistWriteSafetyState(writeSafetyState, "write safety checks failed", ["write-safety-result.json"]);
       } catch {
         // preserve original safety error
       }
+      progressLogger.phaseFailed("write-safety", "checks failed");
       throw new Error("Write mode blocked: write safety checks failed. See write-safety-result.json.");
     }
     await persistWriteSafetyState(writeSafetyState, undefined, ["write-safety-result.json"]);
+    progressLogger.phaseComplete("write-safety", "passed");
   };
   const mergeRequiredByPhases = (
     existing: Array<"builder" | "fixExecution">,
@@ -183,6 +200,7 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
       requiredByPhases,
       artefacts: ["post-write-review-required.json", "post-write-review-status.json"]
     };
+    progressLogger.phaseStart("post-write-review", `pending (${requiredByPhases.join(", ")})`);
     if (!options.dryRun) {
       await writeJson(runDir, "post-write-review-required.json", {
         required: true,
@@ -202,6 +220,7 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
       reason: "reviewer executed after write-enabled builder/fix",
       artefacts: ["post-write-review-required.json", "post-write-review-status.json"]
     };
+    progressLogger.phaseComplete("post-write-review", "completed");
     if (!options.dryRun) {
       await writeJson(runDir, "post-write-review-status.json", { status: "completed", reason: metadata.postWriteReview.reason }, artefacts, true);
       await metadataWriter(runDir, metadata);
@@ -215,6 +234,7 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
       reason,
       artefacts: ["post-write-review-required.json", "post-write-review-status.json"]
     };
+    progressLogger.phaseFailed("post-write-review", reason);
     if (!options.dryRun) {
       await writeJson(runDir, "post-write-review-status.json", { status: "failed", reason }, artefacts, true);
       await metadataWriter(runDir, metadata);
@@ -236,6 +256,7 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
   try {
     if (allowWrites && options.dryRun) {
       writeSafetyState = "skipped by dry-run";
+      progressLogger.phaseSkipped("write-safety", "skipped by dry-run");
     }
     if (allowWrites) {
       await persistWriteSafetyState(writeSafetyState, options.dryRun ? "dryRun=true" : undefined);
@@ -245,17 +266,20 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
     if (needsPromptTemplates) {
       const promptsDir = path.resolve(orchestratorRoot, config.paths.promptsDir);
       templates = await loadPromptTemplates(promptsDir);
+      progressLogger.verbose(`Prompts dir: ${promptsDir}`);
     }
 
     for (const phase of ORDERED_PHASES) {
       if (!selected.includes(phase)) continue;
 
       if (phase === "builder") {
+        progressLogger.phaseStart("builder");
         ensurePlannerExecuted(projectedMetadata);
         ensurePhaseNotExecuted(projectedMetadata, "builder", "Builder");
         await assertArtefactExists(runDir, "builder-prompt.extracted.md", "Builder continuation requires extracted builder prompt artefact.");
         await assertArtefactsAbsent(runDir, ["builder-command.json", "builder-stdout.log", "builder-stderr.log", "builder-output-last-message.md", "builder-exit.json", "builder-prompt.executed.md"], "Builder");
         if (options.dryRun) {
+          progressLogger.phaseSkipped("builder", "skipped by dry-run");
           projectedMetadata.phases.builder = { ...projectedMetadata.phases.builder, status: "executed" };
           if (allowWrites) {
             projectedMetadata.postWriteReview = {
@@ -272,17 +296,22 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         if (allowWrites) {
           await ensureWriteSafetyIfNeeded();
         }
+        progressLogger.verbose(`builder model=${config.codex.builder.model} reasoning=${config.codex.builder.reasoningEffort} sandbox=${allowWrites ? "workspace-write" : "read-only"}`);
         failedPhase = "builder";
         let builderAudit: Awaited<ReturnType<typeof captureWriteAuditPreState>> | undefined;
         if (allowWrites) {
           try {
+            progressLogger.phaseStart("write-audit:builder", "capturing pre-write state");
             builderAudit = await writeAuditPreCapture({ phase: "builder", workspaceRoot: metadata.workspaceRoot });
+            progressLogger.phaseComplete("write-audit:builder", "pre-write captured");
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             const preCaptureError = new Error(`Builder write-audit pre-capture failed: ${message}`);
             metadata.writeAudit = metadata.writeAudit ?? { builder: { status: "not-applicable" }, fix: { status: "not-applicable" } };
             metadata.writeAudit.builder = { status: "failed", reason: `pre-capture failed: ${message}` };
             await bestEffortPhaseFailure("builder", "builder write-audit pre-capture failed");
+            progressLogger.phaseFailed("write-audit:builder", preCaptureError);
+            progressLogger.phaseFailed("builder", preCaptureError);
             throw preCaptureError;
           }
         }
@@ -292,6 +321,7 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         await updatePhase("builder", "unknown");
         const prompt = await readText(path.resolve(runDir, "builder-prompt.extracted.md"));
         const outputPath = path.resolve(runDir, "builder-output-last-message.md");
+        progressLogger.info("[builder] waiting for Codex...");
         const result = await codexExecutor({
           prompt,
           role: "builder",
@@ -313,9 +343,12 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         await writeJson(runDir, "builder-exit.json", { success: result.success, code: result.exitCode, signal: result.signal, durationMs: result.durationMs, skipped: false }, artefacts, false);
         if (builderAudit) {
           try {
+            progressLogger.phaseStart("write-audit:builder", "capturing post-write state");
             const summary = await writeAuditPostCapture({ runDir, capture: builderAudit });
             metadata.writeAudit = metadata.writeAudit ?? { builder: { status: "not-applicable" }, fix: { status: "not-applicable" } };
             metadata.writeAudit.builder = { status: "captured", artefacts: summary.artefacts, changedFiles: summary.changedFilesAddedByPhase };
+            progressLogger.phaseComplete("write-audit:builder", "post-write captured");
+            progressLogger.artefact("write-audit:builder summary", path.resolve(runDir, "write-audit/builder/summary.json"));
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             builderAuditError = new Error(`Builder write-audit capture failed: ${message}`);
@@ -329,20 +362,26 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         }
         if (builderAuditError) {
           await bestEffortPhaseFailure("builder", "builder write-audit capture failed", ["builder-exit.json"]);
+          progressLogger.phaseFailed("write-audit:builder", builderAuditError);
+          progressLogger.phaseFailed("builder", builderExecutionError ?? builderAuditError);
           throw builderExecutionError ?? builderAuditError;
         }
         if (builderExecutionError) {
           await bestEffortPhaseFailure("builder", "builder execution failed", ["builder-exit.json"]);
+          progressLogger.phaseFailed("builder", builderExecutionError);
           throw builderExecutionError;
         }
         await updatePhase("builder", "executed", undefined, ["builder-command.json", "builder-prompt.executed.md", "builder-stdout.log", "builder-stderr.log", "builder-output-last-message.md", "builder-exit.json"]);
         if (allowWrites) {
           await setPostWriteReviewPending(["builder"]);
         }
+        progressLogger.phaseComplete("builder", `completed in ${formatDurationMs(result.durationMs)}`);
+        progressLogger.artefact("builder output", path.resolve(runDir, "builder-output-last-message.md"));
         continue;
       }
 
       if (phase === "reviewer") {
+        progressLogger.phaseStart("reviewer");
         ensurePlannerExecuted(projectedMetadata);
         ensurePhaseNotExecuted(projectedMetadata, "reviewer", "Reviewer");
         await assertArtefactsAbsent(runDir, ["reviewer-command.json", "reviewer-stdout.log", "reviewer-stderr.log", "reviewer-output-last-message.md", "reviewer-exit.json"], "Reviewer");
@@ -353,6 +392,7 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
           runDir
         );
         if (options.dryRun) {
+          progressLogger.phaseSkipped("reviewer", "skipped by dry-run");
           projectedMetadata.phases.reviewer = { ...projectedMetadata.phases.reviewer, status: "executed" };
           if (projectedMetadata.postWriteReview.required && projectedMetadata.postWriteReview.status === "pending") {
             projectedMetadata.postWriteReview = {
@@ -366,8 +406,10 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         }
 
         failedPhase = "reviewer";
+        progressLogger.verbose(`reviewer model=${config.codex.reviewer.model} reasoning=${config.codex.reviewer.reasoningEffort} sandbox=read-only`);
         await updatePhase("reviewer", "unknown");
         const outputPath = path.resolve(runDir, "reviewer-output-last-message.md");
+        progressLogger.info("[reviewer] waiting for Codex...");
         const result = await codexExecutor({
           prompt: reviewerPrompt,
           role: "reviewer",
@@ -387,7 +429,9 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
             await setPostWriteReviewFailed("reviewer execution failed");
           }
           await bestEffortPhaseFailure("reviewer", "reviewer execution failed", ["reviewer-exit.json"]);
-          throw new Error(`Reviewer execution failed with exit code ${result.exitCode ?? "null"}${result.signal ? ` signal ${result.signal}` : ""}. Diagnostics written to ${runDir}`);
+          const reviewerError = new Error(`Reviewer execution failed with exit code ${result.exitCode ?? "null"}${result.signal ? ` signal ${result.signal}` : ""}. Diagnostics written to ${runDir}`);
+          progressLogger.phaseFailed("reviewer", reviewerError);
+          throw reviewerError;
         }
 
         await writeText(runDir, "08-reviewer-prompt.preview.md", reviewerPrompt, artefacts, true);
@@ -400,11 +444,15 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         await updatePhase("reviewer", "executed", undefined, ["reviewer-command.json", "reviewer-stdout.log", "reviewer-stderr.log", "reviewer-output-last-message.md", "reviewer-exit.json"]);
         if (metadata.postWriteReview.required && metadata.postWriteReview.status === "pending") {
           await setPostWriteReviewCompleted();
+          progressLogger.phaseComplete("post-write-review", "completed");
         }
+        progressLogger.phaseComplete("reviewer", `completed in ${formatDurationMs(result.durationMs)}`);
+        progressLogger.artefact("reviewer output", path.resolve(runDir, "reviewer-output-last-message.md"));
         continue;
       }
 
       if (phase === "fixPlanning") {
+        progressLogger.phaseStart("fix-planning");
         ensurePhaseExecuted(projectedMetadata, "reviewer", "--plan-fix requires reviewer phase executed.");
         ensurePhaseNotExecuted(projectedMetadata, "fixPlanning", "Fix planning");
         const reviewerProjectedInThisDryRun =
@@ -416,13 +464,16 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
 
         const reviewToFixPrompt = await renderReviewToFixPromptForContinuation(templates?.["review-to-fix.md"] ?? "", projectedMetadata, runDir);
         if (options.dryRun) {
+          progressLogger.phaseSkipped("fix-planning", "skipped by dry-run");
           projectedMetadata.phases.fixPlanning = { ...projectedMetadata.phases.fixPlanning, status: "executed" };
           continue;
         }
 
         failedPhase = "fixPlanning";
+        progressLogger.verbose(`fix-planning model=${config.codex.planner.model} reasoning=${config.codex.planner.reasoningEffort} sandbox=read-only`);
         await updatePhase("fixPlanning", "unknown");
         const outputPath = path.resolve(runDir, "review-to-fix-output-last-message.md");
+        progressLogger.info("[fix-planning] waiting for Codex...");
         const result = await codexExecutor({
           prompt: reviewToFixPrompt,
           role: "planner",
@@ -439,7 +490,9 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         if (!result.success) {
           await writeJson(runDir, "review-to-fix-exit.json", { success: false, code: result.exitCode, signal: result.signal, durationMs: result.durationMs, skipped: false }, artefacts, false);
           await bestEffortPhaseFailure("fixPlanning", "review-to-fix execution failed", ["review-to-fix-exit.json"]);
-          throw new Error(`Review-to-fix execution failed with exit code ${result.exitCode ?? "null"}${result.signal ? ` signal ${result.signal}` : ""}. Diagnostics written to ${runDir}`);
+          const fixPlanError = new Error(`Review-to-fix execution failed with exit code ${result.exitCode ?? "null"}${result.signal ? ` signal ${result.signal}` : ""}. Diagnostics written to ${runDir}`);
+          progressLogger.phaseFailed("fix-planning", fixPlanError);
+          throw fixPlanError;
         }
 
         await writeText(runDir, "09-review-to-fix-prompt.preview.md", reviewToFixPrompt, artefacts, true);
@@ -453,15 +506,19 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         await writeJson(runDir, "review-to-fix-decision.json", { decision: parsed.decision, rationale: parsed.rationale }, artefacts, false);
         if (parsed.decision === "FIX_REQUIRED") {
           await writeText(runDir, "fix-prompt.extracted.md", parsed.finalFixPrompt ?? "", artefacts, false);
+          progressLogger.artefact("extracted fix prompt", path.resolve(runDir, "fix-prompt.extracted.md"));
         } else {
           await writeJson(runDir, "review-to-fix-decision.proceed.json", { proceed: true }, artefacts, false);
         }
 
         await updatePhase("fixPlanning", "executed", undefined, ["review-to-fix-command.json", "review-to-fix-stdout.log", "review-to-fix-stderr.log", "review-to-fix-output-last-message.md", "review-to-fix-exit.json", "review-to-fix-decision.json"]);
+        progressLogger.phaseComplete("fix-planning", `completed in ${formatDurationMs(result.durationMs)}`);
+        progressLogger.artefact("fix-planning output", path.resolve(runDir, "review-to-fix-output-last-message.md"));
         continue;
       }
 
       if (phase === "fixExecution") {
+        progressLogger.phaseStart("fix");
         ensurePhaseExecuted(projectedMetadata, "fixPlanning", "--execute-fix requires fixPlanning phase executed.");
         ensurePhaseNotExecuted(projectedMetadata, "fixExecution", "Fix execution");
         const fixPlanningProjectedInThisDryRun =
@@ -471,6 +528,7 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
           if (decision === "PROCEED") {
             skippedFixBecauseProceed = true;
             projectedMetadata.phases.fixExecution = { ...projectedMetadata.phases.fixExecution, status: "skipped" };
+            progressLogger.phaseSkipped("fix", "skipped because proceed");
           } else {
             projectedMetadata.phases.fixExecution = { ...projectedMetadata.phases.fixExecution, status: "executed" };
             if (allowWrites) {
@@ -484,6 +542,9 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
               };
             }
           }
+          if (decision !== "PROCEED") {
+            progressLogger.phaseSkipped("fix", "skipped by dry-run");
+          }
           continue;
         }
 
@@ -491,22 +552,28 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
           skippedFixBecauseProceed = true;
           await updatePhase("fixExecution", "skipped", "fix execution skipped because review-to-fix decision was PROCEED");
           await writeJson(runDir, "fix-skipped.json", { skipped: true, reason: "review-to-fix decision was PROCEED" }, artefacts, false);
+          progressLogger.phaseSkipped("fix", "skipped because proceed");
           continue;
         }
         if (allowWrites) {
           await ensureWriteSafetyIfNeeded();
         }
+        progressLogger.verbose(`fix model=${config.codex.builder.model} reasoning=${config.codex.builder.reasoningEffort} sandbox=${allowWrites ? "workspace-write" : "read-only"}`);
         failedPhase = "fixExecution";
         let fixAudit: Awaited<ReturnType<typeof captureWriteAuditPreState>> | undefined;
         if (allowWrites) {
           try {
+            progressLogger.phaseStart("write-audit:fix", "capturing pre-write state");
             fixAudit = await writeAuditPreCapture({ phase: "fix", workspaceRoot: metadata.workspaceRoot });
+            progressLogger.phaseComplete("write-audit:fix", "pre-write captured");
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             const preCaptureError = new Error(`Fix write-audit pre-capture failed: ${message}`);
             metadata.writeAudit = metadata.writeAudit ?? { builder: { status: "not-applicable" }, fix: { status: "not-applicable" } };
             metadata.writeAudit.fix = { status: "failed", reason: `pre-capture failed: ${message}` };
             await bestEffortPhaseFailure("fixExecution", "fix write-audit pre-capture failed");
+            progressLogger.phaseFailed("write-audit:fix", preCaptureError);
+            progressLogger.phaseFailed("fix", preCaptureError);
             throw preCaptureError;
           }
         }
@@ -519,6 +586,7 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         await updatePhase("fixExecution", "unknown");
         const prompt = await readText(path.resolve(runDir, "fix-prompt.extracted.md"));
         const outputPath = path.resolve(runDir, "fix-output-last-message.md");
+        progressLogger.info("[fix] waiting for Codex...");
         const result = await codexExecutor({
           prompt,
           role: "builder",
@@ -540,9 +608,12 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         await writeJson(runDir, "fix-exit.json", { success: result.success, code: result.exitCode, signal: result.signal, durationMs: result.durationMs, skipped: false }, artefacts, false);
         if (fixAudit) {
           try {
+            progressLogger.phaseStart("write-audit:fix", "capturing post-write state");
             const summary = await writeAuditPostCapture({ runDir, capture: fixAudit });
             metadata.writeAudit = metadata.writeAudit ?? { builder: { status: "not-applicable" }, fix: { status: "not-applicable" } };
             metadata.writeAudit.fix = { status: "captured", artefacts: summary.artefacts, changedFiles: summary.changedFilesAddedByPhase };
+            progressLogger.phaseComplete("write-audit:fix", "post-write captured");
+            progressLogger.artefact("write-audit:fix summary", path.resolve(runDir, "write-audit/fix/summary.json"));
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             fixAuditError = new Error(`Fix write-audit capture failed: ${message}`);
@@ -556,24 +627,31 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         }
         if (fixAuditError) {
           await bestEffortPhaseFailure("fixExecution", "fix write-audit capture failed", ["fix-exit.json"]);
+          progressLogger.phaseFailed("write-audit:fix", fixAuditError);
+          progressLogger.phaseFailed("fix", fixExecutionError ?? fixAuditError);
           throw fixExecutionError ?? fixAuditError;
         }
         if (fixExecutionError) {
           await bestEffortPhaseFailure("fixExecution", "fix execution failed", ["fix-exit.json"]);
+          progressLogger.phaseFailed("fix", fixExecutionError);
           throw fixExecutionError;
         }
         await updatePhase("fixExecution", "executed", undefined, ["fix-command.json", "fix-prompt.executed.md", "fix-stdout.log", "fix-stderr.log", "fix-output-last-message.md", "fix-exit.json"]);
         if (allowWrites) {
           await setPostWriteReviewPending(["fixExecution"]);
         }
+        progressLogger.phaseComplete("fix", `completed in ${formatDurationMs(result.durationMs)}`);
+        progressLogger.artefact("fix output", path.resolve(runDir, "fix-output-last-message.md"));
         continue;
       }
 
       if (phase === "checks") {
+        progressLogger.phaseStart("checks");
         ensurePhaseNotExecuted(projectedMetadata, "checks", "Checks");
         const checksGate = canRunChecksWithMetadata(options.dryRun ? projectedMetadata : metadata);
         if (!checksGate.ok) {
           if (options.dryRun) {
+            progressLogger.phaseFailed("checks", checksGate.reason ?? "checks blocked");
             throw new Error(checksGate.reason);
           }
           await writeJson(
@@ -584,9 +662,11 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
             false
           );
           await bestEffortPhaseFailure("checks", checksGate.reason ?? "checks blocked", ["checks-status.json"]);
+          progressLogger.phaseFailed("checks", checksGate.reason ?? "checks blocked");
           throw new Error(checksGate.reason);
         }
         if (options.dryRun) {
+          progressLogger.phaseSkipped("checks", "skipped by dry-run");
           projectedMetadata.phases.checks = { ...projectedMetadata.phases.checks, status: "executed" };
           continue;
         }
@@ -596,6 +676,8 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         let completed = 0;
         for (let i = 0; i < config.commands.checks.length; i += 1) {
           const check = config.commands.checks[i];
+          progressLogger.info(`[checks] running: ${check.name}`);
+          progressLogger.verbose(`[checks] command: ${check.command} ${check.args.join(" ")}`);
           const cwd = resolveCheckCommandCwd(check, orchestratorRoot, metadata.workspaceRoot);
           const result = await checkCommandExecutor({ name: check.name, command: check.command, args: check.args, cwd });
           const base = `checks/${String(i + 1).padStart(2, "0")}-${sanitizeCheckName(check.name)}`;
@@ -607,12 +689,14 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
           if (!result.success) {
             await writeJson(runDir, "checks-status.json", { state: "failed", total: config.commands.checks.length, completed, error: `Check \"${check.name}\" failed` }, artefacts, false);
             await bestEffortPhaseFailure("checks", `check failed: ${check.name}`, ["checks-status.json"]);
+            progressLogger.phaseFailed("checks", `check failed: ${check.name}`);
             throw new Error(`Checks failed. Diagnostics written to ${runDir}. Check \"${check.name}\" failed.`);
           }
         }
 
         await writeJson(runDir, "checks-status.json", { state: "executed", total: config.commands.checks.length, completed }, artefacts, false);
         await updatePhase("checks", "executed", config.commands.checks.length === 0 ? "no checks configured" : undefined, ["checks-status.json"]);
+        progressLogger.phaseComplete("checks", "completed");
       }
     }
 
@@ -632,6 +716,8 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
       void config;
     }
 
+    progressLogger.info(options.dryRun ? "Run dry-run completed" : "Run completed successfully");
+
     return { runId: options.runId, runDir, configPath, dryRun: options.dryRun, selectedPhases: selected, before, after: snapshotStatuses(metadata), artefacts, skippedFixBecauseProceed, allowWrites, writeSafetyState, writeEnabledPhases };
   } catch (error) {
     if (!options.dryRun) {
@@ -642,6 +728,13 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         // preserve original execution error
       }
     }
+    if (failedPhase) {
+      progressLogger.phaseFailed(failedPhase, error);
+      progressLogger.info(`Run failed during phase: ${failedPhase}`);
+    } else {
+      progressLogger.phaseFailed("continue-run", error);
+    }
+    progressLogger.info(`Diagnostics: ${runDir}`);
     throw error;
   }
 }

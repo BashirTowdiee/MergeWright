@@ -834,6 +834,49 @@ test("check-write-safety prints clear output and uses injected handler", async (
   assert.ok(output.some((line) => line.includes("result: PASS")));
 });
 
+test("check-write-safety shows live progress lines before summary", async () => {
+  const output: string[] = [];
+  await runCommand(
+    parseArgs(["check-write-safety", "--config", "configs/acme.json"]),
+    process.cwd(),
+    "linux",
+    async () => {},
+    (line) => output.push(line),
+    {
+      checkWriteSafetyHandler: async (_configPath, _root, progressLogger) => {
+        progressLogger.phaseStart("write-safety", "loading config");
+        progressLogger.phaseStart("write-safety", "inspecting git workspace");
+        progressLogger.phaseStart("write-safety", "checking blocked paths");
+        progressLogger.phaseComplete("write-safety", "passed");
+        return {
+          configPath: "/tmp/orchestrator/configs/acme.json",
+          workspaceRoot: "/tmp/workspace",
+          result: {
+            ok: true,
+            summary: "Write safety check passed.",
+            failures: [],
+            warnings: [],
+            enabled: true,
+            branch: "feature/test",
+            isGitWorkTree: true,
+            isCleanWorkingTree: true,
+            workingTreeState: "clean",
+            changedFiles: [],
+            matchedBlockedPaths: []
+          }
+        };
+      }
+    }
+  );
+
+  const text = output.join("\n");
+  assert.match(text, /\[write-safety\] loading config/);
+  assert.match(text, /\[write-safety\] inspecting git workspace/);
+  assert.match(text, /\[write-safety\] checking blocked paths/);
+  assert.match(text, /\[write-safety\] passed/);
+  assert.match(text, /Write safety summary/);
+});
+
 test("check-write-safety exits non-zero via thrown error when failing", async () => {
   await assert.rejects(
     () =>

@@ -10,6 +10,7 @@
 - Write safety checks must pass.
 - `--dry-run` never performs write-enabled execution.
 - Normal `run` with write-enabled builder/fix must include `--execute-reviewer` in the same command.
+- Terminal progress logs show write-safety and write-audit checkpoints in real time.
 
 ## Write Audit Capture
 For write-enabled builder/fix execution, the orchestrator captures git state before and after phase execution and writes run-local artefacts:
@@ -73,6 +74,8 @@ No git mutation commands are used.
 4. Inspect `write-audit/<phase>/summary.json` and patch artefacts.
 5. Run checks with `--run-checks` when ready.
 6. Commit manually (and push manually if desired).
+
+Note: full Codex stdout/stderr remains in run artefacts (`*-stdout.log`, `*-stderr.log`) and is not streamed to terminal by default.
 
 Auto-commit and auto-push are intentionally unsupported.
 

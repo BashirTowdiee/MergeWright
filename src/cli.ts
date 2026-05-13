@@ -7,6 +7,7 @@ import { continueRun } from "./continue-run.js";
 import { createGitInspectionClient, type GitInspectionClient } from "./git-inspection.js";
 import { initProject } from "./init-project.js";
 import { resolvePipelinePreset, type PipelinePreset } from "./presets.js";
+import { createProgressLogger, NOOP_PROGRESS_LOGGER, type ProgressLogger } from "./progress-logger.js";
 import { runStage } from "./runner.js";
 import { listRunDirectories, readRunDetails, readRunSummary, resolveRunsRoot } from "./runs.js";
 import { checkWriteSafety, type WriteSafetyResult } from "./write-safety.js";
@@ -45,7 +46,11 @@ interface SummaryResult {
 }
 
 export type OpenRunDirectory = (runDir: string) => Promise<void>;
-export type CheckWriteSafetyHandler = (configPath: string, orchestratorRoot: string) => Promise<CheckWriteSafetyRunResult>;
+export type CheckWriteSafetyHandler = (
+  configPath: string,
+  orchestratorRoot: string,
+  progressLogger: ProgressLogger
+) => Promise<CheckWriteSafetyRunResult>;
 
 interface RunCommandDeps {
   checkWriteSafetyHandler?: CheckWriteSafetyHandler;
@@ -76,6 +81,8 @@ export async function runCommand(
   writeLine: (line: string) => void = console.log,
   deps: RunCommandDeps = {}
 ): Promise<void> {
+  const progressLogger = createProgressLogger(writeLine, { verbose: args.verbose });
+
   if (args.help) {
     writeLine(renderHelpText(args.command));
     return;
@@ -114,7 +121,7 @@ export async function runCommand(
 
   if (args.command === "check-write-safety") {
     const handler = deps.checkWriteSafetyHandler ?? runCheckWriteSafety;
-    const outcome = await handler(args.configArg, orchestratorRoot);
+    const outcome = await handler(args.configArg, orchestratorRoot, progressLogger);
     for (const line of formatWriteSafetySummaryLines(outcome)) {
       writeLine(line);
     }
@@ -145,7 +152,8 @@ export async function runCommand(
       allowWrites: args.allowWrites,
       preset: args.preset,
       verbose: args.verbose,
-      orchestratorRoot
+      orchestratorRoot,
+      progressLogger
     });
 
     for (const line of formatSummaryLines(
@@ -183,7 +191,8 @@ export async function runCommand(
       allowWrites: args.allowWrites,
       dryRun: args.dryRun,
       verbose: args.verbose,
-      orchestratorRoot
+      orchestratorRoot,
+      progressLogger
     });
     for (const line of formatContinueSummaryLines(result)) {
       writeLine(line);
@@ -598,15 +607,24 @@ function renderHelpText(command?: string): string {
 export async function runCheckWriteSafety(
   configArg: string,
   orchestratorRoot: string,
+  progressLogger: ProgressLogger = NOOP_PROGRESS_LOGGER,
   git: GitInspectionClient = createGitInspectionClient()
 ): Promise<CheckWriteSafetyRunResult> {
+  progressLogger.phaseStart("write-safety", "loading config");
   const configPath = resolveConfigPath(orchestratorRoot, configArg);
   const config = await loadAndValidateConfig(configPath);
+  progressLogger.phaseStart("write-safety", "inspecting git workspace");
+  progressLogger.phaseStart("write-safety", "checking blocked paths");
   const result = await checkWriteSafety({
     workspaceRoot: config.workspaceRoot,
     config,
     git
   });
+  if (result.ok) {
+    progressLogger.phaseComplete("write-safety", "passed");
+  } else {
+    progressLogger.phaseFailed("write-safety", "write safety checks failed");
+  }
   return {
     configPath,
     workspaceRoot: config.workspaceRoot,

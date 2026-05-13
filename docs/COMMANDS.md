@@ -102,6 +102,8 @@ Notes:
 
 - creates `runs/<project>/<run-id>/`
 - `--dry-run` skips Codex and checks execution while recording skipped/dry-run artifacts
+- prints live phase progress to terminal while running
+- does not stream full Codex stdout/stderr to terminal (see run artefacts instead)
 
 ## `continue-run`
 
@@ -142,6 +144,7 @@ Notes:
 - requires at least one continuation phase flag
 - `--execute-planner` is not supported
 - `--preset` is not supported
+- prints live continuation phase progress to terminal while running
 
 ## `list-runs`
 
@@ -241,6 +244,18 @@ Behavior:
 - does not execute Codex
 - does not run target tests/build
 - does not mutate workspace files
+- prints live write-safety progress checkpoints before the final summary
+
+## Progress Logging
+
+`run`, `continue-run`, and `check-write-safety` emit live phase-level status by default:
+
+- start / completion / skipped / failure markers
+- write-safety and write-audit activity markers
+- check execution progress markers
+- run artefact location hints
+
+Use `--verbose` to add detail such as config path, model/reasoning/sandbox per Codex phase, and concrete check commands.
 
 ## Command-Level Help
 

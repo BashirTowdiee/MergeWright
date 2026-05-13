@@ -10,3 +10,5 @@ project-data/
 test-data/
 configs/*.local.json
 configs/*.private.json
+stages/*
+!stages/*.acme

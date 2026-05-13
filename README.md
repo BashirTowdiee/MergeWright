@@ -110,6 +110,16 @@ Full v1 read-only pipeline preview:
 npm run agent -- run example-stage --config configs/my-app.json --preset full-readonly --dry-run
 ```
 
+Live progress output is printed during `run`, `continue-run`, and `check-write-safety`:
+
+- phase starts/completions/failures/skips
+- write-safety and write-audit checkpoints
+- check execution progress
+- run artefact locations (including run directory)
+
+Use `--verbose` to include extra diagnostics (config path, model/reasoning/sandbox details, check command lines, and additional artefact path detail).
+Codex stdout/stderr is still captured in run artefacts, but not streamed to terminal by default.
+
 ## Using Presets
 
 Supported presets:

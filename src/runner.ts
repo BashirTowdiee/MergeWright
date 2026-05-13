@@ -5,6 +5,7 @@ import { executeCheckCommand, resolveCheckCommandCwd } from "./commands.js";
 import { executeCodex, type CodexExecutor } from "./codex.js";
 import { parsePlannerOutput } from "./planner-output.js";
 import { loadPromptTemplates, renderTemplate, type TemplateVariables } from "./prompts.js";
+import { formatDurationMs, NOOP_PROGRESS_LOGGER, type ProgressLogger } from "./progress-logger.js";
 import { parseReviewToFixOutput } from "./review-to-fix-output.js";
 import { captureWriteAuditPostStateAndWriteArtefacts, captureWriteAuditPreState } from "./write-audit.js";
 import {
@@ -35,6 +36,7 @@ export interface RunOptions {
   allowWrites?: boolean;
   verbose: boolean;
   orchestratorRoot: string;
+  progressLogger?: ProgressLogger;
   codexExecutor?: CodexExecutor;
   writeAuditPreCapture?: typeof captureWriteAuditPreState;
   writeAuditPostCapture?: typeof captureWriteAuditPostStateAndWriteArtefacts;
@@ -58,6 +60,7 @@ export interface RunResult {
 }
 
 export async function runStage(options: RunOptions): Promise<RunResult> {
+  const progressLogger = options.progressLogger ?? NOOP_PROGRESS_LOGGER;
   if ((options.executeBuilder ?? false) && !(options.executePlanner ?? false)) {
     throw new Error("--execute-builder requires --execute-planner");
   }
@@ -78,12 +81,17 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
   }
 
   validateStageName(options.stageName);
+  progressLogger.info(`Running stage: ${options.stageName}`);
 
   const orchestratorRoot = path.resolve(options.orchestratorRoot);
+  progressLogger.phaseStart("setup", "loading config");
   const configPath = resolveConfigPath(orchestratorRoot, options.configArg);
   const config = await loadAndValidateConfig(configPath);
+  progressLogger.verbose(`Config: ${configPath}`);
 
   const targetWorkspaceRoot = path.resolve(options.repoOverride ?? config.workspaceRoot);
+  progressLogger.info(`Target: ${targetWorkspaceRoot}`);
+  progressLogger.phaseStart("setup", "validating workspace");
   await validateWorkspaceSafety(targetWorkspaceRoot, config.safety.requireGitRepo);
 
   const stagesDir = path.resolve(orchestratorRoot, config.paths.stagesDir);
@@ -96,13 +104,19 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
   );
 
   const stagePath = path.resolve(stagesDir, `${options.stageName}.md`);
+  progressLogger.phaseStart("setup", "loading stage file");
   const stageInstruction = await readRequired(stagePath, "stage file");
+  progressLogger.phaseStart("setup", "rendering prompts");
   const templates = await loadPromptTemplates(promptsDir);
+  progressLogger.verbose(`Stage file: ${stagePath}`);
+  progressLogger.verbose(`Prompts dir: ${promptsDir}`);
 
   const timestamp = makeTimestamp();
   const runId = `${timestamp}-${options.stageName}`;
   const runDir = path.resolve(runsBaseDir, runId);
+  progressLogger.phaseStart("setup", "creating run directory");
   await mkdir(runDir, { recursive: true });
+  progressLogger.phaseComplete("setup", `run directory: ${runDir}`);
 
   const executePlanner = options.executePlanner ?? false;
   const executeBuilder = options.executeBuilder ?? false;
@@ -316,15 +330,19 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
       if (allowWrites && options.dryRun) {
         writeSafetyState = "skipped by dry-run";
         metadata.writeSafety = { state: writeSafetyState, allowWrites };
+        progressLogger.phaseSkipped("write-safety", "skipped by dry-run");
       }
       return;
     }
+    progressLogger.phaseStart("write-safety", "checking target workspace");
     if (!config.writeSafety.enabled) {
       writeSafetyState = "failed";
       metadata.writeSafety = { state: writeSafetyState, allowWrites };
       artefacts["write-safety-result.json"] = JSON.stringify({ ok: false, failures: ["writeSafety.enabled is false"], summary: "Write safety check failed." }, null, 2);
       await writeArtefacts(runDir, { "write-safety-result.json": artefacts["write-safety-result.json"] });
+      progressLogger.artefact("write safety result", path.resolve(runDir, "write-safety-result.json"));
       await persistMetadata();
+      progressLogger.phaseFailed("write-safety", "writeSafety.enabled is false");
       throw new Error("Write mode requested but writeSafety.enabled is false.");
     }
     writeSafetyResult = await checkWriteSafety({ workspaceRoot: targetWorkspaceRoot, config });
@@ -332,30 +350,38 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
     metadata.writeSafety = { state: writeSafetyState, allowWrites };
     artefacts["write-safety-result.json"] = JSON.stringify(writeSafetyResult, null, 2);
     await writeArtefacts(runDir, { "write-safety-result.json": artefacts["write-safety-result.json"] });
+    progressLogger.artefact("write safety result", path.resolve(runDir, "write-safety-result.json"));
     await persistMetadata();
     if (!writeSafetyResult.ok) {
+      progressLogger.phaseFailed("write-safety", "checks failed");
       throw new Error("Write mode blocked: write safety checks failed. See write-safety-result.json.");
     }
+    progressLogger.phaseComplete("write-safety", "passed");
   };
   try {
     if (!executePlanner) {
-    await setPhaseDisabled("planner", "planner execution disabled");
-  }
-  if (!executeBuilder) {
-    await setPhaseDisabled("builder", "builder execution disabled");
-  }
-  if (!executeReviewer) {
-    await setPhaseDisabled("reviewer", "reviewer execution disabled");
-  }
-  if (!planFix) {
-    await setPhaseDisabled("fixPlanning", "fix planning disabled");
-  }
-  if (!executeFix) {
-    await setPhaseDisabled("fixExecution", "fix execution disabled");
-  }
-  if (!runChecks) {
-    await setPhaseDisabled("checks", "target checks disabled");
-  }
+      await setPhaseDisabled("planner", "planner execution disabled");
+      progressLogger.phaseSkipped("planner", "disabled");
+    }
+    if (!executeBuilder) {
+      await setPhaseDisabled("builder", "builder execution disabled");
+      progressLogger.phaseSkipped("builder", "disabled");
+    }
+    if (!executeReviewer) {
+      await setPhaseDisabled("reviewer", "reviewer execution disabled");
+      progressLogger.phaseSkipped("reviewer", "disabled");
+    }
+    if (!planFix) {
+      await setPhaseDisabled("fixPlanning", "fix planning disabled");
+      progressLogger.phaseSkipped("fix-planning", "disabled");
+    }
+    if (!executeFix) {
+      await setPhaseDisabled("fixExecution", "fix execution disabled");
+      progressLogger.phaseSkipped("fix", "disabled");
+    }
+    if (!runChecks) {
+      await setPhaseDisabled("checks", "target checks disabled");
+    }
 
   if (!executePlanner) {
     artefacts["03-planner-output.placeholder.md"] = "# Placeholder\n\nPlanner execution is disabled. Pass --execute-planner to enable planner extraction mode.";
@@ -375,17 +401,22 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
     }
   } else if (options.dryRun) {
     await setPhaseSkipped("planner", "planner execution skipped because dryRun=true");
+    progressLogger.phaseSkipped("planner", "skipped by dry-run");
     if (executeBuilder) {
       await setPhaseSkipped("builder", "builder execution skipped because dryRun=true");
+      progressLogger.phaseSkipped("builder", "skipped by dry-run");
     }
     if (executeReviewer) {
       await setPhaseSkipped("reviewer", "reviewer execution skipped because dryRun=true");
+      progressLogger.phaseSkipped("reviewer", "skipped by dry-run");
     }
     if (planFix) {
       await setPhaseSkipped("fixPlanning", "review-to-fix execution skipped because dryRun=true");
+      progressLogger.phaseSkipped("fix-planning", "skipped by dry-run");
     }
     if (executeFix) {
       await setPhaseSkipped("fixExecution", "fix execution skipped because dryRun=true");
+      progressLogger.phaseSkipped("fix", "skipped by dry-run");
     }
     artefacts["03-planner-command.args.json"] = JSON.stringify({ skipped: true, reason: "dryRun=true" }, null, 2);
     artefacts["04-planner-stdout.log"] = "";
@@ -431,10 +462,13 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
       }
     }
   } else {
+    progressLogger.phaseStart("planner");
+    progressLogger.verbose(`planner model=${config.codex.planner.model} reasoning=${config.codex.planner.reasoningEffort} sandbox=read-only`);
     await updatePhaseAndPersist("planner", { status: "unknown", startedAt: new Date().toISOString() });
     failedPhase = "planner";
     const outputLastMessagePath = path.resolve(runDir, "06-planner-output-last-message.md");
     const executor = options.codexExecutor ?? executeCodex;
+    progressLogger.info("[planner] waiting for Codex...");
     const execution = await executor({
       prompt: renderedPlanner,
       role: "planner",
@@ -478,6 +512,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
       const plannerExecutionError = new Error(
         `Planner execution failed with exit code ${execution.exitCode ?? "null"}${execution.signal ? ` signal ${execution.signal}` : ""}. Diagnostics written to ${runDir}`
       );
+      progressLogger.phaseFailed("planner", plannerExecutionError);
       await bestEffortUpdatePhaseAndPersistOnFailure("planner", {
         status: "failed",
         completedAt: new Date().toISOString(),
@@ -512,10 +547,14 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
           "builder-prompt.extracted.md"
         ]
       });
+      progressLogger.phaseComplete("planner", `completed in ${formatDurationMs(execution.durationMs)}`);
+      progressLogger.artefact("planner output", path.resolve(runDir, "06-planner-output-last-message.md"));
+      progressLogger.artefact("extracted builder prompt", path.resolve(runDir, "builder-prompt.extracted.md"));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const plannerParseError = new Error(`Planner output parsing failed. Diagnostics written to ${runDir}. ${message}`);
       artefacts["planner-output-parse-error.json"] = JSON.stringify({ error: message }, null, 2);
+      progressLogger.phaseFailed("planner", plannerParseError);
       await bestEffortUpdatePhaseAndPersistOnFailure("planner", {
         status: "failed",
         completedAt: new Date().toISOString(),
@@ -529,6 +568,8 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
       artefacts["builder-output.placeholder.md"] =
         "# Placeholder\n\nBuilder execution was not requested. Pass --execute-builder (with --execute-planner) to execute once.";
     } else {
+      progressLogger.phaseStart("builder");
+      progressLogger.verbose(`builder model=${config.codex.builder.model} reasoning=${config.codex.builder.reasoningEffort} sandbox=${allowWrites ? "workspace-write" : "read-only"}`);
       if (allowWrites) {
         await ensureWriteSafetyIfNeeded();
       }
@@ -536,7 +577,9 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
       let builderAudit: Awaited<ReturnType<typeof captureWriteAuditPreState>> | undefined;
       if (allowWrites) {
         try {
+          progressLogger.phaseStart("write-audit:builder", "capturing pre-write state");
           builderAudit = await writeAuditPreCapture({ phase: "builder", workspaceRoot: targetWorkspaceRoot });
+          progressLogger.phaseComplete("write-audit:builder", "pre-write captured");
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           const preCaptureError = new Error(`Builder write-audit pre-capture failed: ${message}`);
@@ -546,6 +589,8 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
             status: "failed",
             completedAt: new Date().toISOString()
           });
+          progressLogger.phaseFailed("write-audit:builder", preCaptureError);
+          progressLogger.phaseFailed("builder", preCaptureError);
           throw preCaptureError;
         }
       }
@@ -553,6 +598,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
       let builderExecutionError: Error | undefined;
       await updatePhaseAndPersist("builder", { status: "unknown", startedAt: new Date().toISOString() });
       const builderOutputLastMessagePath = path.resolve(runDir, "builder-output-last-message.md");
+      progressLogger.info("[builder] waiting for Codex...");
       const builderExecution = await executor({
         prompt: extractedBuilderPrompt,
         role: "builder",
@@ -605,6 +651,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
       );
       if (builderAudit) {
         try {
+          progressLogger.phaseStart("write-audit:builder", "capturing post-write state");
           const summary = await writeAuditPostCapture({ runDir, capture: builderAudit });
           metadata.writeAudit = metadata.writeAudit ?? { builder: { status: "not-applicable" }, fix: { status: "not-applicable" } };
           metadata.writeAudit.builder = {
@@ -612,6 +659,8 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
             artefacts: summary.artefacts,
             changedFiles: summary.changedFilesAddedByPhase
           };
+          progressLogger.phaseComplete("write-audit:builder", "post-write captured");
+          progressLogger.artefact("write-audit:builder summary", path.resolve(runDir, "write-audit/builder/summary.json"));
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           builderAuditError = new Error(`Builder write-audit capture failed: ${message}`);
@@ -635,6 +684,8 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
           completedAt: new Date().toISOString(),
           artefacts: ["builder-command.json", "builder-stdout.log", "builder-stderr.log", "builder-output-last-message.md", "builder-exit.json"]
         });
+        progressLogger.phaseFailed("write-audit:builder", builderAuditError);
+        progressLogger.phaseFailed("builder", builderExecutionError ?? builderAuditError);
         throw builderExecutionError ?? builderAuditError;
       }
       if (builderExecutionError) {
@@ -650,6 +701,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
           2
         );
         await writeArtefacts(runDir, artefacts);
+        progressLogger.phaseFailed("builder", builderExecutionError);
         throw builderExecutionError;
       }
       await updatePhaseAndPersist("builder", {
@@ -657,6 +709,8 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
         completedAt: new Date().toISOString(),
         artefacts: ["builder-command.json", "builder-prompt.executed.md", "builder-stdout.log", "builder-stderr.log", "builder-output-last-message.md", "builder-exit.json"]
       });
+      progressLogger.phaseComplete("builder", `completed in ${formatDurationMs(builderExecution.durationMs)}`);
+      progressLogger.artefact("builder output", path.resolve(runDir, "builder-output-last-message.md"));
     }
 
     refreshReviewerPreview(executeBuilder);
@@ -665,10 +719,13 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
     if (!executeReviewer) {
       artefacts["reviewer-output.placeholder.md"] = reviewerSkipBase;
     } else {
+      progressLogger.phaseStart("reviewer");
+      progressLogger.verbose(`reviewer model=${config.codex.reviewer.model} reasoning=${config.codex.reviewer.reasoningEffort} sandbox=read-only`);
       await updatePhaseAndPersist("reviewer", { status: "unknown", startedAt: new Date().toISOString() });
       failedPhase = "reviewer";
       const reviewerOutputLastMessagePath = path.resolve(runDir, "reviewer-output-last-message.md");
       const executor = options.codexExecutor ?? executeCodex;
+      progressLogger.info("[reviewer] waiting for Codex...");
       const reviewerExecution = await executor({
         prompt: reviewerPrompt,
         role: "reviewer",
@@ -734,6 +791,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
         const reviewerExecutionError = new Error(
           `Reviewer execution failed with exit code ${reviewerExecution.exitCode ?? "null"}${reviewerExecution.signal ? ` signal ${reviewerExecution.signal}` : ""}. Diagnostics written to ${runDir}`
         );
+        progressLogger.phaseFailed("reviewer", reviewerExecutionError);
         await bestEffortUpdatePhaseAndPersistOnFailure("reviewer", {
           status: "failed",
           completedAt: new Date().toISOString(),
@@ -747,6 +805,8 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
         completedAt: new Date().toISOString(),
         artefacts: ["reviewer-command.json", "reviewer-stdout.log", "reviewer-stderr.log", "reviewer-output-last-message.md", "reviewer-exit.json"]
       });
+      progressLogger.phaseComplete("reviewer", `completed in ${formatDurationMs(reviewerExecution.durationMs)}`);
+      progressLogger.artefact("reviewer output", path.resolve(runDir, "reviewer-output-last-message.md"));
       if (allowWrites && writeEnabledPhases.length > 0) {
         metadata.postWriteReview = {
           ...metadata.postWriteReview,
@@ -757,6 +817,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
           artefacts: ["post-write-review-required.json", "post-write-review-status.json"]
         };
         artefacts["post-write-review-status.json"] = JSON.stringify({ status: "completed", reason: metadata.postWriteReview.reason }, null, 2);
+        progressLogger.phaseComplete("post-write-review", "completed");
       }
     }
 
@@ -766,9 +827,12 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
       artefacts["review-to-fix-output.placeholder.md"] =
         "# Placeholder\n\nReview-to-fix execution was not requested. Pass --plan-fix (with --execute-reviewer) to execute once.";
     } else {
+      progressLogger.phaseStart("fix-planning");
+      progressLogger.verbose(`fix-planning model=${config.codex.planner.model} reasoning=${config.codex.planner.reasoningEffort} sandbox=read-only`);
       await updatePhaseAndPersist("fixPlanning", { status: "unknown", startedAt: new Date().toISOString() });
       failedPhase = "fixPlanning";
       const reviewToFixOutputLastMessagePath = path.resolve(runDir, "review-to-fix-output-last-message.md");
+      progressLogger.info("[fix-planning] waiting for Codex...");
       const reviewToFixExecution = await executor({
         prompt: reviewToFixPrompt,
         role: "planner",
@@ -813,6 +877,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
         const reviewToFixExecutionError = new Error(
           `Review-to-fix execution failed with exit code ${reviewToFixExecution.exitCode ?? "null"}${reviewToFixExecution.signal ? ` signal ${reviewToFixExecution.signal}` : ""}. Diagnostics written to ${runDir}`
         );
+        progressLogger.phaseFailed("fix-planning", reviewToFixExecutionError);
         await bestEffortUpdatePhaseAndPersistOnFailure("fixPlanning", {
           status: "failed",
           completedAt: new Date().toISOString(),
@@ -831,6 +896,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
           `Review-to-fix output parsing failed. Diagnostics written to ${runDir}. ${message}`
         );
         artefacts["review-to-fix-parse-error.json"] = JSON.stringify({ error: message }, null, 2);
+        progressLogger.phaseFailed("fix-planning", reviewToFixParseError);
         await bestEffortUpdatePhaseAndPersistOnFailure("fixPlanning", {
           status: "failed",
           completedAt: new Date().toISOString(),
@@ -850,9 +916,12 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
       );
       if (parsedReviewToFixOutput.decision === "FIX_REQUIRED") {
         artefacts["fix-prompt.extracted.md"] = parsedReviewToFixOutput.finalFixPrompt ?? "";
+        progressLogger.artefact("extracted fix prompt", path.resolve(runDir, "fix-prompt.extracted.md"));
         if (!executeFix) {
           artefacts["fix-skipped.json"] = JSON.stringify({ skipped: true, reason: "fix execution disabled" }, null, 2);
         } else {
+          progressLogger.phaseStart("fix");
+          progressLogger.verbose(`fix model=${config.codex.builder.model} reasoning=${config.codex.builder.reasoningEffort} sandbox=${allowWrites ? "workspace-write" : "read-only"}`);
           if (allowWrites) {
             await ensureWriteSafetyIfNeeded();
           }
@@ -860,7 +929,9 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
           let fixAudit: Awaited<ReturnType<typeof captureWriteAuditPreState>> | undefined;
           if (allowWrites) {
             try {
+              progressLogger.phaseStart("write-audit:fix", "capturing pre-write state");
               fixAudit = await writeAuditPreCapture({ phase: "fix", workspaceRoot: targetWorkspaceRoot });
+              progressLogger.phaseComplete("write-audit:fix", "pre-write captured");
             } catch (error) {
               const message = error instanceof Error ? error.message : String(error);
               const preCaptureError = new Error(`Fix write-audit pre-capture failed: ${message}`);
@@ -870,6 +941,8 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
                 status: "failed",
                 completedAt: new Date().toISOString()
               });
+              progressLogger.phaseFailed("write-audit:fix", preCaptureError);
+              progressLogger.phaseFailed("fix", preCaptureError);
               throw preCaptureError;
             }
           }
@@ -878,6 +951,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
           await updatePhaseAndPersist("fixExecution", { status: "unknown", startedAt: new Date().toISOString() });
           const fixPrompt = parsedReviewToFixOutput.finalFixPrompt ?? "";
           const fixOutputLastMessagePath = path.resolve(runDir, "fix-output-last-message.md");
+          progressLogger.info("[fix] waiting for Codex...");
           const fixExecution = await executor({
             prompt: fixPrompt,
             role: "builder",
@@ -919,6 +993,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
           );
           if (fixAudit) {
             try {
+              progressLogger.phaseStart("write-audit:fix", "capturing post-write state");
               const summary = await writeAuditPostCapture({ runDir, capture: fixAudit });
               metadata.writeAudit = metadata.writeAudit ?? { builder: { status: "not-applicable" }, fix: { status: "not-applicable" } };
               metadata.writeAudit.fix = {
@@ -926,6 +1001,8 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
                 artefacts: summary.artefacts,
                 changedFiles: summary.changedFilesAddedByPhase
               };
+              progressLogger.phaseComplete("write-audit:fix", "post-write captured");
+              progressLogger.artefact("write-audit:fix summary", path.resolve(runDir, "write-audit/fix/summary.json"));
             } catch (error) {
               const message = error instanceof Error ? error.message : String(error);
               fixAuditError = new Error(`Fix write-audit capture failed: ${message}`);
@@ -948,6 +1025,8 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
               completedAt: new Date().toISOString(),
               artefacts: ["fix-command.json", "fix-prompt.executed.md", "fix-stdout.log", "fix-stderr.log", "fix-output-last-message.md", "fix-exit.json"]
             });
+            progressLogger.phaseFailed("write-audit:fix", fixAuditError);
+            progressLogger.phaseFailed("fix", fixExecutionError ?? fixAuditError);
             throw fixExecutionError ?? fixAuditError;
           }
           if (fixExecutionError) {
@@ -957,6 +1036,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
               artefacts: ["fix-command.json", "fix-prompt.executed.md", "fix-stdout.log", "fix-stderr.log", "fix-output-last-message.md", "fix-exit.json"]
             });
             await writeArtefacts(runDir, artefacts);
+            progressLogger.phaseFailed("fix", fixExecutionError);
             throw fixExecutionError;
           }
           await updatePhaseAndPersist("fixExecution", {
@@ -964,6 +1044,8 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
             completedAt: new Date().toISOString(),
             artefacts: ["fix-command.json", "fix-prompt.executed.md", "fix-stdout.log", "fix-stderr.log", "fix-output-last-message.md", "fix-exit.json"]
           });
+          progressLogger.phaseComplete("fix", `completed in ${formatDurationMs(fixExecution.durationMs)}`);
+          progressLogger.artefact("fix output", path.resolve(runDir, "fix-output-last-message.md"));
         }
       } else {
         artefacts["review-to-fix-decision.proceed.json"] = JSON.stringify({ proceed: true }, null, 2);
@@ -974,6 +1056,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
         );
         if (executeFix) {
           await setPhaseSkipped("fixExecution", "fix execution skipped because review-to-fix decision was PROCEED");
+          progressLogger.phaseSkipped("fix", "skipped because proceed");
         }
       }
       await updatePhaseAndPersist("fixPlanning", {
@@ -981,6 +1064,8 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
         completedAt: new Date().toISOString(),
         artefacts: ["review-to-fix-command.json", "review-to-fix-stdout.log", "review-to-fix-stderr.log", "review-to-fix-output-last-message.md", "review-to-fix-exit.json", "review-to-fix-decision.json"]
       });
+      progressLogger.phaseComplete("fix-planning", `completed in ${formatDurationMs(reviewToFixExecution.durationMs)}`);
+      progressLogger.artefact("fix-planning output", path.resolve(runDir, "review-to-fix-output-last-message.md"));
     }
 
     artefacts["test-output.placeholder.md"] = "# Placeholder\n\nTest execution remains disabled in current stage.";
@@ -991,6 +1076,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
     const checkCommandExecutor = options.checkCommandExecutor ?? executeCheckCommand;
     if (!runChecks) {
       artefacts["checks-status.json"] = JSON.stringify({ state: "disabled", reason: "--run-checks not set" }, null, 2);
+      progressLogger.phaseSkipped("checks", "disabled");
     } else if (options.dryRun) {
       checksState = "skipped by dry-run";
       await setPhaseSkipped("checks", "target checks skipped because dryRun=true");
@@ -999,6 +1085,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
         null,
         2
       );
+      progressLogger.phaseSkipped("checks", "skipped by dry-run");
     } else if (!canRunChecks().ok) {
       checksState = "failed";
       failedPhase = "checks";
@@ -1016,6 +1103,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
         2
       );
       const writtenBeforeThrow = await writeArtefacts(runDir, artefacts);
+      progressLogger.phaseFailed("checks", reason);
       throw new Error(`Checks blocked. Diagnostics written to ${runDir}. ${reason}. Artefacts: ${writtenBeforeThrow.length}`);
     } else if (config.commands.checks.length === 0) {
       checksState = "executed";
@@ -1031,13 +1119,17 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
         null,
         2
       );
+      progressLogger.phaseComplete("checks", "completed (no checks configured)");
     } else {
+      progressLogger.phaseStart("checks");
       failedPhase = "checks";
       await updatePhaseAndPersist("checks", { status: "unknown", startedAt: new Date().toISOString() });
       let completed = 0;
       try {
         for (let i = 0; i < config.commands.checks.length; i += 1) {
           const check = config.commands.checks[i];
+          progressLogger.info(`[checks] running: ${check.name}`);
+          progressLogger.verbose(`[checks] command: ${check.command} ${check.args.join(" ")}`);
           const cwd = resolveCheckCommandCwd(check, orchestratorRoot, targetWorkspaceRoot);
           const result = await checkCommandExecutor({
             name: check.name,
@@ -1086,6 +1178,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
           null,
           2
         );
+        progressLogger.phaseComplete("checks", "completed");
       } catch (error) {
         checksState = "failed";
         const message = error instanceof Error ? error.message : String(error);
@@ -1106,6 +1199,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
           2
         );
         const writtenBeforeThrow = await writeArtefacts(runDir, artefacts);
+        progressLogger.phaseFailed("checks", message);
         throw new Error(`${checksFailureMessage}${writtenBeforeThrow.length}`);
       }
     }
@@ -1120,6 +1214,8 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
     if (options.verbose) {
       void config;
     }
+
+    progressLogger.info(options.dryRun ? "Run dry-run completed" : "Run completed successfully");
 
     return {
       stageName: options.stageName,
@@ -1137,6 +1233,13 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
   } catch (error) {
     markRunFailure(metadata, error, failedPhase);
     await persistMetadata(error);
+    if (failedPhase) {
+      progressLogger.phaseFailed(failedPhase, error);
+      progressLogger.info(`Run failed during phase: ${failedPhase}`);
+    } else {
+      progressLogger.phaseFailed("run", error);
+    }
+    progressLogger.info(`Diagnostics: ${runDir}`);
     throw error;
   }
 }
