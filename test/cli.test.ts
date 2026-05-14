@@ -687,7 +687,8 @@ test("auto-chain without dry-run executes single-pass path and prints summary", 
           reviewerVerdict: "PASS",
           fixDecision: "PROCEED",
           checks: "executed",
-          finalStatus: "PASS"
+          finalStatus: "PASS",
+          attemptsUsed: 0
         };
       }
     }

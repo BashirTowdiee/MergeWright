@@ -71,6 +71,7 @@ interface RunCommandDeps {
     orchestratorRoot: string;
     allowWrites: boolean;
     streamCodex: boolean;
+    maxFixAttempts: number;
     verbose: boolean;
     progressLogger: ProgressLogger;
   }) => Promise<AutoChainExecutionSummary>;
@@ -184,6 +185,7 @@ export async function runCommand(
           orchestratorRoot: string;
           allowWrites: boolean;
           streamCodex: boolean;
+          maxFixAttempts: number;
           verbose: boolean;
           progressLogger: ProgressLogger;
         }) =>
@@ -199,6 +201,7 @@ export async function runCommand(
         orchestratorRoot,
         allowWrites: args.allowWrites,
         streamCodex: args.streamCodex,
+        maxFixAttempts: args.maxFixAttempts ?? 1,
         verbose: args.verbose,
         progressLogger
       });
@@ -619,14 +622,17 @@ function renderHelpText(command?: string): string {
       "  --execute-fix            Requires --plan-fix.",
       "  --run-checks             Runs configured checks from config when not dry-run.",
       "  --allow-writes           Enables workspace-write sandbox for builder/fix only (after safety pass).",
-      "  --auto-chain             Stage C: single-pass planner->builder->reviewer->review-to-fix, then checks on PASS/PROCEED.",
-      "  --max-fix-attempts <n>   Auto-chain only. Integer 0..5 (default 1).",
+      "  --auto-chain             Stage E: bounded planner->builder->reviewer->review-to-fix with fix/reviewer retries.",
+      "  --max-fix-attempts <n>   Auto-chain only. Integer 0..5 (default 1); 0 means stop on FIX_REQUIRED without fix execution.",
       "  --stream-codex           Streams raw Codex stdout/stderr live while still writing artefacts.",
       "",
       "Safety:",
       "  - Planner/reviewer/review-to-fix stay read-only.",
       "  - No auto-commit or auto-push.",
-      "  - --allow-writes requires writeSafety.enabled=true and passing check-write-safety."
+      "  - --allow-writes requires writeSafety.enabled=true and passing check-write-safety.",
+      "",
+      "Auto-chain statuses:",
+      "  - PASS | NEEDS_FIX | NEEDS_FIX_WRITE_DISABLED | MAX_FIX_ATTEMPTS_REACHED | CHECKS_FAILED | FAILED"
     ].join("\n");
   }
 

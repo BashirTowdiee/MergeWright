@@ -58,7 +58,7 @@ npm run agent -- run stage-01-example --config configs/my-app.json --preset full
 
 This is the safest full-pipeline preview for v1 behavior.
 
-## G) Auto-Chain (Stage C Single-Pass)
+## G) Auto-Chain (Stage E Bounded Retry)
 
 Execution mode:
 
@@ -66,12 +66,15 @@ Execution mode:
 npm run agent -- run stage-01-example --config configs/my-app.json --auto-chain
 ```
 
-Stage C behavior:
+Stage E behavior:
 
-- runs exactly once: planner -> builder -> reviewer -> review-to-fix
-- does not execute fix attempts yet
-- runs checks when reviewer verdict is `PASS` or review-to-fix decision is `PROCEED`
-- returns `NEEDS_FIX` when reviewer is `FAIL` and review-to-fix is `FIX_REQUIRED`
+- initial pass: planner -> builder -> reviewer -> review-to-fix
+- if initial reviewer is `PASS`: runs checks and stops `PASS`
+- if review-to-fix is `PROCEED`: runs checks and stops `PASS`
+- if review-to-fix is `FIX_REQUIRED`: runs bounded fix/reviewer retry cycles up to `--max-fix-attempts`
+- each retry can run post-fix review-to-fix planning before the next attempt when reviewer still fails
+- `--max-fix-attempts=0` stops immediately on `FIX_REQUIRED` with no fix execution
+- terminal statuses include: `PASS`, `NEEDS_FIX`, `NEEDS_FIX_WRITE_DISABLED`, `MAX_FIX_ATTEMPTS_REACHED`, `CHECKS_FAILED`, `FAILED`
 - no auto-commit/push/merge
 
 Projection mode:
@@ -89,7 +92,7 @@ Dry-run behavior:
 - does not mutate workspace/git state
 
 `--max-fix-attempts <n>` is accepted only with `--auto-chain` and must be an integer `0..5` (default `1`).
-In Stage C execution, `--max-fix-attempts` is accepted but not yet used for fix retries.
+In Stage E execution, `--max-fix-attempts` is actively enforced as the hard upper bound for fix attempts.
 
 ## When To Use `run`
 
