@@ -1,4 +1,4 @@
-# Architecture (v1 Read-Only)
+# Architecture (v1 + Stage T Write Mode + Auto-Chain)
 
 ## Overview
 
@@ -59,6 +59,7 @@ Commands implemented:
 - `show-run`
 - `open-run`
 - `init-project`
+- `check-write-safety`
 
 ## Config Loading
 
@@ -217,6 +218,25 @@ Continuation rules:
 - prerequisite artefacts must exist
 - dry-run computes projected status changes without persisting execution artefacts or metadata changes
 
+## Auto-Chain Execution
+
+Module:
+
+- `src/auto-chain.ts`
+
+`run --auto-chain` orchestrates:
+
+- initial pass (`planner -> builder -> reviewer -> review-to-fix`)
+- bounded fix/reviewer retries when decision is `FIX_REQUIRED`
+- checks execution on `PASS` or `PROCEED`
+- terminal statuses (`PASS`, `NEEDS_FIX`, `NEEDS_FIX_WRITE_DISABLED`, `MAX_FIX_ATTEMPTS_REACHED`, `CHECKS_FAILED`, `FAILED`)
+
+Safety bounds:
+
+- max retries are controlled by `--max-fix-attempts` (`0..5`)
+- no unbounded retry loop
+- no auto-commit/push/merge
+
 ## Configured Checks
 
 Modules:
@@ -229,22 +249,12 @@ Configured checks are declared in project config and can run from `workspace` or
 
 ## Safety Boundaries
 
-Hard v1 boundaries:
+Current hard boundaries:
 
-- read-only Codex sandbox
-- no orchestrated git mutation, commit, or push
-- no write-enabled execution mode
-- no target-repo mutation automation by orchestrator
+- read-only Codex sandbox by default
+- write-enabled mode is explicit (`--allow-writes`) and limited to builder/fix
+- planner/reviewer/review-to-fix remain read-only in all modes
+- no orchestrated commit/push/merge
+- write-enabled execution requires write-safety pass plus post-write review/check gating
 
-These boundaries are enforced via config validation, command validation, and CLI behavior.
-
-## Future Write-Enabled Mode Fit
-
-A future write-enabled mode would slot into existing architecture at phase execution and safety policy layers:
-
-- CLI/config capability flags (explicit opt-in)
-- Codex wrapper sandbox mode policy extension
-- stricter workspace mutation and diff tracking
-- optional guarded apply/commit flows
-
-In v1, those paths are intentionally absent.
+These boundaries are enforced via config validation, command validation, write-safety checks, and runtime gating.

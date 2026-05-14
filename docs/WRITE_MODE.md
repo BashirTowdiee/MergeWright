@@ -4,6 +4,8 @@
 - Write mode is opt-in via `--allow-writes`.
 - Only builder and fix execution phases may run with `workspace-write`.
 - Planner, reviewer, and review-to-fix always remain read-only.
+- Auto-chain does not weaken or bypass write-mode rules.
+- Auto-chain fix attempts require `--allow-writes`.
 
 ## Preconditions
 - `writeSafety.enabled` must be `true`.
@@ -66,6 +68,7 @@ No git mutation commands are used.
 - Configured checks are valid only after post-write review is completed for write-enabled flows.
 - If `postWriteReview.status` is pending or failed, `--run-checks` is blocked and checks execution does not start.
 - `continue-run --execute-reviewer --run-checks` is supported; checks run after reviewer succeeds in the same command.
+- The same post-write review and checks gating rules apply to auto-chain write-enabled fix attempts.
 
 ## Manual Workflow
 1. Run `check-write-safety`.

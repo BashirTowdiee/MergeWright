@@ -58,12 +58,44 @@ npm run agent -- run stage-01-example --config configs/my-app.json --preset full
 
 This is the safest full-pipeline preview for v1 behavior.
 
-## G) Auto-Chain (Stage E Bounded Retry)
+## G) Auto-Chain Recommended Workflow
 
-Execution mode:
+Safe preview:
 
 ```bash
-npm run agent -- run stage-01-example --config configs/my-app.json --auto-chain
+npm run agent -- run stage-01 \
+  --config configs/my-app.json \
+  --auto-chain \
+  --dry-run
+```
+
+Read-only:
+
+```bash
+npm run agent -- run stage-01 \
+  --config configs/my-app.json \
+  --auto-chain
+```
+
+Write-enabled:
+
+```bash
+npm run agent -- run stage-01 \
+  --config configs/my-app.json \
+  --auto-chain \
+  --allow-writes \
+  --max-fix-attempts 2
+```
+
+Live Codex stream:
+
+```bash
+npm run agent -- run stage-01 \
+  --config configs/my-app.json \
+  --auto-chain \
+  --allow-writes \
+  --max-fix-attempts 2 \
+  --stream-codex
 ```
 
 Stage E behavior:
@@ -80,7 +112,7 @@ Stage E behavior:
 Projection mode:
 
 ```bash
-npm run agent -- run stage-01-example --config configs/my-app.json --auto-chain --dry-run
+npm run agent -- run stage-01 --config configs/my-app.json --auto-chain --dry-run
 ```
 
 Dry-run behavior:
@@ -158,7 +190,7 @@ Terminal progress output is intentionally concise by default and does not stream
 
 ## What To Commit Manually
 
-Because v1 is read-only orchestration:
+Because orchestration does not perform git mutation actions automatically:
 
 - commit orchestrator config/stage/doc updates as needed
 - commit target-repo code changes manually (outside orchestrator automation)

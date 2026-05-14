@@ -65,7 +65,7 @@ Current Stage T does not:
 - auto-merge
 - run arbitrary unsafe shell commands
 - enable write mode for unrelated commands (`list-runs`, `show-run`, `open-run`, `init-project`, `check-write-safety`)
-- execute fix retries/loops in auto-chain mode (Stage C is single-pass only)
+- auto-commit/push/merge from auto-chain (manual review and manual git actions remain required)
 
 ## Quick Start
 
@@ -127,27 +127,78 @@ Use `--verbose` to include extra diagnostics (config path, model/reasoning/sandb
 Codex stdout/stderr is still captured in run artefacts, but not streamed to terminal by default.
 Use `--stream-codex` with `run`/`continue-run` to stream raw Codex stdout/stderr live while preserving all artefact capture.
 
-## Auto-Chain (Stage C)
+## Auto-Chain
 
-`run --auto-chain` now supports a real single-pass execution:
+`--auto-chain` runs a bounded end-to-end flow from a single `run` command:
+
+- initial pass: planner -> builder -> reviewer -> review-to-fix
+- on reviewer `PASS` or review-to-fix `PROCEED`, checks execute and the flow exits `PASS`
+- on review-to-fix `FIX_REQUIRED`, bounded fix/reviewer retries execute up to `--max-fix-attempts`
+- hard upper bound is `5` attempts; no infinite retry loop is possible
+
+How it differs from presets:
+
+- presets expand fixed phase flags once
+- auto-chain adds decision-driven control flow and bounded fix retries
+- auto-chain cannot be combined with `--preset` or explicit phase flags
+
+When to use it:
+
+- use auto-chain when you want one command to drive plan/build/review/fix/checks with bounded safety stops
+- use manual flags or presets when you want deliberate phase-by-phase control
+
+Safe preview (projection only):
 
 ```bash
-npm run agent -- run stage-01-example --config configs/my-app.json --auto-chain
+npm run agent -- run stage-01 --config configs/my-app.json --auto-chain --dry-run
 ```
 
-Stage C behavior:
+Read-only execution:
 
-- executes exactly once: planner -> builder -> reviewer -> review-to-fix
-- does not execute fix attempts yet
-- runs checks only when reviewer verdict is `PASS` or review-to-fix decision is `PROCEED`
-- returns `NEEDS_FIX` when reviewer is `FAIL` and review-to-fix is `FIX_REQUIRED`
-- no auto-commit, auto-push, or auto-merge
+```bash
+npm run agent -- run stage-01 --config configs/my-app.json --auto-chain
+```
 
-`--auto-chain --dry-run` still provides projection-only output.
+Write-enabled execution:
 
-`--max-fix-attempts <number>` is valid only with `--auto-chain`, must be an integer `0..5`, and defaults to `1`; it is accepted now but not yet used for fix retries in Stage C execution.
+```bash
+npm run agent -- run stage-01 --config configs/my-app.json --auto-chain --allow-writes --max-fix-attempts 2
+```
 
-`--auto-chain` is supported only for `run` and cannot be combined with `--preset` or explicit phase flags.
+Live Codex stream while preserving artefacts:
+
+```bash
+npm run agent -- run stage-01 --config configs/my-app.json --auto-chain --allow-writes --max-fix-attempts 2 --stream-codex
+```
+
+Rules and limits:
+
+- `--auto-chain` is supported only for `run`
+- `--max-fix-attempts <number>` is valid only with `--auto-chain`
+- `--max-fix-attempts` must be an integer `0..5` and defaults to `1`
+- fix attempts require `--allow-writes`; without writes, `FIX_REQUIRED` stops as `NEEDS_FIX_WRITE_DISABLED`
+
+Final statuses:
+
+- `PASS`
+- `NEEDS_FIX`
+- `NEEDS_FIX_WRITE_DISABLED`
+- `MAX_FIX_ATTEMPTS_REACHED`
+- `CHECKS_FAILED`
+- `FAILED`
+
+Artefact locations:
+
+- run root: `runs/<project>/<run-id>/`
+- auto-chain summary metadata in `run.json` (`autoChain` section)
+- attempt artefacts: `auto-chain/attempt-01/`, `auto-chain/attempt-02/`, ...
+- normal phase logs/prompts/exit files remain in the same run directory
+
+Manual git actions still required:
+
+- no auto-commit
+- no auto-push
+- no auto-merge
 
 ## Using Presets
 

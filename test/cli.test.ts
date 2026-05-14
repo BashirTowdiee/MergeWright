@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { formatSummaryLines, parseArgs, runCommand } from "../src/cli.js";
@@ -24,6 +24,23 @@ test("run help contains presets and dry-run", async () => {
   assert.match(text, /--preset <name>/);
   assert.match(text, /full-readonly/);
   assert.match(text, /--dry-run/);
+  assert.match(text, /--auto-chain/);
+  assert.match(text, /--max-fix-attempts <n>/);
+  assert.match(text, /Incompatible with --preset and explicit phase flags/);
+  assert.match(text, /Retry loop is hard bounded by --max-fix-attempts \(0\.\.5\)/);
+  assert.match(text, /PASS \| NEEDS_FIX \| NEEDS_FIX_WRITE_DISABLED \| MAX_FIX_ATTEMPTS_REACHED \| CHECKS_FAILED \| FAILED/);
+});
+
+test("docs keep auto-chain scoped to run and document final statuses", async () => {
+  const commandsDoc = await readFile(path.join(process.cwd(), "docs/COMMANDS.md"), "utf8");
+  const workflowDoc = await readFile(path.join(process.cwd(), "docs/WORKFLOW.md"), "utf8");
+  const readme = await readFile(path.join(process.cwd(), "README.md"), "utf8");
+
+  assert.match(commandsDoc, /`--auto-chain` is supported only for `run`/);
+  assert.match(commandsDoc, /continue-run <run-id> --config <config-path> \[--execute-builder\] \[--execute-reviewer\] \[--plan-fix\] \[--execute-fix\] \[--run-checks\] \[--allow-writes\] \[--dry-run\] \[--verbose\] \[--stream-codex\]/);
+  assert.match(readme, /Final statuses:/);
+  assert.match(readme, /MAX_FIX_ATTEMPTS_REACHED/);
+  assert.match(workflowDoc, /terminal statuses include: `PASS`, `NEEDS_FIX`, `NEEDS_FIX_WRITE_DISABLED`, `MAX_FIX_ATTEMPTS_REACHED`, `CHECKS_FAILED`, `FAILED`/);
 });
 
 test("continue-run help states planner continuation unsupported", async () => {

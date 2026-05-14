@@ -31,6 +31,19 @@
 ## Dry-Run Behavior
 - `--dry-run` performs dependency/flag validation and writes dry-run outputs without executing Codex or configured checks.
 
+## Auto-Chain Bounds
+- Auto-chain retries are bounded by `--max-fix-attempts`.
+- `--max-fix-attempts` is capped to integer `0..5` (hard max `5`).
+- No infinite loop is possible because each retry increments a bounded attempt counter.
+- Auto-chain stop conditions are explicit:
+  - reviewer verdict `PASS` -> checks run -> final `PASS` or `CHECKS_FAILED`
+  - review-to-fix decision `PROCEED` -> checks run -> final `PASS` or `CHECKS_FAILED`
+  - review-to-fix decision `FIX_REQUIRED` with writes disabled -> `NEEDS_FIX_WRITE_DISABLED`
+  - review-to-fix decision `FIX_REQUIRED` with attempts exhausted -> `MAX_FIX_ATTEMPTS_REACHED`
+  - review-to-fix decision `FIX_REQUIRED` with attempts remaining -> fix/reviewer retry
+  - unexpected execution/parse failure -> `FAILED`
+- Manual review before commit remains expected; auto-chain does not commit/push/merge.
+
 ## Write Safety Gate
 - `check-write-safety` is read-only and does not execute Codex.
 - `check-write-safety` does not mutate target repo files.

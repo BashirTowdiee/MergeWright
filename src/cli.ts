@@ -251,7 +251,7 @@ export async function runCommand(
   if (args.command === "continue-run") {
     if (!args.runId) {
       throw new Error(
-        "Usage: agent-stage continue-run <run-id> --config <config-path> [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--dry-run] [--verbose] [--stream-codex]"
+        "Usage: agent-stage continue-run <run-id> --config <config-path> [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--dry-run] [--verbose] [--stream-codex]"
       );
     }
     const result = await continueRun({
@@ -626,8 +626,13 @@ function renderHelpText(command?: string): string {
       "  --max-fix-attempts <n>   Auto-chain only. Integer 0..5 (default 1); 0 means stop on FIX_REQUIRED without fix execution.",
       "  --stream-codex           Streams raw Codex stdout/stderr live while still writing artefacts.",
       "",
+      "Auto-chain limitations:",
+      "  - Supported only for run.",
+      "  - Incompatible with --preset and explicit phase flags.",
+      "",
       "Safety:",
       "  - Planner/reviewer/review-to-fix stay read-only.",
+      "  - Retry loop is hard bounded by --max-fix-attempts (0..5).",
       "  - No auto-commit or auto-push.",
       "  - --allow-writes requires writeSafety.enabled=true and passing check-write-safety.",
       "",

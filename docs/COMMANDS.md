@@ -87,7 +87,7 @@ Common flags:
 - `--execute-fix` (requires fix-plan)
 - `--run-checks`
 - `--allow-writes` (builder/fix only, requires write safety pass)
-- `--auto-chain` (Stage E: bounded retry execution)
+- `--auto-chain` (bounded auto-chain execution)
 - `--max-fix-attempts <number>` (`--auto-chain` only; integer `0..5`, default `1`)
 - `--dry-run`
 - `--verbose`
@@ -110,6 +110,7 @@ Notes:
 - prints live phase progress to terminal while running
 - default mode does not stream full Codex stdout/stderr to terminal (see run artefacts instead)
 - `--stream-codex` enables live raw Codex stdout/stderr streaming while preserving run artefacts
+- `--auto-chain` is supported only for `run` (not `continue-run`)
 - `--auto-chain` runs an initial pass: planner -> builder -> reviewer -> review-to-fix
 - if reviewer is `PASS`, checks run and final status is `PASS`
 - if review-to-fix decision is `PROCEED`, checks run and final status is `PASS`
@@ -118,11 +119,13 @@ Notes:
 - `--max-fix-attempts=0` means stop immediately on `FIX_REQUIRED` with `MAX_FIX_ATTEMPTS_REACHED` and no fix execution
 - terminal statuses include `PASS`, `NEEDS_FIX`, `NEEDS_FIX_WRITE_DISABLED`, `MAX_FIX_ATTEMPTS_REACHED`, `CHECKS_FAILED`, `FAILED`
 - checks failures produce `CHECKS_FAILED`
+- fix attempts require `--allow-writes`; without writes, `FIX_REQUIRED` returns `NEEDS_FIX_WRITE_DISABLED`
 - reviewer and review-to-fix phases remain read-only; workspace-write is used only for fix execution when `--allow-writes` is enabled and write safety passes
 - `--auto-chain` rejects `--preset` and explicit phase flags (`--execute-planner`, `--execute-builder`, `--execute-reviewer`, `--plan-fix`, `--execute-fix`, `--run-checks`)
-- `--auto-chain` is currently supported only for `run`
 - `--auto-chain --dry-run` remains projection-only
 - `--max-fix-attempts` is actively used by Stage E execution as the bounded retry limit
+- `--stream-codex` streams live Codex output during auto-chain while artefact capture remains unchanged
+- `--verbose` increases orchestrator progress/detail logging; it does not imply `--stream-codex`
 
 ## `continue-run`
 
