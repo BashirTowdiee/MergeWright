@@ -60,6 +60,7 @@ Current Stage T does not:
 - auto-merge
 - run arbitrary unsafe shell commands
 - enable write mode for unrelated commands (`list-runs`, `show-run`, `open-run`, `init-project`, `check-write-safety`)
+- execute auto-chain mode (Stage B is projection-only dry-run)
 
 ## Quick Start
 
@@ -121,6 +122,25 @@ Use `--verbose` to include extra diagnostics (config path, model/reasoning/sandb
 Codex stdout/stderr is still captured in run artefacts, but not streamed to terminal by default.
 Use `--stream-codex` with `run`/`continue-run` to stream raw Codex stdout/stderr live while preserving all artefact capture.
 
+## Auto-Chain (Stage B)
+
+`run` supports an early auto-chain CLI surface for projection only:
+
+```bash
+npm run agent -- run stage-01-example --config configs/my-app.json --auto-chain --dry-run
+```
+
+Current Stage B behavior:
+
+- dry-run projection only (no Codex execution yet)
+- validates stage name and config loading
+- prints projected planner/builder/reviewer/fix/check flow
+- no checks execution, no workspace/git mutation, no commit/push/merge
+
+`--max-fix-attempts <number>` is valid only with `--auto-chain`, must be an integer `0..5`, and defaults to `1`.
+
+`--auto-chain` is currently supported only for `run`, cannot be combined with `--preset` or explicit phase flags, and requires `--dry-run` until Stage C is implemented.
+
 ## Using Presets
 
 Supported presets:
@@ -170,6 +190,7 @@ Configured checks come from `commands.checks` in project config.
 - checks do not run in `--dry-run`
 - check command definitions are safety-validated
 - for write-enabled flows, checks run only after post-write review status is `completed`
+- auto-chain Stage B does not execute checks (projection only)
 
 ## Run Artefacts And `run.json`
 

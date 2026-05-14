@@ -9,6 +9,7 @@ import { initProject } from "./init-project.js";
 import { resolvePipelinePreset, type PipelinePreset } from "./presets.js";
 import { createProgressLogger, NOOP_PROGRESS_LOGGER, type ProgressLogger } from "./progress-logger.js";
 import { runStage } from "./runner.js";
+import { formatAutoChainDryRunSummaryLines, projectAutoChainDryRun } from "./auto-chain.js";
 import { listRunDirectories, readRunDetails, readRunSummary, resolveRunsRoot } from "./runs.js";
 import { checkWriteSafety, type WriteSafetyResult } from "./write-safety.js";
 
@@ -33,6 +34,8 @@ interface ParsedArgs {
   allowWrites: boolean;
   verbose: boolean;
   streamCodex: boolean;
+  autoChain: boolean;
+  maxFixAttempts?: number;
 }
 
 interface SummaryResult {
@@ -135,8 +138,28 @@ export async function runCommand(
   if (args.command === "run") {
     if (!args.stageName) {
       throw new Error(
-        "Usage: agent-stage run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--dry-run] [--verbose] [--stream-codex]"
+        "Usage: agent-stage run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--auto-chain] [--max-fix-attempts <number>] [--dry-run] [--verbose] [--stream-codex]"
       );
+    }
+
+    if (args.autoChain) {
+      if (!args.dryRun) {
+        throw new Error("--auto-chain execution is not implemented yet. Use --dry-run or implement Stage C.");
+      }
+      const summary = await projectAutoChainDryRun({
+        stageName: args.stageName,
+        configArg: args.configArg,
+        repoOverride: args.repoOverride,
+        orchestratorRoot,
+        allowWrites: args.allowWrites,
+        streamCodex: args.streamCodex,
+        maxFixAttempts: args.maxFixAttempts ?? 1,
+        progressLogger
+      });
+      for (const line of formatAutoChainDryRunSummaryLines(summary)) {
+        writeLine(line);
+      }
+      return;
     }
 
     const result = await runStage({
@@ -271,7 +294,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
     runChecks: false,
     allowWrites: false,
     verbose: false,
-    streamCodex: false
+    streamCodex: false,
+    autoChain: false
   };
 
   if (command === "--help" || command === "-h") {
@@ -355,6 +379,26 @@ export function parseArgs(argv: string[]): ParsedArgs {
       parsed.streamCodex = true;
       continue;
     }
+    if (token === "--auto-chain") {
+      parsed.autoChain = true;
+      continue;
+    }
+    if (token === "--max-fix-attempts") {
+      const value = rest[i + 1];
+      if (!value) {
+        throw new Error("Missing value for --max-fix-attempts");
+      }
+      if (!/^-?\d+$/.test(value.trim())) {
+        throw new Error("--max-fix-attempts must be an integer from 0 to 5.");
+      }
+      const parsedValue = Number.parseInt(value, 10);
+      if (parsedValue < 0 || parsedValue > 5) {
+        throw new Error("--max-fix-attempts must be an integer from 0 to 5.");
+      }
+      parsed.maxFixAttempts = parsedValue;
+      i += 1;
+      continue;
+    }
     if (token === "--force") {
       if (parsed.command !== "init-project") {
         throw new Error("--force is only supported for init-project");
@@ -421,9 +465,34 @@ export function parseArgs(argv: string[]): ParsedArgs {
   if (parsed.streamCodex && parsed.command !== "run" && parsed.command !== "continue-run") {
     throw new Error("--stream-codex is only supported for run and continue-run");
   }
+  if (parsed.autoChain && parsed.command !== "run") {
+    throw new Error("--auto-chain is only supported for run.");
+  }
+  if (parsed.maxFixAttempts != null && !parsed.autoChain) {
+    throw new Error("--max-fix-attempts is only supported with --auto-chain.");
+  }
 
   if (parsed.command === "run") {
     if (parsed.help) {
+      return parsed;
+    }
+    if (parsed.autoChain) {
+      if (parsed.preset) {
+        throw new Error("--auto-chain cannot be combined with --preset.");
+      }
+      if (
+        parsed.executePlanner ||
+        parsed.executeBuilder ||
+        parsed.executeReviewer ||
+        parsed.planFix ||
+        parsed.executeFix ||
+        parsed.runChecks
+      ) {
+        throw new Error(
+          "--auto-chain cannot be combined with explicit phase flags: --execute-planner, --execute-builder, --execute-reviewer, --plan-fix, --execute-fix, --run-checks."
+        );
+      }
+      parsed.maxFixAttempts = parsed.maxFixAttempts ?? 1;
       return parsed;
     }
     const presetOptions = resolvePipelinePreset(parsed.preset);
@@ -491,7 +560,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
 function renderHelpText(command?: string): string {
   if (command === "run") {
     return [
-      "Usage: agent-stage run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--dry-run] [--verbose] [--stream-codex]",
+      "Usage: agent-stage run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--auto-chain] [--max-fix-attempts <number>] [--dry-run] [--verbose] [--stream-codex]",
       "",
       "Run options:",
       "  --config <config-path>   Required. No implicit default is used.",
@@ -504,6 +573,8 @@ function renderHelpText(command?: string): string {
       "  --execute-fix            Requires --plan-fix.",
       "  --run-checks             Runs configured checks from config when not dry-run.",
       "  --allow-writes           Enables workspace-write sandbox for builder/fix only (after safety pass).",
+      "  --auto-chain             Stage B: dry-run projection only (no execution yet).",
+      "  --max-fix-attempts <n>   Auto-chain only. Integer 0..5 (default 1).",
       "  --stream-codex           Streams raw Codex stdout/stderr live while still writing artefacts.",
       "",
       "Safety:",

@@ -167,6 +167,101 @@ test("init-project rejects --stream-codex", () => {
   );
 });
 
+test("--auto-chain parses for run", () => {
+  const args = parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--auto-chain", "--dry-run"]);
+  assert.equal(args.autoChain, true);
+});
+
+test("auto-chain dry-run defaults maxFixAttempts to 1", () => {
+  const args = parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--auto-chain", "--dry-run"]);
+  assert.equal(args.maxFixAttempts, 1);
+});
+
+test("auto-chain accepts explicit maxFixAttempts", () => {
+  const args = parseArgs([
+    "run",
+    "example-stage",
+    "--config",
+    "configs/acme.json",
+    "--auto-chain",
+    "--max-fix-attempts",
+    "3",
+    "--dry-run"
+  ]);
+  assert.equal(args.maxFixAttempts, 3);
+});
+
+test("auto-chain rejects non-number maxFixAttempts", () => {
+  assert.throws(
+    () => parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--auto-chain", "--max-fix-attempts", "abc", "--dry-run"]),
+    /--max-fix-attempts must be an integer from 0 to 5/
+  );
+});
+
+test("auto-chain rejects negative maxFixAttempts", () => {
+  assert.throws(
+    () => parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--auto-chain", "--max-fix-attempts", "-1", "--dry-run"]),
+    /--max-fix-attempts must be an integer from 0 to 5/
+  );
+});
+
+test("auto-chain rejects maxFixAttempts above 5", () => {
+  assert.throws(
+    () => parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--auto-chain", "--max-fix-attempts", "6", "--dry-run"]),
+    /--max-fix-attempts must be an integer from 0 to 5/
+  );
+});
+
+test("auto-chain rejects preset", () => {
+  assert.throws(
+    () => parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--auto-chain", "--preset", "plan", "--dry-run"]),
+    /--auto-chain cannot be combined with --preset/
+  );
+});
+
+test("auto-chain rejects explicit phase flags", () => {
+  assert.throws(
+    () => parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--auto-chain", "--execute-planner", "--dry-run"]),
+    /--auto-chain cannot be combined with explicit phase flags/
+  );
+});
+
+test("auto-chain rejects unsupported commands", () => {
+  const unsupported = [
+    ["continue-run", "run-1", "--config", "configs/acme.json", "--auto-chain"],
+    ["check-write-safety", "--config", "configs/acme.json", "--auto-chain"],
+    ["list-runs", "--config", "configs/acme.json", "--auto-chain"],
+    ["show-run", "run-1", "--config", "configs/acme.json", "--auto-chain"],
+    ["open-run", "run-1", "--config", "configs/acme.json", "--auto-chain"],
+    ["init-project", "My App", "--workspace", "/tmp/app", "--auto-chain"]
+  ];
+  for (const argv of unsupported) {
+    assert.throws(() => parseArgs(argv), /--auto-chain is only supported for run/);
+  }
+});
+
+test("auto-chain allows --allow-writes", () => {
+  const args = parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--auto-chain", "--allow-writes", "--dry-run"]);
+  assert.equal(args.allowWrites, true);
+});
+
+test("auto-chain allows --stream-codex", () => {
+  const args = parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--auto-chain", "--stream-codex", "--dry-run"]);
+  assert.equal(args.streamCodex, true);
+});
+
+test("auto-chain allows --verbose", () => {
+  const args = parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--auto-chain", "--verbose", "--dry-run"]);
+  assert.equal(args.verbose, true);
+});
+
+test("max-fix-attempts without auto-chain is rejected", () => {
+  assert.throws(
+    () => parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--max-fix-attempts", "2", "--dry-run"]),
+    /--max-fix-attempts is only supported with --auto-chain/
+  );
+});
+
 test("--verbose alone does not enable streamCodex", () => {
   const args = parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--verbose"]);
   assert.equal(args.verbose, true);
@@ -498,6 +593,73 @@ test("unknown preset fails clearly", () => {
   assert.throws(
     () => parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--preset", "unknown"]),
     /Unknown preset/
+  );
+});
+
+async function makeAutoChainFixture(): Promise<{ orchestratorRoot: string; configArg: string; stageName: string }> {
+  const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "orchestrator-auto-chain-"));
+  const stageName = "stage-02-add-request-logging";
+  const configArg = "configs/acme.json";
+  await mkdir(path.join(orchestratorRoot, "configs"), { recursive: true });
+  await writeFile(
+    path.join(orchestratorRoot, configArg),
+    JSON.stringify(
+      {
+        version: 1,
+        projectName: "acme",
+        workspaceRoot: "/tmp/workspace",
+        paths: { stagesDir: "stages/acme", promptsDir: "prompts", runsDir: "runs/acme" },
+        codex: {
+          planner: { model: "gpt-5.3-codex", reasoningEffort: "high" },
+          builder: { model: "gpt-5.3-codex", reasoningEffort: "medium" },
+          reviewer: { model: "gpt-5.3-codex", reasoningEffort: "high" }
+        },
+        pipeline: { finalReview: true, maxFixLoops: 1 },
+        commands: { checks: [] },
+        safety: {
+          requireGitRepo: true,
+          requireCleanStart: true,
+          manualCommit: true,
+          forbidAutoCommit: true,
+          forbidAutoPush: true
+        }
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+  return { orchestratorRoot, configArg, stageName };
+}
+
+test("valid run --auto-chain --dry-run prints projection summary", async () => {
+  const fixture = await makeAutoChainFixture();
+  const output: string[] = [];
+  await runCommand(
+    parseArgs(["run", fixture.stageName, "--config", fixture.configArg, "--auto-chain", "--dry-run"]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    (line) => output.push(line)
+  );
+  assert.ok(output.some((line) => line.includes("[auto-chain] projecting flow")));
+  assert.ok(output.some((line) => line.includes("[auto-chain] dry-run complete")));
+  assert.ok(output.some((line) => line.includes("Auto-chain dry-run summary")));
+  assert.ok(output.some((line) => line.includes("max fix attempts: 1")));
+  assert.ok(output.some((line) => line.includes("No Codex execution, checks, git mutation, commit, push, or merge occurred.")));
+});
+
+test("auto-chain without dry-run throws not implemented", async () => {
+  const fixture = await makeAutoChainFixture();
+  await assert.rejects(
+    () =>
+      runCommand(
+        parseArgs(["run", fixture.stageName, "--config", fixture.configArg, "--auto-chain"]),
+        fixture.orchestratorRoot,
+        "linux",
+        async () => {}
+      ),
+    /--auto-chain execution is not implemented yet. Use --dry-run or implement Stage C/
   );
 });
 

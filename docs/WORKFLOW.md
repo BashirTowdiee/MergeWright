@@ -58,6 +58,23 @@ npm run agent -- run stage-01-example --config configs/my-app.json --preset full
 
 This is the safest full-pipeline preview for v1 behavior.
 
+## G) Auto-Chain Projection (Stage B)
+
+```bash
+npm run agent -- run stage-01-example --config configs/my-app.json --auto-chain --dry-run
+```
+
+Stage B behavior:
+
+- validates config loading and stage name
+- prints projected auto-chain flow
+- does not execute Codex
+- does not run checks
+- does not mutate workspace/git state
+
+`--max-fix-attempts <n>` is accepted only with `--auto-chain` and must be an integer `0..5` (default `1`).
+`--auto-chain` without `--dry-run` is intentionally rejected until Stage C implementation.
+
 ## When To Use `run`
 
 Use `run` when you want:

@@ -68,7 +68,7 @@ Purpose: create a new run directory and execute selected phases (or dry-run them
 Usage:
 
 ```bash
-npm run agent -- run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--dry-run] [--verbose] [--stream-codex]
+npm run agent -- run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--auto-chain] [--max-fix-attempts <number>] [--dry-run] [--verbose] [--stream-codex]
 ```
 
 Required args:
@@ -87,6 +87,8 @@ Common flags:
 - `--execute-fix` (requires fix-plan)
 - `--run-checks`
 - `--allow-writes` (builder/fix only, requires write safety pass)
+- `--auto-chain` (Stage B: dry-run projection only)
+- `--max-fix-attempts <number>` (`--auto-chain` only; integer `0..5`, default `1`)
 - `--dry-run`
 - `--verbose`
 - `--stream-codex` (stream raw Codex stdout/stderr live; artefacts still captured)
@@ -97,6 +99,7 @@ Examples:
 npm run agent -- run stage-01-example --config configs/my-app.json --preset plan --dry-run
 npm run agent -- run stage-01-example --config configs/my-app.json --preset full-readonly --dry-run
 npm run agent -- run stage-01-example --config configs/my-app.json --execute-planner --execute-builder
+npm run agent -- run stage-01-example --config configs/my-app.json --auto-chain --dry-run
 ```
 
 Notes:
@@ -106,6 +109,9 @@ Notes:
 - prints live phase progress to terminal while running
 - default mode does not stream full Codex stdout/stderr to terminal (see run artefacts instead)
 - `--stream-codex` enables live raw Codex stdout/stderr streaming while preserving run artefacts
+- `--auto-chain` currently supports dry-run projection only and does not execute Codex/checks or mutate workspaces
+- `--auto-chain` rejects `--preset` and explicit phase flags (`--execute-planner`, `--execute-builder`, `--execute-reviewer`, `--plan-fix`, `--execute-fix`, `--run-checks`)
+- `--auto-chain` is currently supported only for `run`
 
 ## `continue-run`
 
