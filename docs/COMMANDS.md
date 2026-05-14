@@ -87,7 +87,7 @@ Common flags:
 - `--execute-fix` (requires fix-plan)
 - `--run-checks`
 - `--allow-writes` (builder/fix only, requires write safety pass)
-- `--auto-chain` (Stage B: dry-run projection only)
+- `--auto-chain` (Stage C: single-pass execution)
 - `--max-fix-attempts <number>` (`--auto-chain` only; integer `0..5`, default `1`)
 - `--dry-run`
 - `--verbose`
@@ -100,6 +100,7 @@ npm run agent -- run stage-01-example --config configs/my-app.json --preset plan
 npm run agent -- run stage-01-example --config configs/my-app.json --preset full-readonly --dry-run
 npm run agent -- run stage-01-example --config configs/my-app.json --execute-planner --execute-builder
 npm run agent -- run stage-01-example --config configs/my-app.json --auto-chain --dry-run
+npm run agent -- run stage-01-example --config configs/my-app.json --auto-chain
 ```
 
 Notes:
@@ -109,9 +110,14 @@ Notes:
 - prints live phase progress to terminal while running
 - default mode does not stream full Codex stdout/stderr to terminal (see run artefacts instead)
 - `--stream-codex` enables live raw Codex stdout/stderr streaming while preserving run artefacts
-- `--auto-chain` currently supports dry-run projection only and does not execute Codex/checks or mutate workspaces
+- `--auto-chain` executes exactly one pass: planner -> builder -> reviewer -> review-to-fix
+- Stage C `--auto-chain` does not execute fix attempts yet
+- Stage C `--auto-chain` runs checks only when reviewer verdict is `PASS` or review-to-fix decision is `PROCEED`
+- Stage C `--auto-chain` returns `NEEDS_FIX` when reviewer is `FAIL` and review-to-fix is `FIX_REQUIRED`
 - `--auto-chain` rejects `--preset` and explicit phase flags (`--execute-planner`, `--execute-builder`, `--execute-reviewer`, `--plan-fix`, `--execute-fix`, `--run-checks`)
 - `--auto-chain` is currently supported only for `run`
+- `--auto-chain --dry-run` remains projection-only
+- `--max-fix-attempts` is accepted/bounded for `--auto-chain` but not yet used for fix retries in Stage C execution
 
 ## `continue-run`
 

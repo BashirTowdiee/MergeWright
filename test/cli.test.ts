@@ -649,18 +649,52 @@ test("valid run --auto-chain --dry-run prints projection summary", async () => {
   assert.ok(output.some((line) => line.includes("No Codex execution, checks, git mutation, commit, push, or merge occurred.")));
 });
 
-test("auto-chain without dry-run throws not implemented", async () => {
+test("auto-chain dry-run remains projection-only and does not execute single-pass handler", async () => {
   const fixture = await makeAutoChainFixture();
-  await assert.rejects(
-    () =>
-      runCommand(
-        parseArgs(["run", fixture.stageName, "--config", fixture.configArg, "--auto-chain"]),
-        fixture.orchestratorRoot,
-        "linux",
-        async () => {}
-      ),
-    /--auto-chain execution is not implemented yet. Use --dry-run or implement Stage C/
+  let called = 0;
+  await runCommand(
+    parseArgs(["run", fixture.stageName, "--config", fixture.configArg, "--auto-chain", "--dry-run"]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    () => {},
+    {
+      autoChainHandler: async () => {
+        called += 1;
+        throw new Error("should not run");
+      }
+    }
   );
+  assert.equal(called, 0);
+});
+
+test("auto-chain without dry-run executes single-pass path and prints summary", async () => {
+  const fixture = await makeAutoChainFixture();
+  const output: string[] = [];
+  let called = 0;
+  await runCommand(
+    parseArgs(["run", fixture.stageName, "--config", fixture.configArg, "--auto-chain"]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    (line) => output.push(line),
+    {
+      autoChainHandler: async () => {
+        called += 1;
+        return {
+          stageName: fixture.stageName,
+          runDir: "/tmp/runs/acme/20260514-example-stage",
+          reviewerVerdict: "PASS",
+          fixDecision: "PROCEED",
+          checks: "executed",
+          finalStatus: "PASS"
+        };
+      }
+    }
+  );
+  assert.equal(called, 1);
+  assert.ok(output.some((line) => line.includes("Auto-chain summary")));
+  assert.ok(output.some((line) => line.includes("final status: PASS")));
 });
 
 async function makeRunFixture(): Promise<{ orchestratorRoot: string; configArg: string; runId: string }> {

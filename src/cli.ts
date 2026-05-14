@@ -9,7 +9,13 @@ import { initProject } from "./init-project.js";
 import { resolvePipelinePreset, type PipelinePreset } from "./presets.js";
 import { createProgressLogger, NOOP_PROGRESS_LOGGER, type ProgressLogger } from "./progress-logger.js";
 import { runStage } from "./runner.js";
-import { formatAutoChainDryRunSummaryLines, projectAutoChainDryRun } from "./auto-chain.js";
+import {
+  type AutoChainExecutionSummary,
+  executeAutoChainSinglePass,
+  formatAutoChainDryRunSummaryLines,
+  formatAutoChainExecutionSummaryLines,
+  projectAutoChainDryRun
+} from "./auto-chain.js";
 import { listRunDirectories, readRunDetails, readRunSummary, resolveRunsRoot } from "./runs.js";
 import { checkWriteSafety, type WriteSafetyResult } from "./write-safety.js";
 
@@ -58,6 +64,16 @@ export type CheckWriteSafetyHandler = (
 
 interface RunCommandDeps {
   checkWriteSafetyHandler?: CheckWriteSafetyHandler;
+  autoChainHandler?: (args: {
+    stageName: string;
+    configArg: string;
+    repoOverride?: string;
+    orchestratorRoot: string;
+    allowWrites: boolean;
+    streamCodex: boolean;
+    verbose: boolean;
+    progressLogger: ProgressLogger;
+  }) => Promise<AutoChainExecutionSummary>;
 }
 
 interface CheckWriteSafetyRunResult {
@@ -143,20 +159,50 @@ export async function runCommand(
     }
 
     if (args.autoChain) {
-      if (!args.dryRun) {
-        throw new Error("--auto-chain execution is not implemented yet. Use --dry-run or implement Stage C.");
+      if (args.dryRun) {
+        const summary = await projectAutoChainDryRun({
+          stageName: args.stageName,
+          configArg: args.configArg,
+          repoOverride: args.repoOverride,
+          orchestratorRoot,
+          allowWrites: args.allowWrites,
+          streamCodex: args.streamCodex,
+          maxFixAttempts: args.maxFixAttempts ?? 1,
+          progressLogger
+        });
+        for (const line of formatAutoChainDryRunSummaryLines(summary)) {
+          writeLine(line);
+        }
+        return;
       }
-      const summary = await projectAutoChainDryRun({
+      const autoChainHandler =
+        deps.autoChainHandler ??
+        ((params: {
+          stageName: string;
+          configArg: string;
+          repoOverride?: string;
+          orchestratorRoot: string;
+          allowWrites: boolean;
+          streamCodex: boolean;
+          verbose: boolean;
+          progressLogger: ProgressLogger;
+        }) =>
+          executeAutoChainSinglePass({
+            ...params,
+            runStageHandler: runStage,
+            continueRunHandler: continueRun
+          }));
+      const summary = await autoChainHandler({
         stageName: args.stageName,
         configArg: args.configArg,
         repoOverride: args.repoOverride,
         orchestratorRoot,
         allowWrites: args.allowWrites,
         streamCodex: args.streamCodex,
-        maxFixAttempts: args.maxFixAttempts ?? 1,
+        verbose: args.verbose,
         progressLogger
       });
-      for (const line of formatAutoChainDryRunSummaryLines(summary)) {
+      for (const line of formatAutoChainExecutionSummaryLines(summary)) {
         writeLine(line);
       }
       return;
@@ -573,7 +619,7 @@ function renderHelpText(command?: string): string {
       "  --execute-fix            Requires --plan-fix.",
       "  --run-checks             Runs configured checks from config when not dry-run.",
       "  --allow-writes           Enables workspace-write sandbox for builder/fix only (after safety pass).",
-      "  --auto-chain             Stage B: dry-run projection only (no execution yet).",
+      "  --auto-chain             Stage C: single-pass planner->builder->reviewer->review-to-fix, then checks on PASS/PROCEED.",
       "  --max-fix-attempts <n>   Auto-chain only. Integer 0..5 (default 1).",
       "  --stream-codex           Streams raw Codex stdout/stderr live while still writing artefacts.",
       "",

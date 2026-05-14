@@ -58,13 +58,29 @@ npm run agent -- run stage-01-example --config configs/my-app.json --preset full
 
 This is the safest full-pipeline preview for v1 behavior.
 
-## G) Auto-Chain Projection (Stage B)
+## G) Auto-Chain (Stage C Single-Pass)
+
+Execution mode:
+
+```bash
+npm run agent -- run stage-01-example --config configs/my-app.json --auto-chain
+```
+
+Stage C behavior:
+
+- runs exactly once: planner -> builder -> reviewer -> review-to-fix
+- does not execute fix attempts yet
+- runs checks when reviewer verdict is `PASS` or review-to-fix decision is `PROCEED`
+- returns `NEEDS_FIX` when reviewer is `FAIL` and review-to-fix is `FIX_REQUIRED`
+- no auto-commit/push/merge
+
+Projection mode:
 
 ```bash
 npm run agent -- run stage-01-example --config configs/my-app.json --auto-chain --dry-run
 ```
 
-Stage B behavior:
+Dry-run behavior:
 
 - validates config loading and stage name
 - prints projected auto-chain flow
@@ -73,7 +89,7 @@ Stage B behavior:
 - does not mutate workspace/git state
 
 `--max-fix-attempts <n>` is accepted only with `--auto-chain` and must be an integer `0..5` (default `1`).
-`--auto-chain` without `--dry-run` is intentionally rejected until Stage C implementation.
+In Stage C execution, `--max-fix-attempts` is accepted but not yet used for fix retries.
 
 ## When To Use `run`
 
