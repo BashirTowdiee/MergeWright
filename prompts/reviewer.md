@@ -62,3 +62,33 @@ Return format:
 - Recommended minimal fixes
 - Safe to commit: yes/no
 - Safe to proceed: yes/no
+
+Machine-readable verdict block (required):
+- Include exactly one fenced JSON block using this exact marker: `json reviewer-verdict`
+- The JSON must be valid and match this schema.
+
+For pass:
+
+```json reviewer-verdict
+{
+  "verdict": "PASS",
+  "blockingIssues": [],
+  "nonBlockingIssues": []
+}
+```
+
+For failure:
+
+```json reviewer-verdict
+{
+  "verdict": "FAIL",
+  "blockingIssues": [
+    {
+      "severity": "high",
+      "summary": "Request logging includes request bodies by default",
+      "files": ["src/app.ts"]
+    }
+  ],
+  "nonBlockingIssues": []
+}
+```

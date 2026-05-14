@@ -34,6 +34,10 @@ test("reviewer template includes Stage E review constraints and output contract"
   assert.match(template, /Issues found with severity/);
   assert.match(template, /Safe to commit: yes\/no/);
   assert.match(template, /Safe to proceed: yes\/no/);
+  assert.match(template, /Machine-readable verdict block \(required\)/);
+  assert.match(template, /```json reviewer-verdict/);
+  assert.match(template, /"verdict": "PASS"/);
+  assert.match(template, /"verdict": "FAIL"/);
 });
 
 test("review-to-fix template includes Stage F decision contracts and constraints", () => {
