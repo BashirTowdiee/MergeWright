@@ -4,6 +4,11 @@
 
 It is designed for safe, auditable execution with read-only defaults and explicit write mode for builder/fix only.
 
+<p align="center">
+  <img src="./assets/repoImage.png" alt="Standalone Codex CLI Orchestrator overview" width="900" />
+</p>
+<p align="center"><em>Structured, auditable orchestration for planner, builder, reviewer, and bounded fix workflows.</em></p>
+
 ## What Problem It Solves
 
 When teams run LLM-assisted engineering workflows manually, phase ordering, prompt consistency, and run traceability often break down. This orchestrator standardizes that process:
