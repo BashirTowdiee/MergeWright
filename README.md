@@ -171,6 +171,14 @@ Live Codex stream while preserving artefacts:
 npm run agent -- run stage-01 --config configs/my-app.json --auto-chain --allow-writes --max-fix-attempts 2 --stream-codex
 ```
 
+Auto-generate AI Change Report after completion:
+
+```bash
+npm run agent -- run stage-01 --config configs/my-app.json --auto-chain --allow-writes --max-fix-attempts 2 --generate-report
+```
+
+`--generate-report` runs only after successful command completion. If the primary command fails, automatic report generation is skipped so the original failure remains clear; if a run directory exists, use `report-run <run-id> --config <config-path>`.
+
 Rules and limits:
 
 - `--auto-chain` is supported only for `run`

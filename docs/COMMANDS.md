@@ -68,7 +68,7 @@ Purpose: create a new run directory and execute selected phases (or dry-run them
 Usage:
 
 ```bash
-npm run agent -- run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--auto-chain] [--max-fix-attempts <number>] [--dry-run] [--verbose] [--stream-codex]
+npm run agent -- run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--auto-chain] [--max-fix-attempts <number>] [--dry-run] [--verbose] [--stream-codex] [--generate-report]
 ```
 
 Required args:
@@ -92,6 +92,7 @@ Common flags:
 - `--dry-run`
 - `--verbose`
 - `--stream-codex` (stream raw Codex stdout/stderr live; artefacts still captured)
+- `--generate-report` (generate `run-report.md` and `run-report.json` after successful command completion)
 
 Examples:
 
@@ -101,12 +102,19 @@ npm run agent -- run stage-01-example --config configs/my-app.json --preset full
 npm run agent -- run stage-01-example --config configs/my-app.json --execute-planner --execute-builder
 npm run agent -- run stage-01-example --config configs/my-app.json --auto-chain --dry-run
 npm run agent -- run stage-01-example --config configs/my-app.json --auto-chain
+npm run agent -- run stage-01-example --config configs/my-app.json --preset plan --dry-run --generate-report
 ```
 
 Notes:
 
 - creates `runs/<project>/<run-id>/`
 - `--dry-run` skips Codex and checks execution while recording skipped/dry-run artifacts
+- with `--generate-report`, report artefacts are generated after the run summary
+- `--generate-report` writes or refreshes `run-report.md` and `run-report.json` only after a successful `run` (including successful `run --auto-chain`)
+- if the primary `run` command fails, automatic report generation is skipped so the original failure remains clear
+- if a run directory exists after failure, generate the report manually with `report-run <run-id> --config <config-path>`
+- automatic report generation overwrites existing `run-report.md` and `run-report.json` in the run directory
+- automatic report generation does not execute Codex, does not run checks, does not run git commands, and does not mutate the target workspace
 - prints live phase progress to terminal while running
 - default mode does not stream full Codex stdout/stderr to terminal (see run artefacts instead)
 - `--stream-codex` enables live raw Codex stdout/stderr streaming while preserving run artefacts
@@ -123,6 +131,7 @@ Notes:
 - reviewer and review-to-fix phases remain read-only; workspace-write is used only for fix execution when `--allow-writes` is enabled and write safety passes
 - `--auto-chain` rejects `--preset` and explicit phase flags (`--execute-planner`, `--execute-builder`, `--execute-reviewer`, `--plan-fix`, `--execute-fix`, `--run-checks`)
 - `--auto-chain --dry-run` remains projection-only
+- `--auto-chain --dry-run --generate-report` prints a skip note because projection mode does not create a run directory
 - `--max-fix-attempts` is actively used by Stage E execution as the bounded retry limit
 - `--stream-codex` streams live Codex output during auto-chain while artefact capture remains unchanged
 - `--verbose` increases orchestrator progress/detail logging; it does not imply `--stream-codex`
@@ -134,7 +143,7 @@ Purpose: resume selected phases in an existing run directory.
 Usage:
 
 ```bash
-npm run agent -- continue-run <run-id> --config <config-path> [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--dry-run] [--verbose] [--stream-codex]
+npm run agent -- continue-run <run-id> --config <config-path> [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--dry-run] [--verbose] [--stream-codex] [--generate-report]
 ```
 
 Required args:
@@ -153,6 +162,7 @@ Common flags:
 - `--dry-run`
 - `--verbose`
 - `--stream-codex` (stream raw Codex stdout/stderr live; artefacts still captured)
+- `--generate-report` (regenerate `run-report.md` and `run-report.json` after successful command completion)
 
 Examples:
 
@@ -160,6 +170,7 @@ Examples:
 npm run agent -- continue-run <run-id> --config configs/my-app.json --execute-builder
 npm run agent -- continue-run <run-id> --config configs/my-app.json --execute-reviewer --plan-fix
 npm run agent -- continue-run <run-id> --config configs/my-app.json --run-checks
+npm run agent -- continue-run <run-id> --config configs/my-app.json --run-checks --generate-report
 ```
 
 Notes:
@@ -169,6 +180,11 @@ Notes:
 - `--preset` is not supported
 - prints live continuation phase progress to terminal while running
 - default mode stays concise; use `--stream-codex` to watch Codex output live
+- with `--generate-report`, report artefacts are regenerated after the continuation summary
+- if the primary `continue-run` command fails, automatic report generation is skipped so the original failure remains clear
+- if a run directory exists after failure, generate the report manually with `report-run <run-id> --config <config-path>`
+- automatic report generation overwrites existing `run-report.md` and `run-report.json` in the run directory
+- automatic report generation does not execute Codex, does not run checks, does not run git commands, and does not mutate the target workspace
 
 ## `list-runs`
 

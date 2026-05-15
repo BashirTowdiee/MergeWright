@@ -87,6 +87,19 @@ npm run agent -- run stage-01 \
   --max-fix-attempts 2
 ```
 
+Write-enabled with automatic report refresh:
+
+```bash
+npm run agent -- run example-stage \
+  --config configs/my-app.json \
+  --auto-chain \
+  --allow-writes \
+  --max-fix-attempts 2 \
+  --generate-report
+```
+
+`--generate-report` runs only after successful completion. If the primary command fails, automatic report generation is skipped; run `report-run <run-id> --config <config-path>` later when a run directory exists.
+
 Live Codex stream:
 
 ```bash

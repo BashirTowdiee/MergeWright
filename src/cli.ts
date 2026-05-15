@@ -46,6 +46,7 @@ interface ParsedArgs {
   streamCodex: boolean;
   autoChain: boolean;
   maxFixAttempts?: number;
+  generateReport: boolean;
 }
 
 interface SummaryResult {
@@ -68,6 +69,8 @@ export type CheckWriteSafetyHandler = (
 
 interface RunCommandDeps {
   checkWriteSafetyHandler?: CheckWriteSafetyHandler;
+  runHandler?: typeof runStage;
+  continueRunHandler?: typeof continueRun;
   autoChainHandler?: (args: {
     stageName: string;
     configArg: string;
@@ -160,7 +163,7 @@ export async function runCommand(
   if (args.command === "run") {
     if (!args.stageName) {
       throw new Error(
-        "Usage: agent-stage run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--auto-chain] [--max-fix-attempts <number>] [--dry-run] [--verbose] [--stream-codex]"
+        "Usage: agent-stage run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--auto-chain] [--max-fix-attempts <number>] [--dry-run] [--verbose] [--stream-codex] [--generate-report]"
       );
     }
 
@@ -178,6 +181,9 @@ export async function runCommand(
         });
         for (const line of formatAutoChainDryRunSummaryLines(summary)) {
           writeLine(line);
+        }
+        if (args.generateReport) {
+          writeLine("AI Change Report skipped: auto-chain dry-run projection does not create a run directory.");
         }
         return;
       }
@@ -213,10 +219,17 @@ export async function runCommand(
       for (const line of formatAutoChainExecutionSummaryLines(summary)) {
         writeLine(line);
       }
+      if (args.generateReport) {
+        const reportSummaryLines = await generateReportSummaryLines({ runDir: summary.runDir, progressLogger });
+        for (const line of reportSummaryLines) {
+          writeLine(line);
+        }
+      }
       return;
     }
 
-    const result = await runStage({
+    const runHandler = deps.runHandler ?? runStage;
+    const result = await runHandler({
       stageName: args.stageName,
       configArg: args.configArg,
       repoOverride: args.repoOverride,
@@ -250,16 +263,23 @@ export async function runCommand(
     )) {
       writeLine(line);
     }
+    if (args.generateReport) {
+      const reportSummaryLines = await generateReportSummaryLines({ runDir: result.runDir, progressLogger });
+      for (const line of reportSummaryLines) {
+        writeLine(line);
+      }
+    }
     return;
   }
 
   if (args.command === "continue-run") {
     if (!args.runId) {
       throw new Error(
-        "Usage: agent-stage continue-run <run-id> --config <config-path> [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--dry-run] [--verbose] [--stream-codex]"
+        "Usage: agent-stage continue-run <run-id> --config <config-path> [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--dry-run] [--verbose] [--stream-codex] [--generate-report]"
       );
     }
-    const result = await continueRun({
+    const continueRunHandler = deps.continueRunHandler ?? continueRun;
+    const result = await continueRunHandler({
       runId: args.runId,
       configArg: args.configArg,
       executeBuilder: args.executeBuilder,
@@ -276,6 +296,12 @@ export async function runCommand(
     });
     for (const line of formatContinueSummaryLines(result)) {
       writeLine(line);
+    }
+    if (args.generateReport) {
+      const reportSummaryLines = await generateReportSummaryLines({ runDir: result.runDir, progressLogger });
+      for (const line of reportSummaryLines) {
+        writeLine(line);
+      }
     }
     return;
   }
@@ -389,7 +415,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
     allowWrites: false,
     verbose: false,
     streamCodex: false,
-    autoChain: false
+    autoChain: false,
+    generateReport: false
   };
 
   if (command === "--help" || command === "-h") {
@@ -475,6 +502,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
     }
     if (token === "--auto-chain") {
       parsed.autoChain = true;
+      continue;
+    }
+    if (token === "--generate-report") {
+      parsed.generateReport = true;
       continue;
     }
     if (token === "--max-fix-attempts") {
@@ -569,6 +600,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
   }
   if (parsed.autoChain && parsed.command !== "run") {
     throw new Error("--auto-chain is only supported for run.");
+  }
+  if (parsed.generateReport && parsed.command !== "run" && parsed.command !== "continue-run") {
+    throw new Error("--generate-report is only supported for run and continue-run.");
   }
   if (parsed.maxFixAttempts != null && !parsed.autoChain) {
     throw new Error("--max-fix-attempts is only supported with --auto-chain.");
@@ -682,7 +716,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
 function renderHelpText(command?: string): string {
   if (command === "run") {
     return [
-      "Usage: agent-stage run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--auto-chain] [--max-fix-attempts <number>] [--dry-run] [--verbose] [--stream-codex]",
+      "Usage: agent-stage run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--auto-chain] [--max-fix-attempts <number>] [--dry-run] [--verbose] [--stream-codex] [--generate-report]",
       "",
       "Run options:",
       "  --config <config-path>   Required. No implicit default is used.",
@@ -698,6 +732,7 @@ function renderHelpText(command?: string): string {
       "  --auto-chain             Stage E: bounded planner->builder->reviewer->review-to-fix with fix/reviewer retries.",
       "  --max-fix-attempts <n>   Auto-chain only. Integer 0..5 (default 1); 0 means stop on FIX_REQUIRED without fix execution.",
       "  --stream-codex           Streams raw Codex stdout/stderr live while still writing artefacts.",
+      "  --generate-report        Generates run-report.md and run-report.json after run completion.",
       "",
       "Auto-chain limitations:",
       "  - Supported only for run.",
@@ -716,7 +751,7 @@ function renderHelpText(command?: string): string {
 
   if (command === "continue-run") {
     return [
-      "Usage: agent-stage continue-run <run-id> --config <config-path> [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--dry-run] [--verbose] [--stream-codex]",
+      "Usage: agent-stage continue-run <run-id> --config <config-path> [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--dry-run] [--verbose] [--stream-codex] [--generate-report]",
       "",
       "Continuation options:",
       "  --config <config-path>   Required. No implicit default is used.",
@@ -728,6 +763,7 @@ function renderHelpText(command?: string): string {
       "  --run-checks             Continue configured checks for this run.",
       "  --allow-writes           Enables workspace-write sandbox for builder/fix only (after safety pass).",
       "  --stream-codex           Streams raw Codex stdout/stderr live while still writing artefacts.",
+      "  --generate-report        Regenerates run-report.md and run-report.json after continuation completion.",
       "",
       "Limitations:",
       "  - Planner continuation is not supported.",
@@ -1054,6 +1090,35 @@ function formatReportSummaryLines(
   return [
     "AI Change Report",
     `- run id: ${runId}`,
+    `- status: ${report.status}`,
+    `- score: ${report.score}/100`,
+    `- risk: ${report.risk}`,
+    `- changed files: ${report.changedFiles.length}`,
+    `- untracked files: ${report.untrackedFiles.length}`,
+    `- scope drift warnings: ${report.scopeDriftWarnings.length}`,
+    `- report markdown: ${markdownPath}`,
+    `- report json: ${jsonPath}`
+  ];
+}
+
+async function generateReportSummaryLines(input: {
+  runDir: string;
+  progressLogger: ProgressLogger;
+}): Promise<string[]> {
+  input.progressLogger.info("[report] generating AI Change Report");
+  const report = await generateChangeReport({ runDir: input.runDir });
+  const { markdownPath, jsonPath } = await writeChangeReport({ runDir: input.runDir, report });
+  input.progressLogger.info("[report] completed");
+  return formatGeneratedReportSummaryLines(report, markdownPath, jsonPath);
+}
+
+function formatGeneratedReportSummaryLines(
+  report: Awaited<ReturnType<typeof generateChangeReport>>,
+  markdownPath: string,
+  jsonPath: string
+): string[] {
+  return [
+    "AI Change Report",
     `- status: ${report.status}`,
     `- score: ${report.score}/100`,
     `- risk: ${report.risk}`,

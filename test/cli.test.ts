@@ -161,6 +161,36 @@ test("--stream-codex parses for continue-run", () => {
   assert.equal(args.streamCodex, true);
 });
 
+test("--generate-report parses for run", () => {
+  const args = parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--preset", "plan", "--dry-run", "--generate-report"]);
+  assert.equal(args.generateReport, true);
+});
+
+test("--generate-report parses for continue-run", () => {
+  const args = parseArgs(["continue-run", "run-1", "--config", "configs/acme.json", "--run-checks", "--dry-run", "--generate-report"]);
+  assert.equal(args.generateReport, true);
+});
+
+test("--generate-report parses for run --auto-chain", () => {
+  const args = parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--auto-chain", "--generate-report"]);
+  assert.equal(args.generateReport, true);
+  assert.equal(args.autoChain, true);
+});
+
+test("unsupported commands reject --generate-report", () => {
+  const unsupported = [
+    ["report-run", "run-1", "--config", "configs/acme.json", "--generate-report"],
+    ["list-runs", "--config", "configs/acme.json", "--generate-report"],
+    ["show-run", "run-1", "--config", "configs/acme.json", "--generate-report"],
+    ["open-run", "run-1", "--config", "configs/acme.json", "--generate-report"],
+    ["init-project", "My App", "--workspace", "/tmp/app", "--generate-report"],
+    ["check-write-safety", "--config", "configs/acme.json", "--generate-report"]
+  ];
+  for (const argv of unsupported) {
+    assert.throws(() => parseArgs(argv), /--generate-report is only supported for run and continue-run\./);
+  }
+});
+
 test("unsupported commands reject --stream-codex", () => {
   assert.throws(
     () => parseArgs(["list-runs", "--config", "configs/acme.json", "--stream-codex"]),
@@ -700,6 +730,50 @@ async function makeAutoChainFixture(): Promise<{ orchestratorRoot: string; confi
   return { orchestratorRoot, configArg, stageName };
 }
 
+async function makeRunnableDryRunFixture(): Promise<{ orchestratorRoot: string; configArg: string; stageName: string }> {
+  const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "orchestrator-run-dry-report-"));
+  const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "workspace-run-dry-report-"));
+  const stageName = "example-stage";
+  const configArg = "configs/acme.json";
+  await mkdir(path.join(orchestratorRoot, "configs"), { recursive: true });
+  await mkdir(path.join(orchestratorRoot, "stages/acme"), { recursive: true });
+  await mkdir(path.join(orchestratorRoot, "prompts"), { recursive: true });
+  await writeFile(path.join(orchestratorRoot, `stages/acme/${stageName}.md`), "# Stage\n\nDo work.", "utf8");
+  await writeFile(path.join(orchestratorRoot, "prompts/planner-stage.md"), "Planner prompt", "utf8");
+  await writeFile(path.join(orchestratorRoot, "prompts/reviewer.md"), "Reviewer prompt", "utf8");
+  await writeFile(path.join(orchestratorRoot, "prompts/review-to-fix.md"), "Review-to-fix prompt", "utf8");
+  await writeFile(path.join(orchestratorRoot, "prompts/final-review.md"), "Final review prompt", "utf8");
+  await writeFile(
+    path.join(orchestratorRoot, configArg),
+    JSON.stringify(
+      {
+        version: 1,
+        projectName: "acme",
+        workspaceRoot,
+        paths: { stagesDir: "stages/acme", promptsDir: "prompts", runsDir: "runs/acme" },
+        codex: {
+          planner: { model: "gpt-5.3-codex", reasoningEffort: "high" },
+          builder: { model: "gpt-5.3-codex", reasoningEffort: "medium" },
+          reviewer: { model: "gpt-5.3-codex", reasoningEffort: "high" }
+        },
+        pipeline: { finalReview: true, maxFixLoops: 1 },
+        commands: { checks: [] },
+        safety: {
+          requireGitRepo: false,
+          requireCleanStart: false,
+          manualCommit: true,
+          forbidAutoCommit: true,
+          forbidAutoPush: true
+        }
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+  return { orchestratorRoot, configArg, stageName };
+}
+
 test("valid run --auto-chain --dry-run prints projection summary", async () => {
   const fixture = await makeAutoChainFixture();
   const output: string[] = [];
@@ -764,6 +838,206 @@ test("auto-chain without dry-run executes single-pass path and prints summary", 
   assert.equal(called, 1);
   assert.ok(output.some((line) => line.includes("Auto-chain summary")));
   assert.ok(output.some((line) => line.includes("final status: PASS")));
+});
+
+test("run --preset plan --dry-run --generate-report writes report artefacts and prints summary after run summary", async () => {
+  const fixture = await makeRunnableDryRunFixture();
+  const output: string[] = [];
+  await runCommand(
+    parseArgs(["run", fixture.stageName, "--config", fixture.configArg, "--preset", "plan", "--dry-run", "--generate-report"]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    (line) => output.push(line)
+  );
+  const runSummaryIndex = output.findIndex((line) => line === "Run summary");
+  const reportIndex = output.findIndex((line) => line === "AI Change Report");
+  assert.ok(runSummaryIndex >= 0);
+  assert.ok(reportIndex > runSummaryIndex);
+  const runDirLine = output.find((line) => line.startsWith("- run directory: "));
+  assert.ok(runDirLine);
+  const runDir = runDirLine!.replace("- run directory: ", "");
+  await readFile(path.join(runDir, "run-report.md"), "utf8");
+  await readFile(path.join(runDir, "run-report.json"), "utf8");
+  assert.ok(output.some((line) => line.includes("[report] generating AI Change Report")));
+  assert.ok(output.some((line) => line.includes("[report] completed")));
+});
+
+test("continue-run --generate-report writes and overwrites report artefacts after continuation summary", async () => {
+  const fixture = await makeReportRunFixture();
+  await writeFile(
+    path.join(fixture.runDir, "run.json"),
+    JSON.stringify(
+      {
+        version: 1,
+        runId: fixture.runId,
+        projectName: "acme",
+        stageName: "example-stage",
+        workspaceRoot: "/tmp/workspace",
+        orchestratorRoot: fixture.orchestratorRoot,
+        configPath: path.join(fixture.orchestratorRoot, fixture.configArg),
+        startedAt: "2026-05-14T00:00:00.000Z",
+        completedAt: "2026-05-14T00:01:00.000Z",
+        status: "success",
+        resolvedOptions: {},
+        writeSafety: { state: "passed", allowWrites: true, status: "passed" },
+        postWriteReview: { required: false, status: "completed" },
+        phases: {
+          planner: { status: "executed" },
+          builder: { status: "executed" },
+          reviewer: { status: "executed" },
+          fixPlanning: { status: "disabled" },
+          fixExecution: { status: "disabled" },
+          checks: { status: "disabled" }
+        },
+        artefacts: [],
+        error: null
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+  await writeFile(path.join(fixture.runDir, "run-report.md"), "old-markdown", "utf8");
+  await writeFile(path.join(fixture.runDir, "run-report.json"), "old-json", "utf8");
+  const output: string[] = [];
+  await runCommand(
+    parseArgs(["continue-run", fixture.runId, "--config", fixture.configArg, "--run-checks", "--dry-run", "--generate-report"]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    (line) => output.push(line)
+  );
+  const continuationSummaryIndex = output.findIndex((line) => line === "Continuation summary");
+  const reportIndex = output.findIndex((line) => line === "AI Change Report");
+  assert.ok(continuationSummaryIndex >= 0);
+  assert.ok(reportIndex > continuationSummaryIndex);
+  const markdown = await readFile(path.join(fixture.runDir, "run-report.md"), "utf8");
+  const json = await readFile(path.join(fixture.runDir, "run-report.json"), "utf8");
+  assert.notEqual(markdown, "old-markdown");
+  assert.notEqual(json, "old-json");
+});
+
+test("run --auto-chain --generate-report writes report after auto-chain summary", async () => {
+  const autoChainFixture = await makeAutoChainFixture();
+  const reportFixture = await makeReportRunFixture();
+  const output: string[] = [];
+  await runCommand(
+    parseArgs(["run", autoChainFixture.stageName, "--config", autoChainFixture.configArg, "--auto-chain", "--generate-report"]),
+    autoChainFixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    (line) => output.push(line),
+    {
+      autoChainHandler: async () => ({
+        stageName: autoChainFixture.stageName,
+        runDir: reportFixture.runDir,
+        reviewerVerdict: "PASS",
+        fixDecision: "PROCEED",
+        checks: "executed",
+        finalStatus: "PASS",
+        attemptsUsed: 0
+      })
+    }
+  );
+  const autoChainSummaryIndex = output.findIndex((line) => line === "Auto-chain summary");
+  const reportIndex = output.findIndex((line) => line === "AI Change Report");
+  assert.ok(autoChainSummaryIndex >= 0);
+  assert.ok(reportIndex > autoChainSummaryIndex);
+  await readFile(path.join(reportFixture.runDir, "run-report.md"), "utf8");
+  await readFile(path.join(reportFixture.runDir, "run-report.json"), "utf8");
+});
+
+test("run --auto-chain --dry-run --generate-report skips report generation with clear note", async () => {
+  const fixture = await makeAutoChainFixture();
+  const output: string[] = [];
+  await runCommand(
+    parseArgs(["run", fixture.stageName, "--config", fixture.configArg, "--auto-chain", "--dry-run", "--generate-report"]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    (line) => output.push(line)
+  );
+  assert.ok(output.some((line) => line.includes("AI Change Report skipped: auto-chain dry-run projection does not create a run directory.")));
+});
+
+test("run --generate-report primary failure preserves original error and skips report output", async () => {
+  const output: string[] = [];
+  const original = new Error("run-primary-failure");
+  await assert.rejects(
+    () =>
+      runCommand(
+        parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--preset", "plan", "--dry-run", "--generate-report"]),
+        process.cwd(),
+        "linux",
+        async () => {},
+        (line) => output.push(line),
+        {
+          runHandler: async () => {
+            throw original;
+          }
+        }
+      ),
+    /run-primary-failure/
+  );
+  const text = output.join("\n");
+  assert.doesNotMatch(text, /AI Change Report/);
+  assert.doesNotMatch(text, /\[report\] generating AI Change Report/);
+  assert.doesNotMatch(text, /\[report\] completed/);
+});
+
+test("continue-run --generate-report primary failure preserves original error and does not overwrite existing report files", async () => {
+  const fixture = await makeReportRunFixture();
+  const output: string[] = [];
+  await writeFile(path.join(fixture.runDir, "run-report.md"), "original-markdown", "utf8");
+  await writeFile(path.join(fixture.runDir, "run-report.json"), "original-json", "utf8");
+  await assert.rejects(
+    () =>
+      runCommand(
+        parseArgs(["continue-run", fixture.runId, "--config", fixture.configArg, "--run-checks", "--dry-run", "--generate-report"]),
+        fixture.orchestratorRoot,
+        "linux",
+        async () => {},
+        (line) => output.push(line),
+        {
+          continueRunHandler: async () => {
+            throw new Error("continue-primary-failure");
+          }
+        }
+      ),
+    /continue-primary-failure/
+  );
+  const text = output.join("\n");
+  assert.doesNotMatch(text, /AI Change Report/);
+  assert.doesNotMatch(text, /\[report\] generating AI Change Report/);
+  assert.doesNotMatch(text, /\[report\] completed/);
+  assert.equal(await readFile(path.join(fixture.runDir, "run-report.md"), "utf8"), "original-markdown");
+  assert.equal(await readFile(path.join(fixture.runDir, "run-report.json"), "utf8"), "original-json");
+});
+
+test("run --auto-chain --generate-report primary failure preserves original error and skips report output", async () => {
+  const fixture = await makeAutoChainFixture();
+  const output: string[] = [];
+  await assert.rejects(
+    () =>
+      runCommand(
+        parseArgs(["run", fixture.stageName, "--config", fixture.configArg, "--auto-chain", "--generate-report"]),
+        fixture.orchestratorRoot,
+        "linux",
+        async () => {},
+        (line) => output.push(line),
+        {
+          autoChainHandler: async () => {
+            throw new Error("auto-chain-primary-failure");
+          }
+        }
+      ),
+    /auto-chain-primary-failure/
+  );
+  const text = output.join("\n");
+  assert.doesNotMatch(text, /AI Change Report/);
+  assert.doesNotMatch(text, /\[report\] generating AI Change Report/);
+  assert.doesNotMatch(text, /\[report\] completed/);
 });
 
 async function makeRunFixture(): Promise<{ orchestratorRoot: string; configArg: string; runId: string }> {
