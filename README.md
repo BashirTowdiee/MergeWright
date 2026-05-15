@@ -128,6 +128,8 @@ Live progress output is printed during `run`, `continue-run`, and `check-write-s
 Use `--verbose` to include extra diagnostics (config path, model/reasoning/sandbox details, check command lines, and additional artefact path detail).
 Codex stdout/stderr is still captured in run artefacts, but not streamed to terminal by default.
 Use `--stream-codex` with `run`/`continue-run` to stream raw Codex stdout/stderr live while preserving all artefact capture.
+Use `--plan-html` to write `plan.html` into the run directory as a deterministic visualisation of existing plan artefacts.
+Use `--open-plan` to imply `--plan-html` and attempt to open the generated file; open is skipped in CI/non-interactive environments.
 
 ## Auto-Chain
 
@@ -200,6 +202,7 @@ Final statuses:
 Artefact locations:
 
 - run root: `runs/<project>/<run-id>/`
+- plan visualisation (optional): `plan.html` in the same run directory
 - auto-chain summary metadata in `run.json` (`autoChain` section)
 - attempt artefacts: `auto-chain/attempt-01/`, `auto-chain/attempt-02/`, ...
 - normal phase logs/prompts/exit files remain in the same run directory
@@ -264,6 +267,7 @@ Configured checks come from `commands.checks` in project config.
 ## Run Artefacts And `run.json`
 
 Each run writes artefacts plus `run.json` metadata.
+`plan.html` is visualisation-only; canonical plan artefacts remain Markdown/JSON outputs in the run directory.
 
 Typical metadata includes:
 

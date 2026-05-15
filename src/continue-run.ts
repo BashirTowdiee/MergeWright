@@ -3,6 +3,7 @@ import path from "node:path";
 import { executeCheckCommand, resolveCheckCommandCwd } from "./commands.js";
 import { DEFAULT_CODEX_EXEC_CAPABILITIES, executeCodex, type CodexExecutor } from "./codex.js";
 import { loadAndValidateConfig, resolveConfigPath } from "./config.js";
+import { writePlanHtmlFromRun } from "./plan-html.js";
 import { loadPromptTemplates, renderTemplate, type TemplateVariables } from "./prompts.js";
 import { formatDurationMs, NOOP_PROGRESS_LOGGER, type ProgressLogger } from "./progress-logger.js";
 import { parseReviewToFixOutput } from "./review-to-fix-output.js";
@@ -30,6 +31,7 @@ export interface ContinueOptions {
   writeAuditPostCapture?: typeof captureWriteAuditPostStateAndWriteArtefacts;
   checkCommandExecutor?: typeof executeCheckCommand;
   metadataWriter?: typeof writeRunMetadata;
+  planHtml?: boolean;
 }
 
 export interface ContinueResult {
@@ -755,6 +757,11 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
       }
     }
 
+    if (options.planHtml) {
+      const planHtmlPath = await writePlanHtmlFromRun(runDir, metadata, metadata.artefacts);
+      artefacts.push(planHtmlPath);
+      progressLogger.artefact("plan html", planHtmlPath);
+    }
     if (!options.dryRun) {
       for (const artefact of artefacts) {
         const rel = toRunRelativePath(runDir, artefact);

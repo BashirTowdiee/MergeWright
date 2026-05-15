@@ -68,7 +68,7 @@ Purpose: create a new run directory and execute selected phases (or dry-run them
 Usage:
 
 ```bash
-npm run agent -- run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--auto-chain] [--max-fix-attempts <number>] [--dry-run] [--verbose] [--stream-codex] [--generate-report]
+npm run agent -- run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--auto-chain] [--max-fix-attempts <number>] [--dry-run] [--verbose] [--stream-codex] [--plan-html] [--open-plan] [--generate-report]
 ```
 
 Required args:
@@ -92,6 +92,8 @@ Common flags:
 - `--dry-run`
 - `--verbose`
 - `--stream-codex` (stream raw Codex stdout/stderr live; artefacts still captured)
+- `--plan-html` (write `plan.html` visualisation into run directory)
+- `--open-plan` (implies `--plan-html`; attempts browser open, safely skipped in CI/non-interactive environments)
 - `--generate-report` (generate `run-report.md` and `run-report.json` after successful command completion)
 
 Examples:
@@ -108,6 +110,7 @@ npm run agent -- run stage-01-example --config configs/my-app.json --preset plan
 Notes:
 
 - creates `runs/<project>/<run-id>/`
+- with `--plan-html`, also creates `runs/<project>/<run-id>/plan.html` (visualisation only; canonical plan remains Markdown/JSON artefacts)
 - `--dry-run` skips Codex and checks execution while recording skipped/dry-run artifacts
 - with `--generate-report`, report artefacts are generated after the run summary
 - `--generate-report` writes or refreshes `run-report.md` and `run-report.json` only after a successful `run` (including successful `run --auto-chain`)
@@ -143,7 +146,7 @@ Purpose: resume selected phases in an existing run directory.
 Usage:
 
 ```bash
-npm run agent -- continue-run <run-id> --config <config-path> [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--dry-run] [--verbose] [--stream-codex] [--generate-report]
+npm run agent -- continue-run <run-id> --config <config-path> [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--dry-run] [--verbose] [--stream-codex] [--plan-html] [--open-plan] [--generate-report]
 ```
 
 Required args:
@@ -162,6 +165,8 @@ Common flags:
 - `--dry-run`
 - `--verbose`
 - `--stream-codex` (stream raw Codex stdout/stderr live; artefacts still captured)
+- `--plan-html` (write `plan.html` visualisation into run directory)
+- `--open-plan` (implies `--plan-html`; attempts browser open, safely skipped in CI/non-interactive environments)
 - `--generate-report` (regenerate `run-report.md` and `run-report.json` after successful command completion)
 
 Examples:

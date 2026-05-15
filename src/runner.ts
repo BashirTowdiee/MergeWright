@@ -4,6 +4,7 @@ import { loadAndValidateConfig, resolveConfigPath, validateWorkspaceSafety } fro
 import { executeCheckCommand, resolveCheckCommandCwd } from "./commands.js";
 import { DEFAULT_CODEX_EXEC_CAPABILITIES, executeCodex, type CodexExecutor } from "./codex.js";
 import { parsePlannerOutput } from "./planner-output.js";
+import { writePlanHtmlFromRun } from "./plan-html.js";
 import { loadPromptTemplates, renderTemplate, type TemplateVariables } from "./prompts.js";
 import { formatDurationMs, NOOP_PROGRESS_LOGGER, type ProgressLogger } from "./progress-logger.js";
 import { parseReviewToFixOutput } from "./review-to-fix-output.js";
@@ -44,6 +45,7 @@ export interface RunOptions {
   checkCommandExecutor?: typeof executeCheckCommand;
   metadataWriter?: typeof writeRunMetadata;
   preset?: string;
+  planHtml?: boolean;
 }
 
 export interface RunResult {
@@ -1272,6 +1274,15 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
     }
 
     const written = await writeArtefacts(runDir, artefacts);
+    if (options.planHtml) {
+      const planHtmlPath = await writePlanHtmlFromRun(
+        runDir,
+        metadata,
+        written.map((filePath) => toRunRelativePath(runDir, filePath))
+      );
+      written.push(planHtmlPath);
+      progressLogger.artefact("plan html", planHtmlPath);
+    }
     for (const artefact of written) {
       addRunArtefact(metadata, toRunRelativePath(runDir, artefact));
     }

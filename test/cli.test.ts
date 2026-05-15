@@ -167,6 +167,17 @@ test("--generate-report parses for run", () => {
   assert.equal(args.generateReport, true);
 });
 
+test("--plan-html parses for run", () => {
+  const args = parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--plan-html"]);
+  assert.equal(args.planHtml, true);
+});
+
+test("--open-plan implies --plan-html", () => {
+  const args = parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--open-plan"]);
+  assert.equal(args.openPlan, true);
+  assert.equal(args.planHtml, true);
+});
+
 test("--generate-report parses for continue-run", () => {
   const args = parseArgs(["continue-run", "run-1", "--config", "configs/acme.json", "--run-checks", "--dry-run", "--generate-report"]);
   assert.equal(args.generateReport, true);
@@ -190,6 +201,48 @@ test("unsupported commands reject --generate-report", () => {
   for (const argv of unsupported) {
     assert.throws(() => parseArgs(argv), /--generate-report is only supported for run and continue-run\./);
   }
+});
+
+test("unsupported commands reject --plan-html and --open-plan", () => {
+  assert.throws(
+    () => parseArgs(["list-runs", "--config", "configs/acme.json", "--plan-html"]),
+    /--plan-html and --open-plan are only supported for run and continue-run/
+  );
+  assert.throws(
+    () => parseArgs(["show-run", "run-1", "--config", "configs/acme.json", "--open-plan"]),
+    /--plan-html and --open-plan are only supported for run and continue-run/
+  );
+});
+
+test("open-plan failure does not fail run command", async () => {
+  const lines: string[] = [];
+  await runCommand(
+    parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--plan-html", "--open-plan", "--dry-run"]),
+    process.cwd(),
+    "linux",
+    async () => {},
+    (line) => lines.push(line),
+    {
+      runHandler: async () =>
+        ({
+          stageName: "example-stage",
+          orchestratorRoot: process.cwd(),
+          targetWorkspaceRoot: process.cwd(),
+          configPath: "configs/acme.json",
+          runDir: "/tmp/acme/20260516-example-stage",
+          artefacts: [],
+          dryRun: true,
+          checksState: "disabled",
+          allowWrites: false,
+          writeSafetyState: "not checked",
+          writeEnabledPhases: []
+        }) as Awaited<ReturnType<typeof import("../src/runner.js").runStage>>,
+      openPlanHandler: async () => ({ attempted: true, opened: false, skipped: false, reason: "open failed" })
+    }
+  );
+  const out = lines.join("\n");
+  assert.match(out, /Plan HTML: \/tmp\/acme\/20260516-example-stage\/plan.html/);
+  assert.match(out, /warning: failed to open browser \(open failed\)/);
 });
 
 test("unsupported commands reject --stream-codex", () => {

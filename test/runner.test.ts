@@ -239,6 +239,25 @@ test("default mode still does not execute planner or builder or reviewer", async
   await assert.rejects(access(path.join(result.runDir, "fix-exit.json")));
 });
 
+test("--plan-html writes plan.html visualisation", async () => {
+  const { orchestratorRoot, configPath } = await makeFixture();
+  const result = await runStage({
+    stageName: "example-stage",
+    configArg: path.relative(orchestratorRoot, configPath),
+    dryRun: false,
+    executePlanner: false,
+    executeBuilder: false,
+    verbose: false,
+    planHtml: true,
+    orchestratorRoot
+  });
+  const html = await readFile(path.join(result.runDir, "plan.html"), "utf8");
+  assert.match(html, /Planner Summary/);
+  assert.match(html, /Phase Flow/);
+  assert.match(html, /Acceptance Criteria/);
+  assert.match(html, /visualisation only/i);
+});
+
 test("runner passes codex stream callbacks when --stream-codex is enabled", async () => {
   const { orchestratorRoot, configPath } = await makeFixture();
   const streamOptionCalls: Array<{ hasStdout: boolean; hasStderr: boolean }> = [];

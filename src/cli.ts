@@ -27,6 +27,7 @@ import {
 } from "./auto-chain.js";
 import { listRunDirectories, readRunDetails, readRunSummary, resolveRunDir, resolveRunsRoot } from "./runs.js";
 import { checkWriteSafety, type WriteSafetyResult } from "./write-safety.js";
+import { openFileInBrowser, type OpenFileResult } from "./open-file.js";
 
 interface ParsedArgs {
   command?: string;
@@ -55,6 +56,8 @@ interface ParsedArgs {
   autoChain: boolean;
   maxFixAttempts?: number;
   generateReport: boolean;
+  planHtml: boolean;
+  openPlan: boolean;
 }
 
 interface SummaryResult {
@@ -90,6 +93,7 @@ interface RunCommandDeps {
     verbose: boolean;
     progressLogger: ProgressLogger;
   }) => Promise<AutoChainExecutionSummary>;
+  openPlanHandler?: (filePath: string) => Promise<OpenFileResult>;
 }
 
 interface CheckWriteSafetyRunResult {
@@ -257,6 +261,7 @@ export async function runCommand(
       preset: args.preset,
       verbose: args.verbose,
       streamCodex: args.streamCodex,
+      planHtml: args.planHtml || args.openPlan,
       orchestratorRoot,
       progressLogger
     });
@@ -275,6 +280,18 @@ export async function runCommand(
       result.writeEnabledPhases
     )) {
       writeLine(line);
+    }
+    if (args.planHtml || args.openPlan) {
+      const planHtmlPath = path.resolve(result.runDir, "plan.html");
+      writeLine(`Plan HTML: ${planHtmlPath}`);
+      if (args.openPlan) {
+        const openResult = await (deps.openPlanHandler ?? openFileInBrowser)(planHtmlPath);
+        if (openResult.skipped) {
+          writeLine(`warning: browser open skipped (${openResult.reason ?? "not supported"})`);
+        } else if (!openResult.opened) {
+          writeLine(`warning: failed to open browser (${openResult.reason ?? "unknown error"})`);
+        }
+      }
     }
     if (args.generateReport) {
       const reportSummaryLines = await generateReportSummaryLines({
@@ -308,11 +325,24 @@ export async function runCommand(
       dryRun: args.dryRun,
       verbose: args.verbose,
       streamCodex: args.streamCodex,
+      planHtml: args.planHtml || args.openPlan,
       orchestratorRoot,
       progressLogger
     });
     for (const line of formatContinueSummaryLines(result)) {
       writeLine(line);
+    }
+    if (args.planHtml || args.openPlan) {
+      const planHtmlPath = path.resolve(result.runDir, "plan.html");
+      writeLine(`Plan HTML: ${planHtmlPath}`);
+      if (args.openPlan) {
+        const openResult = await (deps.openPlanHandler ?? openFileInBrowser)(planHtmlPath);
+        if (openResult.skipped) {
+          writeLine(`warning: browser open skipped (${openResult.reason ?? "not supported"})`);
+        } else if (!openResult.opened) {
+          writeLine(`warning: failed to open browser (${openResult.reason ?? "unknown error"})`);
+        }
+      }
     }
     if (args.generateReport) {
       const reportSummaryLines = await generateReportSummaryLines({
@@ -456,6 +486,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
     streamCodex: false,
     autoChain: false,
     generateReport: false
+    ,
+    planHtml: false,
+    openPlan: false
   };
 
   if (command === "--help" || command === "-h") {
@@ -545,6 +578,15 @@ export function parseArgs(argv: string[]): ParsedArgs {
     }
     if (token === "--generate-report") {
       parsed.generateReport = true;
+      continue;
+    }
+    if (token === "--plan-html") {
+      parsed.planHtml = true;
+      continue;
+    }
+    if (token === "--open-plan") {
+      parsed.openPlan = true;
+      parsed.planHtml = true;
       continue;
     }
     if (token === "--max-fix-attempts") {
@@ -646,6 +688,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
   }
   if (parsed.generateReport && parsed.command !== "run" && parsed.command !== "continue-run") {
     throw new Error("--generate-report is only supported for run and continue-run.");
+  }
+  if ((parsed.planHtml || parsed.openPlan) && parsed.command !== "run" && parsed.command !== "continue-run") {
+    throw new Error("--plan-html and --open-plan are only supported for run and continue-run.");
   }
   if (parsed.maxFixAttempts != null && !parsed.autoChain) {
     throw new Error("--max-fix-attempts is only supported with --auto-chain.");
@@ -766,7 +811,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
 function renderHelpText(command?: string): string {
   if (command === "run") {
     return [
-      "Usage: agent-stage run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--auto-chain] [--max-fix-attempts <number>] [--dry-run] [--verbose] [--stream-codex] [--generate-report]",
+      "Usage: agent-stage run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--auto-chain] [--max-fix-attempts <number>] [--dry-run] [--verbose] [--stream-codex] [--plan-html] [--open-plan] [--generate-report]",
       "",
       "Run options:",
       "  --config <config-path>   Required. No implicit default is used.",
@@ -782,6 +827,8 @@ function renderHelpText(command?: string): string {
       "  --auto-chain             Stage E: bounded planner->builder->reviewer->review-to-fix with fix/reviewer retries.",
       "  --max-fix-attempts <n>   Auto-chain only. Integer 0..5 (default 1); 0 means stop on FIX_REQUIRED without fix execution.",
       "  --stream-codex           Streams raw Codex stdout/stderr live while still writing artefacts.",
+      "  --plan-html              Writes plan.html visualisation into the run directory.",
+      "  --open-plan              Implies --plan-html and attempts to open plan.html in browser.",
       "  --generate-report        Generates run-report.md and run-report.json after run completion.",
       "",
       "Auto-chain limitations:",
@@ -801,7 +848,7 @@ function renderHelpText(command?: string): string {
 
   if (command === "continue-run") {
     return [
-      "Usage: agent-stage continue-run <run-id> --config <config-path> [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--dry-run] [--verbose] [--stream-codex] [--generate-report]",
+      "Usage: agent-stage continue-run <run-id> --config <config-path> [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--dry-run] [--verbose] [--stream-codex] [--plan-html] [--open-plan] [--generate-report]",
       "",
       "Continuation options:",
       "  --config <config-path>   Required. No implicit default is used.",
@@ -813,6 +860,8 @@ function renderHelpText(command?: string): string {
       "  --run-checks             Continue configured checks for this run.",
       "  --allow-writes           Enables workspace-write sandbox for builder/fix only (after safety pass).",
       "  --stream-codex           Streams raw Codex stdout/stderr live while still writing artefacts.",
+      "  --plan-html              Writes plan.html visualisation into the run directory.",
+      "  --open-plan              Implies --plan-html and attempts to open plan.html in browser.",
       "  --generate-report        Regenerates run-report.md and run-report.json after continuation completion.",
       "",
       "Limitations:",
