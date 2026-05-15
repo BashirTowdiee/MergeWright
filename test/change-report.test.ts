@@ -1,9 +1,16 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { generateChangeReport } from "../src/change-report.js";
+import {
+  formatChangeReportJson,
+  formatChangeReportMarkdown,
+  generateAndWriteChangeReport,
+  generateChangeReport,
+  writeChangeReport
+} from "../src/change-report.js";
+import type { ChangeReport } from "../src/change-report.js";
 
 function reviewerMarkdown(verdict: "PASS" | "FAIL"): string {
   const blockingIssues =
@@ -364,4 +371,132 @@ test("explicit Scope drift warning prevents READY", async () => {
 test("missing run directory throws clear error", async () => {
   const missingDir = path.join(os.tmpdir(), "change-report-missing-dir-does-not-exist");
   await assert.rejects(() => generateChangeReport({ runDir: missingDir }), /Run directory not found or unreadable:/);
+});
+
+test("markdown formatter includes required sections and fields", async () => {
+  const runDir = await createRunFixture({
+    reviewer: "FAIL",
+    checksState: "failed",
+    changedFiles: ["src/z.ts", "src/a.ts"],
+    changedFilesAddedByPhase: ["src/a.ts", "src/z.ts"],
+    untrackedFiles: ["tmp-b.txt", "tmp-a.txt"],
+    autoChainFinalStatus: "MAX_FIX_ATTEMPTS_REACHED"
+  });
+  const report = await generateChangeReport({ runDir });
+  const markdown = formatChangeReportMarkdown(report);
+
+  assert.equal(markdown.includes("# AI Change Report"), true);
+  assert.equal(markdown.includes("## Commit Readiness"), true);
+  assert.equal(markdown.includes(`- Status: ${report.status}`), true);
+  assert.equal(markdown.includes(`- Score: ${report.score}/100`), true);
+  assert.equal(markdown.includes(`- Risk: ${report.risk}`), true);
+  assert.equal(markdown.includes(`- Run ID: ${report.runId}`), true);
+  assert.equal(markdown.includes(`- Project: ${report.projectName}`), true);
+  assert.equal(markdown.includes(`- Stage: ${report.stageName}`), true);
+  assert.equal(markdown.includes("- Planner: executed"), true);
+  assert.equal(markdown.includes("- Builder: executed"), true);
+  assert.equal(markdown.includes("- Reviewer: executed"), true);
+  assert.equal(markdown.includes("- Fix planning: disabled"), true);
+  assert.equal(markdown.includes("- Fix execution: disabled"), true);
+  assert.equal(markdown.includes("- Checks: executed"), true);
+  assert.equal(markdown.includes(`- Verdict: ${report.reviewer.verdict}`), true);
+  assert.equal(markdown.includes("- State: failed"), true);
+  assert.equal(markdown.includes("- src/a.ts"), true);
+  assert.equal(markdown.includes("- src/z.ts"), true);
+  assert.equal(markdown.includes("- tmp-a.txt"), true);
+  assert.equal(markdown.includes("- tmp-b.txt"), true);
+  assert.equal(markdown.includes("## Scope Drift"), true);
+  assert.equal(markdown.includes("## Risk Signals"), true);
+  assert.equal(markdown.includes("## Manual Review Checklist"), true);
+  assert.equal(markdown.includes("## Suggested Commit Message"), true);
+  assert.equal(markdown.includes(report.suggestedCommitMessage), true);
+});
+
+test("markdown formatter renders None for empty lists and is deterministic", () => {
+  const report: ChangeReport = {
+    version: 1,
+    runId: "run-1",
+    projectName: "acme",
+    stageName: "stage-01-test",
+    status: "READY",
+    score: 100,
+    risk: "low",
+    summary: "READY (100/100) - low risk",
+    phases: { planner: "executed", builder: "executed", reviewer: "executed", fixPlanning: "disabled", fixExecution: "disabled", checks: "executed" },
+    changedFiles: ["z.ts", "a.ts"],
+    untrackedFiles: ["tmp-z", "tmp-a"],
+    reviewer: { verdict: "PASS", blockingIssues: [], nonBlockingIssues: [] },
+    checks: { state: "passed", failedChecks: [] },
+    writeSafety: { state: "passed" },
+    postWriteReview: { required: false, status: "completed" },
+    scopeDriftWarnings: [],
+    riskSignals: [],
+    manualReviewChecklist: [],
+    suggestedCommitMessage: "Test change"
+  };
+
+  const markdownA = formatChangeReportMarkdown(report);
+  const markdownB = formatChangeReportMarkdown(report);
+  assert.equal(markdownA, markdownB);
+  assert.equal(markdownA.includes("## Scope Drift\n- None"), true);
+  assert.equal(markdownA.indexOf("- a.ts") < markdownA.indexOf("- z.ts"), true);
+  assert.equal(markdownA.indexOf("- tmp-a") < markdownA.indexOf("- tmp-z"), true);
+});
+
+test("json formatter returns valid json with trailing newline and does not mutate input", () => {
+  const report: ChangeReport = {
+    version: 1,
+    runId: "run-1",
+    projectName: "acme",
+    stageName: "stage-01-test",
+    status: "READY",
+    score: 100,
+    risk: "low",
+    summary: "READY (100/100) - low risk",
+    phases: {},
+    changedFiles: ["b.ts", "a.ts"],
+    untrackedFiles: [],
+    reviewer: { verdict: "PASS", blockingIssues: [], nonBlockingIssues: [] },
+    checks: { state: "passed", failedChecks: [] },
+    writeSafety: { state: "passed" },
+    postWriteReview: { required: false, status: "completed" },
+    scopeDriftWarnings: [],
+    riskSignals: [],
+    manualReviewChecklist: [],
+    suggestedCommitMessage: "Test change"
+  };
+  const before = JSON.stringify(report);
+  const json = formatChangeReportJson(report);
+  const parsed = JSON.parse(json);
+  assert.equal(json.endsWith("\n"), true);
+  assert.deepEqual(parsed, report);
+  assert.equal(JSON.stringify(report), before);
+});
+
+test("writeChangeReport writes markdown and json inside run directory", async () => {
+  const runDir = await mkdtemp(path.join(os.tmpdir(), "change-report-write-"));
+  const report = await generateChangeReport({ runDir: await createRunFixture() });
+  const { markdownPath, jsonPath } = await writeChangeReport({ runDir, report });
+
+  assert.equal(markdownPath, path.resolve(runDir, "run-report.md"));
+  assert.equal(jsonPath, path.resolve(runDir, "run-report.json"));
+
+  const markdownRaw = await readFile(markdownPath, "utf8");
+  const jsonRaw = await readFile(jsonPath, "utf8");
+  assert.equal(markdownRaw.includes("# AI Change Report"), true);
+  assert.deepEqual(JSON.parse(jsonRaw), report);
+
+  const markdownRelative = path.relative(runDir, markdownPath);
+  const jsonRelative = path.relative(runDir, jsonPath);
+  assert.equal(markdownRelative.startsWith(".."), false);
+  assert.equal(jsonRelative.startsWith(".."), false);
+});
+
+test("generateAndWriteChangeReport writes artefacts and returns generated report", async () => {
+  const runDir = await createRunFixture();
+  const expected = await generateChangeReport({ runDir });
+  const result = await generateAndWriteChangeReport({ runDir });
+  assert.deepEqual(result.report, expected);
+  assert.equal(result.markdownPath, path.resolve(runDir, "run-report.md"));
+  assert.equal(result.jsonPath, path.resolve(runDir, "run-report.json"));
 });
