@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  DEFAULT_CHANGE_REPORT_POLICY,
   formatChangeReportJson,
   formatChangeReportMarkdown,
   formatPrSummaryMarkdown,
@@ -374,6 +375,161 @@ test("explicit Scope drift warning prevents READY", async () => {
 test("missing run directory throws clear error", async () => {
   const missingDir = path.join(os.tmpdir(), "change-report-missing-dir-does-not-exist");
   await assert.rejects(() => generateChangeReport({ runDir: missingDir }), /Run directory not found or unreadable:/);
+});
+
+test("custom high-risk policy path marks file high risk", async () => {
+  const runDir = await createRunFixture({ changedFiles: ["Package.swift"], changedFilesAddedByPhase: ["Package.swift"] });
+  const report = await generateChangeReport({
+    runDir,
+    policy: {
+      ...DEFAULT_CHANGE_REPORT_POLICY,
+      riskRules: {
+        ...DEFAULT_CHANGE_REPORT_POLICY.riskRules,
+        highRiskPaths: ["Package.swift"]
+      }
+    }
+  });
+  assert.equal(report.risk, "high");
+});
+
+test("custom medium-risk path marks file medium risk and high risk wins", async () => {
+  const runDir = await createRunFixture({
+    changedFiles: ["Sources/main.swift", "Package.swift"],
+    changedFilesAddedByPhase: ["Sources/main.swift", "Package.swift"]
+  });
+  const policy = {
+    ...DEFAULT_CHANGE_REPORT_POLICY,
+    riskRules: {
+      highRiskPaths: ["Package.swift"],
+      mediumRiskPaths: ["Sources/"],
+      lowRiskPaths: ["docs/"]
+    }
+  };
+  const report = await generateChangeReport({ runDir, policy });
+  assert.equal(report.risk, "high");
+});
+
+test("low-risk rules do not override high or medium matches", async () => {
+  const runDir = await createRunFixture({
+    changedFiles: ["docs/security-notes.md"],
+    changedFilesAddedByPhase: ["docs/security-notes.md"]
+  });
+  const report = await generateChangeReport({
+    runDir,
+    policy: {
+      ...DEFAULT_CHANGE_REPORT_POLICY,
+      riskRules: {
+        highRiskPaths: ["security"],
+        mediumRiskPaths: [],
+        lowRiskPaths: ["docs/"]
+      }
+    }
+  });
+  assert.equal(report.risk, "high");
+});
+
+test("risk matching is stable across path separators", async () => {
+  const runDir = await createRunFixture({
+    changedFiles: ["src\\server\\handler.ts"],
+    changedFilesAddedByPhase: ["src\\server\\handler.ts"]
+  });
+  const report = await generateChangeReport({
+    runDir,
+    policy: {
+      ...DEFAULT_CHANGE_REPORT_POLICY,
+      riskRules: {
+        highRiskPaths: [],
+        mediumRiskPaths: ["src/server/"],
+        lowRiskPaths: []
+      }
+    }
+  });
+  assert.equal(report.risk, "medium");
+});
+
+test("scope drift policy can suppress or relax drift warnings", async () => {
+  const disabledRunDir = await createRunFixture({
+    stageText: "## Scope\n- src/allowed.ts",
+    changedFiles: ["src/outside.ts"],
+    changedFilesAddedByPhase: ["src/outside.ts"]
+  });
+  const disabled = await generateChangeReport({
+    runDir: disabledRunDir,
+    policy: {
+      ...DEFAULT_CHANGE_REPORT_POLICY,
+      scopeDrift: { enabled: false, allowUnlistedTestFiles: false, allowUnlistedDocsFiles: false }
+    }
+  });
+  assert.equal(disabled.scopeDriftWarnings.length, 0);
+
+  const allowTestsRunDir = await createRunFixture({
+    stageText: "## Scope\n- src/allowed.ts",
+    changedFiles: ["tests/new.test.ts"],
+    changedFilesAddedByPhase: ["tests/new.test.ts"]
+  });
+  const allowTests = await generateChangeReport({
+    runDir: allowTestsRunDir,
+    policy: {
+      ...DEFAULT_CHANGE_REPORT_POLICY,
+      scopeDrift: { enabled: true, allowUnlistedTestFiles: true, allowUnlistedDocsFiles: false }
+    }
+  });
+  assert.equal(allowTests.scopeDriftWarnings.includes("Files changed outside explicit Scope file list in stage text."), false);
+
+  const allowDocsRunDir = await createRunFixture({
+    stageText: "## Scope\n- src/allowed.ts",
+    changedFiles: ["docs/notes.md"],
+    changedFilesAddedByPhase: ["docs/notes.md"]
+  });
+  const allowDocs = await generateChangeReport({
+    runDir: allowDocsRunDir,
+    policy: {
+      ...DEFAULT_CHANGE_REPORT_POLICY,
+      scopeDrift: { enabled: true, allowUnlistedTestFiles: false, allowUnlistedDocsFiles: true }
+    }
+  });
+  assert.equal(allowDocs.scopeDriftWarnings.includes("Files changed outside explicit Scope file list in stage text."), false);
+});
+
+test("custom penalties and thresholds alter score/status but hard rules still override", async () => {
+  const runDir = await createRunFixture({ reviewer: "PASS", checksState: "executed" });
+  const needsReview = await generateChangeReport({
+    runDir,
+    policy: {
+      ...DEFAULT_CHANGE_REPORT_POLICY,
+      readiness: {
+        ...DEFAULT_CHANGE_REPORT_POLICY.readiness,
+        readyMinimumScore: 100,
+        penalties: { ...DEFAULT_CHANGE_REPORT_POLICY.readiness.penalties, mediumRiskFiles: 30 }
+      }
+    }
+  });
+  assert.equal(needsReview.score < 100, true);
+  assert.equal(needsReview.status, "NEEDS_REVIEW");
+
+  const blocked = await generateChangeReport({
+    runDir: await createRunFixture({ runStatus: "failed", reviewer: "PASS", checksState: "executed" }),
+    policy: {
+      ...DEFAULT_CHANGE_REPORT_POLICY,
+      readiness: {
+        ...DEFAULT_CHANGE_REPORT_POLICY.readiness,
+        readyMinimumScore: 0,
+        needsReviewMinimumScore: 0,
+        penalties: {
+          failedRun: 0,
+          reviewerFail: 0,
+          checksFailed: 0,
+          checksSkippedWithSourceChanges: 0,
+          postWriteReviewPendingOrFailed: 0,
+          highRiskFiles: 0,
+          mediumRiskFiles: 0,
+          scopeDriftWarning: 0,
+          nonBlockingReviewerIssue: 0
+        }
+      }
+    }
+  });
+  assert.equal(blocked.status, "BLOCKED");
 });
 
 test("markdown formatter includes required sections and fields", async () => {

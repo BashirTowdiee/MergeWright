@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { validateConfig } from "../src/config.js";
+import { DEFAULT_CHANGE_REPORT_POLICY } from "../src/change-report.js";
 
 function makeBaseConfig(): Record<string, unknown> {
   return {
@@ -150,4 +151,48 @@ test("invalid writeSafety.blockedPaths fails", () => {
   const config = makeBaseConfig();
   (config as { writeSafety?: unknown }).writeSafety = { blockedPaths: [".env", ""] };
   assert.throws(() => validateConfig(config), /writeSafety\.blockedPaths\[1\] must be a non-empty string/);
+});
+
+test("missing changeReport uses default policy", () => {
+  const validated = validateConfig(makeBaseConfig());
+  assert.deepEqual(validated.changeReport, DEFAULT_CHANGE_REPORT_POLICY);
+});
+
+test("invalid changeReport penalty fails validation", () => {
+  const config = makeBaseConfig();
+  (config as { changeReport?: unknown }).changeReport = {
+    readiness: {
+      penalties: { failedRun: -1 }
+    }
+  };
+  assert.throws(() => validateConfig(config), /changeReport\.readiness\.penalties\.failedRun must be a number between 0 and 100/);
+});
+
+test("invalid changeReport thresholds fail validation", () => {
+  const config = makeBaseConfig();
+  (config as { changeReport?: unknown }).changeReport = {
+    readiness: {
+      readyMinimumScore: 50,
+      needsReviewMinimumScore: 60
+    }
+  };
+  assert.throws(() => validateConfig(config), /readyMinimumScore must be greater than or equal to/);
+});
+
+test("changeReport arrays must contain strings and booleans must be booleans", () => {
+  const badArray = makeBaseConfig();
+  (badArray as { changeReport?: unknown }).changeReport = {
+    riskRules: {
+      highRiskPaths: ["auth", 123]
+    }
+  };
+  assert.throws(() => validateConfig(badArray), /changeReport\.riskRules\.highRiskPaths\[1\] must be a string/);
+
+  const badBoolean = makeBaseConfig();
+  (badBoolean as { changeReport?: unknown }).changeReport = {
+    scopeDrift: {
+      enabled: "yes"
+    }
+  };
+  assert.throws(() => validateConfig(badBoolean), /changeReport\.scopeDrift\.enabled must be a boolean/);
 });

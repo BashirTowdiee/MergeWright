@@ -926,6 +926,74 @@ test("continue-run --generate-report writes and overwrites report artefacts afte
   assert.notEqual(json, "old-json");
 });
 
+test("--generate-report uses configured changeReport policy", async () => {
+  const fixture = await makeReportRunFixture();
+  await writeFile(
+    path.join(fixture.runDir, "run.json"),
+    JSON.stringify(
+      {
+        version: 1,
+        runId: fixture.runId,
+        projectName: "acme",
+        stageName: "example-stage",
+        workspaceRoot: "/tmp/workspace",
+        orchestratorRoot: fixture.orchestratorRoot,
+        configPath: path.join(fixture.orchestratorRoot, fixture.configArg),
+        startedAt: "2026-05-14T00:00:00.000Z",
+        completedAt: "2026-05-14T00:01:00.000Z",
+        status: "success",
+        resolvedOptions: {},
+        writeSafety: { state: "passed", allowWrites: true, status: "passed" },
+        postWriteReview: { required: false, status: "completed" },
+        phases: {
+          planner: { status: "executed" },
+          builder: { status: "executed" },
+          reviewer: { status: "executed" },
+          fixPlanning: { status: "disabled" },
+          fixExecution: { status: "disabled" },
+          checks: { status: "disabled" }
+        },
+        artefacts: [],
+        error: null
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+  const configPath = path.join(fixture.orchestratorRoot, fixture.configArg);
+  const configRaw = JSON.parse(await readFile(configPath, "utf8")) as Record<string, unknown>;
+  configRaw.changeReport = {
+    readiness: {
+      readyMinimumScore: 100,
+      needsReviewMinimumScore: 60,
+      penalties: {
+        failedRun: 40,
+        reviewerFail: 35,
+        checksFailed: 30,
+        checksSkippedWithSourceChanges: 20,
+        postWriteReviewPendingOrFailed: 20,
+        highRiskFiles: 15,
+        mediumRiskFiles: 25,
+        scopeDriftWarning: 10,
+        nonBlockingReviewerIssue: 5
+      }
+    }
+  };
+  await writeFile(configPath, JSON.stringify(configRaw, null, 2), "utf8");
+
+  await runCommand(
+    parseArgs(["continue-run", fixture.runId, "--config", fixture.configArg, "--run-checks", "--dry-run", "--generate-report"]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {}
+  );
+
+  const report = JSON.parse(await readFile(path.join(fixture.runDir, "run-report.json"), "utf8")) as { status: string; score: number };
+  assert.equal(report.score < 100, true);
+  assert.equal(report.status, "NEEDS_REVIEW");
+});
+
 test("run --auto-chain --generate-report writes report after auto-chain summary", async () => {
   const autoChainFixture = await makeAutoChainFixture();
   const reportFixture = await makeReportRunFixture();
@@ -1490,6 +1558,41 @@ test("report-run --json writes files and stdout is parseable json only", async (
   assert.doesNotMatch(stdout, /AI Change Report/);
   await readFile(path.join(fixture.runDir, "run-report.md"), "utf8");
   await readFile(path.join(fixture.runDir, "run-report.json"), "utf8");
+});
+
+test("report-run uses configured changeReport policy", async () => {
+  const fixture = await makeReportRunFixture();
+  const configPath = path.join(fixture.orchestratorRoot, fixture.configArg);
+  const configRaw = JSON.parse(await readFile(configPath, "utf8")) as Record<string, unknown>;
+  configRaw.changeReport = {
+    riskRules: {
+      highRiskPaths: [],
+      mediumRiskPaths: ["src/"],
+      lowRiskPaths: ["src/"]
+    },
+    readiness: {
+      readyMinimumScore: 100,
+      needsReviewMinimumScore: 60,
+      penalties: {
+        failedRun: 40,
+        reviewerFail: 35,
+        checksFailed: 30,
+        checksSkippedWithSourceChanges: 20,
+        postWriteReviewPendingOrFailed: 20,
+        highRiskFiles: 15,
+        mediumRiskFiles: 50,
+        scopeDriftWarning: 10,
+        nonBlockingReviewerIssue: 5
+      }
+    }
+  };
+  await writeFile(configPath, JSON.stringify(configRaw, null, 2), "utf8");
+
+  await runCommand(parseArgs(["report-run", fixture.runId, "--config", fixture.configArg]), fixture.orchestratorRoot, "linux", async () => {});
+
+  const report = JSON.parse(await readFile(path.join(fixture.runDir, "run-report.json"), "utf8")) as { status: string; score: number };
+  assert.equal(report.status, "NEEDS_REVIEW");
+  assert.equal(report.score, 50);
 });
 
 test("report-run fails when report artefacts already exist unless --force is provided", async () => {

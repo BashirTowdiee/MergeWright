@@ -229,7 +229,11 @@ export async function runCommand(
         writeLine(line);
       }
       if (args.generateReport) {
-        const reportSummaryLines = await generateReportSummaryLines({ runDir: summary.runDir, progressLogger });
+        const reportSummaryLines = await generateReportSummaryLines({
+          runDir: summary.runDir,
+          progressLogger,
+          policy: (await loadAndValidateConfig(resolveConfigPath(orchestratorRoot, args.configArg))).changeReport
+        });
         for (const line of reportSummaryLines) {
           writeLine(line);
         }
@@ -273,7 +277,11 @@ export async function runCommand(
       writeLine(line);
     }
     if (args.generateReport) {
-      const reportSummaryLines = await generateReportSummaryLines({ runDir: result.runDir, progressLogger });
+      const reportSummaryLines = await generateReportSummaryLines({
+        runDir: result.runDir,
+        progressLogger,
+        policy: (await loadAndValidateConfig(resolveConfigPath(orchestratorRoot, args.configArg))).changeReport
+      });
       for (const line of reportSummaryLines) {
         writeLine(line);
       }
@@ -307,7 +315,11 @@ export async function runCommand(
       writeLine(line);
     }
     if (args.generateReport) {
-      const reportSummaryLines = await generateReportSummaryLines({ runDir: result.runDir, progressLogger });
+      const reportSummaryLines = await generateReportSummaryLines({
+        runDir: result.runDir,
+        progressLogger,
+        policy: (await loadAndValidateConfig(resolveConfigPath(orchestratorRoot, args.configArg))).changeReport
+      });
       for (const line of reportSummaryLines) {
         writeLine(line);
       }
@@ -380,7 +392,7 @@ export async function runCommand(
     await assertPathExists(runDir, `Run does not exist: ${args.runId}`);
 
     progressLogger.phaseStart("report", "generating change report");
-    const report = await generateChangeReport({ runDir });
+    const report = await generateChangeReport({ runDir, policy: config.changeReport });
 
     const markdownPath = path.resolve(runDir, "run-report.md");
     const jsonPath = path.resolve(runDir, "run-report.json");
@@ -1152,9 +1164,10 @@ function formatReportSummaryLines(
 async function generateReportSummaryLines(input: {
   runDir: string;
   progressLogger: ProgressLogger;
+  policy: Awaited<ReturnType<typeof loadAndValidateConfig>>["changeReport"];
 }): Promise<string[]> {
   input.progressLogger.info("[report] generating AI Change Report");
-  const report = await generateChangeReport({ runDir: input.runDir });
+  const report = await generateChangeReport({ runDir: input.runDir, policy: input.policy });
   const { markdownPath, jsonPath } = await writeChangeReport({ runDir: input.runDir, report });
   input.progressLogger.info("[report] completed");
   return formatGeneratedReportSummaryLines(report, markdownPath, jsonPath);

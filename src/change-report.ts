@@ -7,6 +7,34 @@ export type CommitReadinessStatus = "READY" | "NEEDS_REVIEW" | "NEEDS_FIX" | "BL
 
 export type ChangeRiskLevel = "low" | "medium" | "high";
 
+export interface ChangeReportPolicy {
+  riskRules: {
+    highRiskPaths: string[];
+    mediumRiskPaths: string[];
+    lowRiskPaths: string[];
+  };
+  scopeDrift: {
+    enabled: boolean;
+    allowUnlistedTestFiles: boolean;
+    allowUnlistedDocsFiles: boolean;
+  };
+  readiness: {
+    readyMinimumScore: number;
+    needsReviewMinimumScore: number;
+    penalties: {
+      failedRun: number;
+      reviewerFail: number;
+      checksFailed: number;
+      checksSkippedWithSourceChanges: number;
+      postWriteReviewPendingOrFailed: number;
+      highRiskFiles: number;
+      mediumRiskFiles: number;
+      scopeDriftWarning: number;
+      nonBlockingReviewerIssue: number;
+    };
+  };
+}
+
 export interface ChangeReport {
   version: 1;
   runId: string;
@@ -107,8 +135,64 @@ const DEPENDENCY_PATTERNS = [/(^|\/)(package\.json|package-lock\.json|pnpm-lock\
 const DOCS_ONLY_PATTERNS = [/\.md$/i, /(^|\/)docs\//i, /(^|\/)README(\.[^/]+)?$/i, /(^|\/)CHANGELOG(\.[^/]+)?$/i];
 const HIGH_RISK_DOMAIN_HINTS = ["auth", "security", "payment", "billing", "database", "migration", "terraform", "workflow"];
 
-export async function generateChangeReport(input: { runDir: string }): Promise<ChangeReport> {
+export const DEFAULT_CHANGE_REPORT_POLICY: ChangeReportPolicy = {
+  riskRules: {
+    highRiskPaths: [
+      "auth/",
+      "security/",
+      "payment",
+      "billing/",
+      "database/",
+      "migration",
+      "terraform/",
+      ".github/workflows/",
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      "pnpm-lock.yml",
+      "yarn.lock",
+      "bun.lockb",
+      "go.sum",
+      "Cargo.lock",
+      "package.json",
+      "pyproject.toml",
+      "requirements",
+      "poetry.lock",
+      "Pipfile",
+      "Gemfile",
+      "pom.xml",
+      "build.gradle",
+      "gradle.properties",
+      ".env",
+      "config."
+    ],
+    mediumRiskPaths: ["src/", "route", "server/", "middleware/", "schema/", "logger", "test/", "tests/", ".test.", ".spec."],
+    lowRiskPaths: [".md", "docs/", "README", "CHANGELOG"]
+  },
+  scopeDrift: {
+    enabled: true,
+    allowUnlistedTestFiles: false,
+    allowUnlistedDocsFiles: false
+  },
+  readiness: {
+    readyMinimumScore: 85,
+    needsReviewMinimumScore: 60,
+    penalties: {
+      failedRun: 40,
+      reviewerFail: 35,
+      checksFailed: 30,
+      checksSkippedWithSourceChanges: 20,
+      postWriteReviewPendingOrFailed: 20,
+      highRiskFiles: 15,
+      mediumRiskFiles: 10,
+      scopeDriftWarning: 10,
+      nonBlockingReviewerIssue: 5
+    }
+  }
+};
+
+export async function generateChangeReport(input: { runDir: string; policy?: ChangeReportPolicy }): Promise<ChangeReport> {
   const runDir = path.resolve(input.runDir);
+  const policy = input.policy ?? DEFAULT_CHANGE_REPORT_POLICY;
   await assertRunDirectoryExists(runDir);
 
   const runJsonResult = await readOptionalJson<RunMetadataWithAutoChain>(path.resolve(runDir, "run.json"));
@@ -136,7 +220,7 @@ export async function generateChangeReport(input: { runDir: string }): Promise<C
   const postWriteReviewRequired = run?.postWriteReview?.required ?? false;
   const postWriteReviewStatus = run?.postWriteReview?.status ?? "unknown";
 
-  const scopeDriftWarnings = buildScopeDriftWarnings({ stageText, changedFiles, untrackedFiles });
+  const scopeDriftWarnings = buildScopeDriftWarnings({ stageText, changedFiles, untrackedFiles, policy });
   const riskSignals = buildRiskSignals({
     reviewerVerdict: reviewer.verdict,
     reviewerAvailable: reviewer.available,
@@ -150,8 +234,20 @@ export async function generateChangeReport(input: { runDir: string }): Promise<C
     writeAuditMalformed: builderSummaryResult.malformed || fixSummaryResult.malformed
   });
 
-  const risk = classifyRisk({ changedFiles, writeSafetyState, postWriteReviewStatus });
-  const status = classifyStatus({
+  const risk = classifyRisk({ changedFiles, writeSafetyState, postWriteReviewStatus, policy });
+  const score = computeScore({
+    runStatus: run?.status ?? "unknown",
+    reviewerVerdict: reviewer.verdict,
+    nonBlockingIssueCount: reviewer.nonBlockingIssues.length,
+    checksState: checks.state,
+    hasChangedFiles: changedFiles.length > 0,
+    postWriteReviewRequired,
+    postWriteReviewStatus,
+    risk,
+    scopeDriftWarningCount: scopeDriftWarnings.length,
+    policy
+  });
+  const finalStatus = classifyStatus({
     runStatus: run?.status ?? "unknown",
     reviewerVerdict: reviewer.verdict,
     checksState: checks.state,
@@ -159,9 +255,10 @@ export async function generateChangeReport(input: { runDir: string }): Promise<C
     postWriteReviewStatus,
     autoChainFinalStatus: typeof run?.autoChain?.finalStatus === "string" ? run.autoChain.finalStatus : "",
     risk,
-    scopeDriftWarnings
+    scopeDriftWarnings,
+    score,
+    policy
   });
-  const score = computeScore({ runStatus: run?.status ?? "unknown", reviewerVerdict: reviewer.verdict, nonBlockingIssueCount: reviewer.nonBlockingIssues.length, checksState: checks.state, hasChangedFiles: changedFiles.length > 0, postWriteReviewRequired, postWriteReviewStatus, risk, scopeDriftWarningCount: scopeDriftWarnings.length });
 
   const manualReviewChecklist = buildManualReviewChecklist({
     reviewerAvailable: reviewer.available,
@@ -178,10 +275,10 @@ export async function generateChangeReport(input: { runDir: string }): Promise<C
     runId: run?.runId ?? path.basename(runDir),
     projectName: run?.projectName ?? null,
     stageName: run?.stageName ?? null,
-    status,
+    status: finalStatus,
     score,
     risk,
-    summary: `${status} (${score}/100) - ${risk} risk`,
+    summary: `${finalStatus} (${score}/100) - ${risk} risk`,
     phases,
     changedFiles,
     untrackedFiles,
@@ -452,6 +549,8 @@ function classifyStatus(input: {
   autoChainFinalStatus: string;
   risk: ChangeRiskLevel;
   scopeDriftWarnings: string[];
+  score: number;
+  policy: ChangeReportPolicy;
 }): CommitReadinessStatus {
   if (input.runStatus === "failed") {
     return "BLOCKED";
@@ -473,9 +572,13 @@ function classifyStatus(input: {
     input.checksState === "passed" &&
     input.risk !== "high" &&
     input.scopeDriftWarnings.length === 0 &&
-    input.runStatus === "success"
+    input.runStatus === "success" &&
+    input.score >= input.policy.readiness.readyMinimumScore
   ) {
     return "READY";
+  }
+  if (input.score < input.policy.readiness.needsReviewMinimumScore) {
+    return "NEEDS_REVIEW";
   }
   return "NEEDS_REVIEW";
 }
@@ -490,41 +593,60 @@ function computeScore(input: {
   postWriteReviewStatus: string;
   risk: ChangeRiskLevel;
   scopeDriftWarningCount: number;
+  policy: ChangeReportPolicy;
 }): number {
+  const penalties = input.policy.readiness.penalties;
   let score = 100;
-  if (input.runStatus === "failed") score -= 40;
-  if (input.reviewerVerdict === "FAIL") score -= 35;
-  if (input.checksState === "failed") score -= 30;
-  if ((input.checksState === "unknown" || input.checksState === "skipped") && input.hasChangedFiles) score -= 20;
-  if (input.postWriteReviewRequired && (input.postWriteReviewStatus === "pending" || input.postWriteReviewStatus === "failed")) score -= 20;
-  if (input.risk === "high") score -= 15;
-  if (input.risk === "medium") score -= 10;
-  score -= Math.min(30, input.scopeDriftWarningCount * 10);
-  score -= Math.min(20, input.nonBlockingIssueCount * 5);
+  if (input.runStatus === "failed") score -= penalties.failedRun;
+  if (input.reviewerVerdict === "FAIL") score -= penalties.reviewerFail;
+  if (input.checksState === "failed") score -= penalties.checksFailed;
+  if ((input.checksState === "unknown" || input.checksState === "skipped") && input.hasChangedFiles) {
+    score -= penalties.checksSkippedWithSourceChanges;
+  }
+  if (input.postWriteReviewRequired && (input.postWriteReviewStatus === "pending" || input.postWriteReviewStatus === "failed")) {
+    score -= penalties.postWriteReviewPendingOrFailed;
+  }
+  if (input.risk === "high") score -= penalties.highRiskFiles;
+  if (input.risk === "medium") score -= penalties.mediumRiskFiles;
+  score -= Math.min(30, input.scopeDriftWarningCount * penalties.scopeDriftWarning);
+  score -= Math.min(20, input.nonBlockingIssueCount * penalties.nonBlockingReviewerIssue);
   return clamp(score, 0, 100);
 }
 
-function classifyRisk(input: { changedFiles: string[]; writeSafetyState: string; postWriteReviewStatus: string }): ChangeRiskLevel {
+function classifyRisk(input: {
+  changedFiles: string[];
+  writeSafetyState: string;
+  postWriteReviewStatus: string;
+  policy: ChangeReportPolicy;
+}): ChangeRiskLevel {
   if (input.writeSafetyState === "failed" || input.postWriteReviewStatus === "failed") {
     return "high";
   }
-  const files = input.changedFiles;
+  const files = input.changedFiles.map(normalizePathForMatching);
   if (files.length === 0) {
     return "low";
   }
-  if (files.some((file) => matchesAny(file, HIGH_RISK_PATTERNS))) {
+  if (files.some((file) => matchesPolicyPath(file, input.policy.riskRules.highRiskPaths))) {
     return "high";
   }
-  if (isDocsOnly(files)) {
-    return "low";
-  }
-  if (files.some((file) => matchesAny(file, MEDIUM_RISK_PATTERNS))) {
+  if (files.some((file) => matchesPolicyPath(file, input.policy.riskRules.mediumRiskPaths))) {
     return "medium";
+  }
+  if (isDocsOnly(files) || files.some((file) => matchesPolicyPath(file, input.policy.riskRules.lowRiskPaths))) {
+    return "low";
   }
   return "low";
 }
 
-function buildScopeDriftWarnings(input: { stageText: string; changedFiles: string[]; untrackedFiles: string[] }): string[] {
+function buildScopeDriftWarnings(input: {
+  stageText: string;
+  changedFiles: string[];
+  untrackedFiles: string[];
+  policy: ChangeReportPolicy;
+}): string[] {
+  if (!input.policy.scopeDrift.enabled) {
+    return [];
+  }
   const warnings: string[] = [];
   const stageLower = input.stageText.toLowerCase();
 
@@ -537,9 +659,17 @@ function buildScopeDriftWarnings(input: { stageText: string; changedFiles: strin
 
   const scopedFiles = extractScopeFileList(input.stageText);
   if (scopedFiles.length > 0) {
-    const outside = input.changedFiles.filter((changed) =>
-      !scopedFiles.some((scoped) => changed === scoped || changed.startsWith(`${scoped}/`))
-    );
+    const outside = input.changedFiles.filter((changed) => {
+      const normalizedChanged = normalizePathForMatching(changed);
+      const inScope = scopedFiles.some((scoped) => {
+        const normalizedScoped = normalizePathForMatching(scoped);
+        return normalizedChanged === normalizedScoped || normalizedChanged.startsWith(`${normalizedScoped}/`);
+      });
+      if (inScope) return false;
+      if (input.policy.scopeDrift.allowUnlistedTestFiles && isTestLikePath(normalizedChanged)) return false;
+      if (input.policy.scopeDrift.allowUnlistedDocsFiles && isDocsLikePath(normalizedChanged)) return false;
+      return true;
+    });
     if (outside.length > 0) {
       warnings.push("Files changed outside explicit Scope file list in stage text.");
     }
@@ -721,6 +851,30 @@ function extractScopeFileList(stageText: string): string[] {
 
 function isDocsOnly(files: string[]): boolean {
   return files.length > 0 && files.every((file) => matchesAny(file, DOCS_ONLY_PATTERNS));
+}
+
+function isTestLikePath(filePath: string): boolean {
+  return /(^|\/)(test|tests|__tests__)(\/|$)/i.test(filePath) || /\.(test|spec)\.[^/]+$/i.test(filePath);
+}
+
+function isDocsLikePath(filePath: string): boolean {
+  return isDocsOnly([filePath]);
+}
+
+function normalizePathForMatching(filePath: string): string {
+  return filePath.replace(/\\/g, "/").replace(/^\.\/+/, "");
+}
+
+function matchesPolicyPath(filePathRaw: string, patterns: string[]): boolean {
+  const filePath = normalizePathForMatching(filePathRaw).toLowerCase();
+  return patterns.some((patternRaw) => {
+    const pattern = normalizePathForMatching(patternRaw).toLowerCase();
+    if (!pattern) return false;
+    if (pattern.endsWith("/")) {
+      return filePath === pattern.slice(0, -1) || filePath.startsWith(pattern);
+    }
+    return filePath === pattern || filePath.startsWith(`${pattern}/`) || filePath.includes(pattern);
+  });
 }
 
 function matchesAny(file: string, patterns: RegExp[]): boolean {

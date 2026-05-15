@@ -40,5 +40,32 @@
     "requireReviewAfterWrites": true,
     "autoCommit": false,
     "autoPush": false
+  },
+  "changeReport": {
+    "riskRules": {
+      "highRiskPaths": ["auth", "security", "database", ".github/workflows", "package.json"],
+      "mediumRiskPaths": ["src/", "server", "routes", "tests"],
+      "lowRiskPaths": ["README.md", "docs/"]
+    },
+    "scopeDrift": {
+      "enabled": true,
+      "allowUnlistedTestFiles": false,
+      "allowUnlistedDocsFiles": false
+    },
+    "readiness": {
+      "readyMinimumScore": 85,
+      "needsReviewMinimumScore": 60,
+      "penalties": {
+        "failedRun": 40,
+        "reviewerFail": 35,
+        "checksFailed": 30,
+        "checksSkippedWithSourceChanges": 20,
+        "postWriteReviewPendingOrFailed": 20,
+        "highRiskFiles": 15,
+        "mediumRiskFiles": 10,
+        "scopeDriftWarning": 10,
+        "nonBlockingReviewerIssue": 5
+      }
+    }
   }
 }

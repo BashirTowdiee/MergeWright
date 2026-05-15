@@ -102,6 +102,8 @@ This creates:
 
 Project-specific configs under `configs/*.json` are git-ignored. Use tracked examples like `config.example.json` or `configs/acme.example.json` as templates, then create your local `configs/<project>.json`.
 
+`changeReport` config is optional. When omitted, default report policy is used. This policy only affects AI Change Report classification/scoring/scope-drift behavior and does not change Codex execution, checks execution, write safety, or target workspace mutation rules.
+
 ## Running A Stage
 
 Minimal safe preview:

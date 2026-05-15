@@ -51,5 +51,58 @@
     "requireReviewAfterWrites": true,
     "autoCommit": false,
     "autoPush": false
+  },
+  "changeReport": {
+    "riskRules": {
+      "highRiskPaths": [
+        "auth",
+        "security",
+        "payment",
+        "billing",
+        "database",
+        "migration",
+        "terraform",
+        ".github/workflows",
+        "package.json",
+        "package-lock.json",
+        "pnpm-lock.yaml",
+        "yarn.lock",
+        ".env",
+        "config"
+      ],
+      "mediumRiskPaths": [
+        "server",
+        "routes",
+        "api",
+        "middleware",
+        "schemas",
+        "logger",
+        "tests"
+      ],
+      "lowRiskPaths": [
+        "README.md",
+        "docs/"
+      ]
+    },
+    "scopeDrift": {
+      "enabled": true,
+      "allowUnlistedTestFiles": false,
+      "allowUnlistedDocsFiles": false
+    },
+    "readiness": {
+      "readyMinimumScore": 85,
+      "needsReviewMinimumScore": 60,
+      "penalties": {
+        "failedRun": 40,
+        "reviewerFail": 35,
+        "checksFailed": 30,
+        "checksSkippedWithSourceChanges": 20,
+        "postWriteReviewPendingOrFailed": 20,
+        "highRiskFiles": 15,
+        "mediumRiskFiles": 10,
+        "scopeDriftWarning": 10,
+        "nonBlockingReviewerIssue": 5
+      }
+    }
   }
 }

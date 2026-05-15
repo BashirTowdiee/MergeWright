@@ -108,6 +108,8 @@ npm run agent -- run example-stage \
 
 `--generate-report` runs only after successful completion. If the primary command fails, automatic report generation is skipped; run `report-run <run-id> --config <config-path>` later when a run directory exists.
 
+AI Change Report policy is optional and configured under `changeReport` in your project config. If omitted, default risk/scoring/scope-drift rules are used. Policy matching uses simple deterministic path rules (exact/prefix/substring), not glob expansion.
+
 Live Codex stream:
 
 ```bash

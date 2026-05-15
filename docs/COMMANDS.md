@@ -310,6 +310,11 @@ Notes:
 - `--pr-summary --stdout-only` prints PR summary Markdown only
 - `--json --pr-summary --stdout-only` is rejected because stdout can contain only one machine-readable format
 - reads existing run artefacts only
+- optional `changeReport` config is loaded from the project config; when omitted, built-in defaults are used
+- risk path rules use simple path matching (exact, prefix for `.../`, or substring), not full glob semantics
+- precedence is deterministic: high-risk matches override medium/low, medium overrides low
+- hard readiness rules still override score thresholds (for example failed run or failed required review)
+- report policy affects reporting only; it does not affect Codex execution, checks execution, or write safety behavior
 
 ## `check-write-safety`
 Purpose: inspect whether a target repo is ready for a future write-enabled builder/fix run.
