@@ -12,6 +12,7 @@ test("top-level help contains command list and safety notes", async () => {
   assert.match(text, /Commands:/);
   assert.match(text, /run <stage-name>/);
   assert.match(text, /continue-run <run-id>/);
+  assert.match(text, /report-run <run-id>/);
   assert.match(text, /read-only sandbox/);
   assert.match(text, /No auto-commit or auto-push/);
 });
@@ -59,6 +60,17 @@ test("check-write-safety help shows read-only inspection behavior", async () => 
   assert.match(text, /Usage: agent-stage check-write-safety/);
   assert.match(text, /No Codex execution/);
   assert.match(text, /No workspace writes/);
+});
+
+test("report-run help shows report generation behavior", async () => {
+  const output: string[] = [];
+  await runCommand(parseArgs(["report-run", "--help"]), process.cwd(), "linux", async () => {}, (line) => output.push(line));
+  const text = output.join("\n");
+  assert.match(text, /Usage: agent-stage report-run/);
+  assert.match(text, /Does not execute Codex/);
+  assert.match(text, /Default writes run-report.md and run-report.json and prints a human summary/);
+  assert.match(text, /--stdout-only prints Markdown by default/);
+  assert.match(text, /--json output is JSON-only/);
 });
 
 test("init-project help shows workspace and force options", async () => {
@@ -315,7 +327,7 @@ test("--allow-writes without builder/fix fails clearly", () => {
 test("run rejects --force", () => {
   assert.throws(
     () => parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--force"]),
-    /--force is only supported for init-project/
+    /--force is only supported for init-project and report-run/
   );
 });
 
@@ -330,14 +342,53 @@ test("continue-run rejects --force", () => {
         "--execute-builder",
         "--force"
       ]),
-    /--force is only supported for init-project/
+    /--force is only supported for init-project and report-run/
+  );
+});
+
+test("report-run parses run id and config", () => {
+  const args = parseArgs(["report-run", "run-1", "--config", "configs/acme.json"]);
+  assert.equal(args.command, "report-run");
+  assert.equal(args.runId, "run-1");
+  assert.equal(args.configArg, "configs/acme.json");
+});
+
+test("report-run parses --json, --stdout-only, and --force", () => {
+  const args = parseArgs(["report-run", "run-1", "--config", "configs/acme.json", "--json", "--stdout-only", "--force"]);
+  assert.equal(args.jsonOutput, true);
+  assert.equal(args.stdoutOnly, true);
+  assert.equal(args.force, true);
+});
+
+test("report-run rejects missing run id", () => {
+  assert.throws(
+    () => parseArgs(["report-run", "--config", "configs/acme.json"]),
+    /report-run requires <run-id>/
+  );
+});
+
+test("report-run rejects missing config", () => {
+  assert.throws(
+    () => parseArgs(["report-run", "run-1"]),
+    /Missing required --config <config-path>/
+  );
+});
+
+test("non-report commands reject report flags", () => {
+  assert.throws(
+    () => parseArgs(["list-runs", "--config", "configs/acme.json", "--json"]),
+    /--json and --stdout-only are only supported for report-run/
+  );
+  assert.throws(
+    () => parseArgs(["show-run", "run-1", "--config", "configs/acme.json", "--stdout-only"]),
+    /--json and --stdout-only are only supported for report-run/
   );
 });
 
 test("list-runs rejects --force", () => {
   assert.throws(
     () => parseArgs(["list-runs", "--config", "configs/acme.json", "--force"]),
-    /--force is only supported for init-project/
+    /--force is only supported for init-project and report-run/
   );
 });
 
@@ -761,6 +812,64 @@ async function makeRunFixture(): Promise<{ orchestratorRoot: string; configArg: 
   return { orchestratorRoot, configArg, runId };
 }
 
+async function makeReportRunFixture(): Promise<{ orchestratorRoot: string; configArg: string; runId: string; runDir: string }> {
+  const fixture = await makeRunFixture();
+  const runDir = path.join(fixture.orchestratorRoot, "runs/acme", fixture.runId);
+  await mkdir(path.join(runDir, "write-audit/builder"), { recursive: true });
+  await writeFile(
+    path.join(runDir, "run.json"),
+    JSON.stringify(
+      {
+        version: 1,
+        runId: fixture.runId,
+        projectName: "acme",
+        stageName: "example-stage",
+        workspaceRoot: "/tmp/workspace",
+        orchestratorRoot: fixture.orchestratorRoot,
+        configPath: path.join(fixture.orchestratorRoot, fixture.configArg),
+        startedAt: "2026-05-14T00:00:00.000Z",
+        completedAt: "2026-05-14T00:01:00.000Z",
+        status: "success",
+        resolvedOptions: {},
+        writeSafety: { state: "passed", allowWrites: true, status: "passed" },
+        postWriteReview: { required: false, status: "completed" },
+        phases: {
+          planner: { status: "executed" },
+          builder: { status: "executed" },
+          reviewer: { status: "executed" },
+          fixPlanning: { status: "disabled" },
+          fixExecution: { status: "disabled" },
+          checks: { status: "executed" }
+        },
+        artefacts: [],
+        error: null
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+  await writeFile(
+    path.join(runDir, "reviewer-output-last-message.md"),
+    `# Reviewer\n\n\`\`\`json reviewer-verdict\n${JSON.stringify({ verdict: "PASS", blockingIssues: [], nonBlockingIssues: [] }, null, 2)}\n\`\`\``,
+    "utf8"
+  );
+  await writeFile(path.join(runDir, "checks-status.json"), JSON.stringify({ state: "executed" }, null, 2), "utf8");
+  await writeFile(
+    path.join(runDir, "write-audit/builder/summary.json"),
+    JSON.stringify(
+      {
+        post: { changedFiles: ["src/routes/api.ts"], untrackedFiles: [] },
+        changedFilesAddedByPhase: ["src/routes/api.ts"]
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+  return { ...fixture, runDir };
+}
+
 test("list-runs works with empty runs directory", async () => {
   const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "orchestrator-cli-empty-"));
   await mkdir(path.join(orchestratorRoot, "configs"), { recursive: true });
@@ -983,6 +1092,156 @@ test("open-run on non-macOS prints unsupported message and does not call opener"
   );
   assert.equal(called, 0);
   assert.ok(output.some((line) => line.includes("Auto-open unsupported on platform linux")));
+});
+
+test("report-run default writes report markdown/json and prints concise summary", async () => {
+  const fixture = await makeReportRunFixture();
+  const output: string[] = [];
+  await runCommand(
+    parseArgs(["report-run", fixture.runId, "--config", fixture.configArg]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    (line) => output.push(line)
+  );
+  const markdown = await readFile(path.join(fixture.runDir, "run-report.md"), "utf8");
+  const json = await readFile(path.join(fixture.runDir, "run-report.json"), "utf8");
+  assert.match(markdown, /# AI Change Report/);
+  assert.match(json, /"status":/);
+  assert.ok(output.some((line) => line.includes("AI Change Report")));
+  assert.ok(output.some((line) => line.includes("status:")));
+  assert.ok(output.some((line) => line.includes("score:")));
+  assert.ok(output.some((line) => line.includes("risk:")));
+  assert.ok(output.some((line) => line.includes("changed files:")));
+  assert.ok(output.some((line) => line.includes("report markdown:")));
+  assert.ok(output.some((line) => line.includes("report json:")));
+});
+
+test("report-run --stdout-only writes no files and prints markdown", async () => {
+  const fixture = await makeReportRunFixture();
+  const output: string[] = [];
+  await runCommand(
+    parseArgs(["report-run", fixture.runId, "--config", fixture.configArg, "--stdout-only"]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    (line) => output.push(line)
+  );
+  await assert.rejects(() => readFile(path.join(fixture.runDir, "run-report.md"), "utf8"));
+  await assert.rejects(() => readFile(path.join(fixture.runDir, "run-report.json"), "utf8"));
+  assert.match(output.join("\n"), /# AI Change Report/);
+});
+
+test("report-run --stdout-only --json writes no files and stdout is parseable json only", async () => {
+  const fixture = await makeReportRunFixture();
+  const output: string[] = [];
+  await runCommand(
+    parseArgs(["report-run", fixture.runId, "--config", fixture.configArg, "--stdout-only", "--json"]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    (line) => output.push(line)
+  );
+  const stdout = output.join("\n");
+  await assert.rejects(() => readFile(path.join(fixture.runDir, "run-report.md"), "utf8"));
+  await assert.rejects(() => readFile(path.join(fixture.runDir, "run-report.json"), "utf8"));
+  const parsed = JSON.parse(stdout) as { version: number; runId: string };
+  assert.equal(parsed.version, 1);
+  assert.equal(parsed.runId, fixture.runId);
+  assert.equal(output.length, 1);
+  assert.doesNotMatch(stdout, /\[report\]/);
+  assert.doesNotMatch(stdout, /AI Change Report/);
+});
+
+test("report-run --json writes files and stdout is parseable json only", async () => {
+  const fixture = await makeReportRunFixture();
+  const output: string[] = [];
+  await runCommand(
+    parseArgs(["report-run", fixture.runId, "--config", fixture.configArg, "--json"]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    (line) => output.push(line)
+  );
+  const stdout = output.join("\n");
+  const parsed = JSON.parse(stdout) as { version: number; runId: string };
+  assert.equal(parsed.version, 1);
+  assert.equal(parsed.runId, fixture.runId);
+  assert.equal(output.length, 1);
+  assert.doesNotMatch(stdout, /\[report\]/);
+  assert.doesNotMatch(stdout, /AI Change Report/);
+  await readFile(path.join(fixture.runDir, "run-report.md"), "utf8");
+  await readFile(path.join(fixture.runDir, "run-report.json"), "utf8");
+});
+
+test("report-run fails when report artefacts already exist unless --force is provided", async () => {
+  const fixture = await makeReportRunFixture();
+  await writeFile(path.join(fixture.runDir, "run-report.md"), "old", "utf8");
+  await assert.rejects(
+    () =>
+      runCommand(
+        parseArgs(["report-run", fixture.runId, "--config", fixture.configArg]),
+        fixture.orchestratorRoot,
+        "linux",
+        async () => {}
+      ),
+    /Report artefacts already exist\. Use --force to overwrite\./
+  );
+});
+
+test("report-run overwrites artefacts with --force", async () => {
+  const fixture = await makeReportRunFixture();
+  await writeFile(path.join(fixture.runDir, "run-report.md"), "old-md", "utf8");
+  await writeFile(path.join(fixture.runDir, "run-report.json"), "old-json", "utf8");
+  await runCommand(
+    parseArgs(["report-run", fixture.runId, "--config", fixture.configArg, "--force"]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {}
+  );
+  const markdown = await readFile(path.join(fixture.runDir, "run-report.md"), "utf8");
+  const json = await readFile(path.join(fixture.runDir, "run-report.json"), "utf8");
+  assert.notEqual(markdown, "old-md");
+  assert.notEqual(json, "old-json");
+});
+
+test("report-run fails clearly when run directory is missing", async () => {
+  const fixture = await makeReportRunFixture();
+  await assert.rejects(
+    () =>
+      runCommand(
+        parseArgs(["report-run", "missing-run-id", "--config", fixture.configArg]),
+        fixture.orchestratorRoot,
+        "linux",
+        async () => {}
+      ),
+    /Run does not exist: missing-run-id/
+  );
+});
+
+test("report-run does not call run/continue/check-write-safety/auto-chain handlers", async () => {
+  const fixture = await makeReportRunFixture();
+  let checkSafetyCalls = 0;
+  let autoChainCalls = 0;
+  await runCommand(
+    parseArgs(["report-run", fixture.runId, "--config", fixture.configArg]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    () => {},
+    {
+      checkWriteSafetyHandler: async () => {
+        checkSafetyCalls += 1;
+        throw new Error("should not be called");
+      },
+      autoChainHandler: async () => {
+        autoChainCalls += 1;
+        throw new Error("should not be called");
+      }
+    }
+  );
+  assert.equal(checkSafetyCalls, 0);
+  assert.equal(autoChainCalls, 0);
 });
 
 test("repeated preset fails clearly", () => {

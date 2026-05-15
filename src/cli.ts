@@ -2,7 +2,9 @@
 import process from "node:process";
 import { spawn } from "node:child_process";
 import path from "node:path";
+import { access } from "node:fs/promises";
 import { loadAndValidateConfig, resolveConfigPath } from "./config.js";
+import { formatChangeReportJson, formatChangeReportMarkdown, generateChangeReport, writeChangeReport } from "./change-report.js";
 import { continueRun } from "./continue-run.js";
 import { createGitInspectionClient, type GitInspectionClient } from "./git-inspection.js";
 import { initProject } from "./init-project.js";
@@ -16,7 +18,7 @@ import {
   formatAutoChainExecutionSummaryLines,
   projectAutoChainDryRun
 } from "./auto-chain.js";
-import { listRunDirectories, readRunDetails, readRunSummary, resolveRunsRoot } from "./runs.js";
+import { listRunDirectories, readRunDetails, readRunSummary, resolveRunDir, resolveRunsRoot } from "./runs.js";
 import { checkWriteSafety, type WriteSafetyResult } from "./write-safety.js";
 
 interface ParsedArgs {
@@ -30,6 +32,8 @@ interface ParsedArgs {
   repoOverride?: string;
   preset?: PipelinePreset;
   force: boolean;
+  jsonOutput?: boolean;
+  stdoutOnly?: boolean;
   dryRun: boolean;
   executePlanner: boolean;
   executeBuilder: boolean;
@@ -102,7 +106,8 @@ export async function runCommand(
   writeLine: (line: string) => void = console.log,
   deps: RunCommandDeps = {}
 ): Promise<void> {
-  const progressLogger = createProgressLogger(writeLine, { verbose: args.verbose });
+  const jsonOnlyStdout = args.command === "report-run" && args.jsonOutput === true;
+  const progressLogger = jsonOnlyStdout ? NOOP_PROGRESS_LOGGER : createProgressLogger(writeLine, { verbose: args.verbose });
 
   if (args.help) {
     writeLine(renderHelpText(args.command));
@@ -113,7 +118,7 @@ export async function runCommand(
     throw new Error(`Missing command.\n\n${renderHelpText()}`);
   }
 
-  const knownCommands = new Set(["run", "continue-run", "list-runs", "show-run", "open-run", "init-project", "check-write-safety"]);
+  const knownCommands = new Set(["run", "continue-run", "list-runs", "show-run", "open-run", "report-run", "init-project", "check-write-safety"]);
   if (!knownCommands.has(args.command)) {
     throw new Error(`Unknown command: ${args.command}\n\n${renderHelpText()}`);
   }
@@ -325,6 +330,46 @@ export async function runCommand(
     return;
   }
 
+  if (args.command === "report-run") {
+    if (!args.runId) {
+      throw new Error("Usage: agent-stage report-run <run-id> --config <config-path> [--json] [--stdout-only] [--force] [--verbose]");
+    }
+    progressLogger.phaseStart("report", "loading config");
+    progressLogger.verbose(`[report] config path: ${configPath}`);
+    progressLogger.verbose(`[report] runs root: ${runsRoot}`);
+    progressLogger.phaseStart("report", "resolving run directory");
+    const runDir = resolveRunDir(runsRoot, args.runId);
+    progressLogger.verbose(`[report] run directory: ${runDir}`);
+    await assertPathExists(runDir, `Run does not exist: ${args.runId}`);
+
+    progressLogger.phaseStart("report", "generating change report");
+    const report = await generateChangeReport({ runDir });
+
+    const markdownPath = path.resolve(runDir, "run-report.md");
+    const jsonPath = path.resolve(runDir, "run-report.json");
+    if (!args.stdoutOnly) {
+      progressLogger.phaseStart("report", "writing report artefacts");
+      if (!args.force && ((await pathExists(markdownPath)) || (await pathExists(jsonPath)))) {
+        throw new Error("Report artefacts already exist. Use --force to overwrite.");
+      }
+      await writeChangeReport({ runDir, report });
+    }
+    progressLogger.phaseComplete("report", "completed");
+
+    if (args.jsonOutput) {
+      writeLine(formatChangeReportJson(report).trimEnd());
+      return;
+    }
+    if (args.stdoutOnly) {
+      writeLine(formatChangeReportMarkdown(report).trimEnd());
+      return;
+    }
+    for (const line of formatReportSummaryLines(report, args.runId, markdownPath, jsonPath)) {
+      writeLine(line);
+    }
+    return;
+  }
+
   throw new Error(renderHelpText());
 }
 
@@ -372,7 +417,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
     parsed.stageName = firstArg && !firstArg.startsWith("-") ? firstArg : undefined;
   } else if (command === "init-project") {
     parsed.projectName = firstArg && !firstArg.startsWith("-") ? firstArg : undefined;
-  } else if (command === "show-run" || command === "open-run" || command === "continue-run") {
+  } else if (command === "show-run" || command === "open-run" || command === "continue-run" || command === "report-run") {
     parsed.runId = firstArg && !firstArg.startsWith("-") ? firstArg : undefined;
   }
   const rest =
@@ -380,7 +425,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
       ? firstArg && firstArg.startsWith("-")
         ? [firstArg, ...tail]
         : tail
-      : command === "show-run" || command === "open-run" || command === "continue-run"
+      : command === "show-run" || command === "open-run" || command === "continue-run" || command === "report-run"
         ? firstArg && firstArg.startsWith("-")
           ? [firstArg, ...tail]
           : tail
@@ -449,10 +494,18 @@ export function parseArgs(argv: string[]): ParsedArgs {
       continue;
     }
     if (token === "--force") {
-      if (parsed.command !== "init-project") {
-        throw new Error("--force is only supported for init-project");
+      if (parsed.command !== "init-project" && parsed.command !== "report-run") {
+        throw new Error("--force is only supported for init-project and report-run");
       }
       parsed.force = true;
+      continue;
+    }
+    if (token === "--json") {
+      parsed.jsonOutput = true;
+      continue;
+    }
+    if (token === "--stdout-only") {
+      parsed.stdoutOnly = true;
       continue;
     }
     if (token === "--run-checks") {
@@ -519,6 +572,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
   }
   if (parsed.maxFixAttempts != null && !parsed.autoChain) {
     throw new Error("--max-fix-attempts is only supported with --auto-chain.");
+  }
+  if ((parsed.jsonOutput || parsed.stdoutOnly) && parsed.command !== "report-run") {
+    throw new Error("--json and --stdout-only are only supported for report-run");
   }
 
   if (parsed.command === "run") {
@@ -600,6 +656,23 @@ export function parseArgs(argv: string[]): ParsedArgs {
     }
     if (parsed.repoOverride) {
       throw new Error("--repo is not supported for init-project.");
+    }
+  }
+  if (parsed.command === "report-run") {
+    if (parsed.help) {
+      return parsed;
+    }
+    if (!parsed.runId) {
+      throw new Error("report-run requires <run-id>. Usage: agent-stage report-run <run-id> --config <config-path> [--json] [--stdout-only] [--force] [--verbose]");
+    }
+    if (!parsed.configArg) {
+      throw new Error("Missing required --config <config-path>. No implicit default is used.");
+    }
+    if (parsed.workspaceArg) {
+      throw new Error("--workspace is not supported for report-run.");
+    }
+    if (parsed.repoOverride) {
+      throw new Error("--repo is not supported for report-run.");
     }
   }
 
@@ -694,6 +767,27 @@ function renderHelpText(command?: string): string {
     ].join("\n");
   }
 
+  if (command === "report-run") {
+    return [
+      "Usage: agent-stage report-run <run-id> --config <config-path> [--json] [--stdout-only] [--force] [--verbose]",
+      "",
+      "Generates AI Change Report artefacts for an existing run.",
+      "  --config <config-path>   Required. No implicit default is used.",
+      "  --json                   Prints JSON-only report to stdout (machine-readable).",
+      "  --stdout-only            Prints report output without writing artefacts.",
+      "  --force                  Overwrite existing run-report.md and run-report.json.",
+      "",
+      "Notes:",
+      "  - Does not execute Codex.",
+      "  - Does not run checks.",
+      "  - Does not mutate target workspace.",
+      "  - Default writes run-report.md and run-report.json and prints a human summary.",
+      "  - --stdout-only prints Markdown by default.",
+      "  - --json output is JSON-only (no progress logs or summary lines).",
+      "  - Reads existing run artefacts only; does not run git commands."
+    ].join("\n");
+  }
+
   if (command === "init-project") {
     return [
       "Usage: agent-stage init-project <name> --workspace <path> [--force] [--verbose]",
@@ -733,6 +827,7 @@ function renderHelpText(command?: string): string {
     "  list-runs --config <config-path>",
     "  show-run <run-id> --config <config-path>",
     "  open-run <run-id> --config <config-path>",
+    "  report-run <run-id> --config <config-path> [--json] [--stdout-only] [--force] [--verbose]",
     "  init-project <name> --workspace <path> [--force] [--verbose]",
     "  check-write-safety --config <config-path>",
     "",
@@ -948,6 +1043,43 @@ function formatRunDetailsLines(details: Awaited<ReturnType<typeof readRunDetails
     lines.push(`  - ${fileName}`);
   }
   return lines;
+}
+
+function formatReportSummaryLines(
+  report: Awaited<ReturnType<typeof generateChangeReport>>,
+  runId: string,
+  markdownPath: string,
+  jsonPath: string
+): string[] {
+  return [
+    "AI Change Report",
+    `- run id: ${runId}`,
+    `- status: ${report.status}`,
+    `- score: ${report.score}/100`,
+    `- risk: ${report.risk}`,
+    `- changed files: ${report.changedFiles.length}`,
+    `- untracked files: ${report.untrackedFiles.length}`,
+    `- scope drift warnings: ${report.scopeDriftWarnings.length}`,
+    `- report markdown: ${markdownPath}`,
+    `- report json: ${jsonPath}`
+  ];
+}
+
+async function pathExists(filePath: string): Promise<boolean> {
+  try {
+    await access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function assertPathExists(targetPath: string, message: string): Promise<void> {
+  try {
+    await access(targetPath);
+  } catch {
+    throw new Error(message);
+  }
 }
 
 export async function defaultOpenRunDirectory(runDir: string): Promise<void> {

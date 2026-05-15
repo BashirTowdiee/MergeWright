@@ -246,6 +246,48 @@ Notes:
 
 - on non-macOS platforms, prints run directory path instead
 
+## `report-run`
+
+Purpose: generate AI Change Report artefacts for an existing run directory.
+
+Usage:
+
+```bash
+npm run agent -- report-run <run-id> --config <config-path> [--json] [--stdout-only] [--force] [--verbose]
+```
+
+Required args:
+
+- `<run-id>`
+- `--config <config-path>`
+
+Common flags:
+
+- `--json` print JSON report to stdout (stdout is JSON-only and suitable for piping to tools)
+- `--stdout-only` print report output without writing artefacts
+- `--force` overwrite existing `run-report.md` and `run-report.json`
+- `--verbose` print detailed progress context
+
+Examples:
+
+```bash
+npm run agent -- report-run <run-id> --config configs/my-app.json
+npm run agent -- report-run <run-id> --config configs/my-app.json --stdout-only
+npm run agent -- report-run <run-id> --config configs/my-app.json --stdout-only --json
+npm run agent -- report-run <run-id> --config configs/my-app.json --force
+```
+
+Notes:
+
+- does not execute Codex
+- does not run checks
+- does not run git commands
+- does not mutate target workspace
+- default writes `run-report.md` and `run-report.json` inside the run directory and prints a human summary
+- `--json` output is JSON-only (no progress logs or human summary on stdout)
+- `--stdout-only` prints Markdown by default, or JSON when combined with `--json`
+- reads existing run artefacts only
+
 ## `check-write-safety`
 Purpose: inspect whether a target repo is ready for a future write-enabled builder/fix run.
 
