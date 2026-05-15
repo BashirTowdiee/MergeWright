@@ -4,7 +4,14 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { access } from "node:fs/promises";
 import { loadAndValidateConfig, resolveConfigPath } from "./config.js";
-import { formatChangeReportJson, formatChangeReportMarkdown, generateChangeReport, writeChangeReport } from "./change-report.js";
+import {
+  formatChangeReportJson,
+  formatChangeReportMarkdown,
+  formatPrSummaryMarkdown,
+  generateChangeReport,
+  writeChangeReport,
+  writePrSummary
+} from "./change-report.js";
 import { continueRun } from "./continue-run.js";
 import { createGitInspectionClient, type GitInspectionClient } from "./git-inspection.js";
 import { initProject } from "./init-project.js";
@@ -34,6 +41,7 @@ interface ParsedArgs {
   force: boolean;
   jsonOutput?: boolean;
   stdoutOnly?: boolean;
+  prSummary?: boolean;
   dryRun: boolean;
   executePlanner: boolean;
   executeBuilder: boolean;
@@ -109,7 +117,8 @@ export async function runCommand(
   writeLine: (line: string) => void = console.log,
   deps: RunCommandDeps = {}
 ): Promise<void> {
-  const jsonOnlyStdout = args.command === "report-run" && args.jsonOutput === true;
+  const jsonOnlyStdout =
+    args.command === "report-run" && (args.jsonOutput === true || (args.prSummary === true && args.stdoutOnly === true));
   const progressLogger = jsonOnlyStdout ? NOOP_PROGRESS_LOGGER : createProgressLogger(writeLine, { verbose: args.verbose });
 
   if (args.help) {
@@ -358,7 +367,9 @@ export async function runCommand(
 
   if (args.command === "report-run") {
     if (!args.runId) {
-      throw new Error("Usage: agent-stage report-run <run-id> --config <config-path> [--json] [--stdout-only] [--force] [--verbose]");
+      throw new Error(
+        "Usage: agent-stage report-run <run-id> --config <config-path> [--json] [--pr-summary] [--stdout-only] [--force] [--verbose]"
+      );
     }
     progressLogger.phaseStart("report", "loading config");
     progressLogger.verbose(`[report] config path: ${configPath}`);
@@ -373,12 +384,24 @@ export async function runCommand(
 
     const markdownPath = path.resolve(runDir, "run-report.md");
     const jsonPath = path.resolve(runDir, "run-report.json");
+    const prSummaryPath = path.resolve(runDir, "pr-summary.md");
     if (!args.stdoutOnly) {
       progressLogger.phaseStart("report", "writing report artefacts");
-      if (!args.force && ((await pathExists(markdownPath)) || (await pathExists(jsonPath)))) {
-        throw new Error("Report artefacts already exist. Use --force to overwrite.");
+      if (!args.force) {
+        const intendedOutputs = [markdownPath, jsonPath, ...(args.prSummary ? [prSummaryPath] : [])];
+        for (const outputPath of intendedOutputs) {
+          if (await pathExists(outputPath)) {
+            if (outputPath === prSummaryPath) {
+              throw new Error("PR summary artefact already exists. Use --force to overwrite.");
+            }
+            throw new Error("Report artefacts already exist. Use --force to overwrite.");
+          }
+        }
       }
       await writeChangeReport({ runDir, report });
+      if (args.prSummary) {
+        await writePrSummary({ runDir, report });
+      }
     }
     progressLogger.phaseComplete("report", "completed");
 
@@ -386,11 +409,15 @@ export async function runCommand(
       writeLine(formatChangeReportJson(report).trimEnd());
       return;
     }
+    if (args.prSummary && args.stdoutOnly) {
+      writeLine(formatPrSummaryMarkdown(report).trimEnd());
+      return;
+    }
     if (args.stdoutOnly) {
       writeLine(formatChangeReportMarkdown(report).trimEnd());
       return;
     }
-    for (const line of formatReportSummaryLines(report, args.runId, markdownPath, jsonPath)) {
+    for (const line of formatReportSummaryLines(report, args.runId, markdownPath, jsonPath, args.prSummary ? prSummaryPath : null)) {
       writeLine(line);
     }
     return;
@@ -539,6 +566,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
       parsed.stdoutOnly = true;
       continue;
     }
+    if (token === "--pr-summary") {
+      parsed.prSummary = true;
+      continue;
+    }
     if (token === "--run-checks") {
       parsed.runChecks = true;
       continue;
@@ -607,8 +638,13 @@ export function parseArgs(argv: string[]): ParsedArgs {
   if (parsed.maxFixAttempts != null && !parsed.autoChain) {
     throw new Error("--max-fix-attempts is only supported with --auto-chain.");
   }
-  if ((parsed.jsonOutput || parsed.stdoutOnly) && parsed.command !== "report-run") {
-    throw new Error("--json and --stdout-only are only supported for report-run");
+  if ((parsed.jsonOutput || parsed.stdoutOnly || parsed.prSummary) && parsed.command !== "report-run") {
+    throw new Error("--json, --pr-summary, and --stdout-only are only supported for report-run");
+  }
+  if (parsed.command === "report-run" && parsed.jsonOutput && parsed.prSummary && parsed.stdoutOnly) {
+    throw new Error(
+      "--json cannot be combined with --pr-summary and --stdout-only because stdout can contain only one machine-readable format."
+    );
   }
 
   if (parsed.command === "run") {
@@ -697,7 +733,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
       return parsed;
     }
     if (!parsed.runId) {
-      throw new Error("report-run requires <run-id>. Usage: agent-stage report-run <run-id> --config <config-path> [--json] [--stdout-only] [--force] [--verbose]");
+      throw new Error(
+        "report-run requires <run-id>. Usage: agent-stage report-run <run-id> --config <config-path> [--json] [--pr-summary] [--stdout-only] [--force] [--verbose]"
+      );
     }
     if (!parsed.configArg) {
       throw new Error("Missing required --config <config-path>. No implicit default is used.");
@@ -805,21 +843,26 @@ function renderHelpText(command?: string): string {
 
   if (command === "report-run") {
     return [
-      "Usage: agent-stage report-run <run-id> --config <config-path> [--json] [--stdout-only] [--force] [--verbose]",
+      "Usage: agent-stage report-run <run-id> --config <config-path> [--json] [--pr-summary] [--stdout-only] [--force] [--verbose]",
       "",
       "Generates AI Change Report artefacts for an existing run.",
       "  --config <config-path>   Required. No implicit default is used.",
       "  --json                   Prints JSON-only report to stdout (machine-readable).",
+      "  --pr-summary             Also generates pr-summary.md based on the ChangeReport.",
       "  --stdout-only            Prints report output without writing artefacts.",
-      "  --force                  Overwrite existing run-report.md and run-report.json.",
+      "  --force                  Overwrite existing run-report.md, run-report.json, and pr-summary.md.",
       "",
       "Notes:",
       "  - Does not execute Codex.",
       "  - Does not run checks.",
       "  - Does not mutate target workspace.",
       "  - Default writes run-report.md and run-report.json and prints a human summary.",
+      "  - --pr-summary also writes pr-summary.md.",
       "  - --stdout-only prints Markdown by default.",
+      "  - --pr-summary --stdout-only prints PR summary Markdown only.",
       "  - --json output is JSON-only (no progress logs or summary lines).",
+      "  - --json --pr-summary --stdout-only is rejected because stdout can contain only one machine-readable format.",
+      "  - Does not create a PR and does not call GitHub APIs.",
       "  - Reads existing run artefacts only; does not run git commands."
     ].join("\n");
   }
@@ -863,7 +906,7 @@ function renderHelpText(command?: string): string {
     "  list-runs --config <config-path>",
     "  show-run <run-id> --config <config-path>",
     "  open-run <run-id> --config <config-path>",
-    "  report-run <run-id> --config <config-path> [--json] [--stdout-only] [--force] [--verbose]",
+    "  report-run <run-id> --config <config-path> [--json] [--pr-summary] [--stdout-only] [--force] [--verbose]",
     "  init-project <name> --workspace <path> [--force] [--verbose]",
     "  check-write-safety --config <config-path>",
     "",
@@ -1085,9 +1128,10 @@ function formatReportSummaryLines(
   report: Awaited<ReturnType<typeof generateChangeReport>>,
   runId: string,
   markdownPath: string,
-  jsonPath: string
+  jsonPath: string,
+  prSummaryPath: string | null
 ): string[] {
-  return [
+  const lines = [
     "AI Change Report",
     `- run id: ${runId}`,
     `- status: ${report.status}`,
@@ -1099,6 +1143,10 @@ function formatReportSummaryLines(
     `- report markdown: ${markdownPath}`,
     `- report json: ${jsonPath}`
   ];
+  if (prSummaryPath) {
+    lines.push(`- PR summary markdown: ${prSummaryPath}`);
+  }
+  return lines;
 }
 
 async function generateReportSummaryLines(input: {

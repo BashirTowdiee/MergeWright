@@ -269,7 +269,7 @@ Purpose: generate AI Change Report artefacts for an existing run directory.
 Usage:
 
 ```bash
-npm run agent -- report-run <run-id> --config <config-path> [--json] [--stdout-only] [--force] [--verbose]
+npm run agent -- report-run <run-id> --config <config-path> [--json] [--pr-summary] [--stdout-only] [--force] [--verbose]
 ```
 
 Required args:
@@ -280,16 +280,19 @@ Required args:
 Common flags:
 
 - `--json` print JSON report to stdout (stdout is JSON-only and suitable for piping to tools)
+- `--pr-summary` also generate PR summary Markdown for GitHub body usage
 - `--stdout-only` print report output without writing artefacts
-- `--force` overwrite existing `run-report.md` and `run-report.json`
+- `--force` overwrite existing `run-report.md`, `run-report.json`, and `pr-summary.md`
 - `--verbose` print detailed progress context
 
 Examples:
 
 ```bash
 npm run agent -- report-run <run-id> --config configs/my-app.json
+npm run agent -- report-run <run-id> --config configs/my-app.json --pr-summary
 npm run agent -- report-run <run-id> --config configs/my-app.json --stdout-only
 npm run agent -- report-run <run-id> --config configs/my-app.json --stdout-only --json
+npm run agent -- report-run <run-id> --config configs/my-app.json --pr-summary --stdout-only
 npm run agent -- report-run <run-id> --config configs/my-app.json --force
 ```
 
@@ -299,9 +302,13 @@ Notes:
 - does not run checks
 - does not run git commands
 - does not mutate target workspace
+- does not create PRs and does not call GitHub APIs
 - default writes `run-report.md` and `run-report.json` inside the run directory and prints a human summary
+- `--pr-summary` also writes `pr-summary.md`
 - `--json` output is JSON-only (no progress logs or human summary on stdout)
 - `--stdout-only` prints Markdown by default, or JSON when combined with `--json`
+- `--pr-summary --stdout-only` prints PR summary Markdown only
+- `--json --pr-summary --stdout-only` is rejected because stdout can contain only one machine-readable format
 - reads existing run artefacts only
 
 ## `check-write-safety`

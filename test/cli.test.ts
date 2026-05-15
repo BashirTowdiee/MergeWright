@@ -71,6 +71,7 @@ test("report-run help shows report generation behavior", async () => {
   assert.match(text, /Default writes run-report.md and run-report.json and prints a human summary/);
   assert.match(text, /--stdout-only prints Markdown by default/);
   assert.match(text, /--json output is JSON-only/);
+  assert.match(text, /--pr-summary/);
 });
 
 test("init-project help shows workspace and force options", async () => {
@@ -383,10 +384,10 @@ test("report-run parses run id and config", () => {
   assert.equal(args.configArg, "configs/acme.json");
 });
 
-test("report-run parses --json, --stdout-only, and --force", () => {
-  const args = parseArgs(["report-run", "run-1", "--config", "configs/acme.json", "--json", "--stdout-only", "--force"]);
+test("report-run parses --json, --stdout-only, --pr-summary, and --force", () => {
+  const args = parseArgs(["report-run", "run-1", "--config", "configs/acme.json", "--json", "--pr-summary", "--force"]);
   assert.equal(args.jsonOutput, true);
-  assert.equal(args.stdoutOnly, true);
+  assert.equal(args.prSummary, true);
   assert.equal(args.force, true);
 });
 
@@ -407,11 +408,18 @@ test("report-run rejects missing config", () => {
 test("non-report commands reject report flags", () => {
   assert.throws(
     () => parseArgs(["list-runs", "--config", "configs/acme.json", "--json"]),
-    /--json and --stdout-only are only supported for report-run/
+    /--json, --pr-summary, and --stdout-only are only supported for report-run/
   );
   assert.throws(
     () => parseArgs(["show-run", "run-1", "--config", "configs/acme.json", "--stdout-only"]),
-    /--json and --stdout-only are only supported for report-run/
+    /--json, --pr-summary, and --stdout-only are only supported for report-run/
+  );
+});
+
+test("report-run rejects --json --pr-summary --stdout-only combination", () => {
+  assert.throws(
+    () => parseArgs(["report-run", "run-1", "--config", "configs/acme.json", "--json", "--pr-summary", "--stdout-only"]),
+    /--json cannot be combined with --pr-summary and --stdout-only/
   );
 });
 
@@ -1391,6 +1399,42 @@ test("report-run default writes report markdown/json and prints concise summary"
   assert.ok(output.some((line) => line.includes("report json:")));
 });
 
+test("report-run --pr-summary writes report artefacts and pr-summary.md and prints path", async () => {
+  const fixture = await makeReportRunFixture();
+  const output: string[] = [];
+  await runCommand(
+    parseArgs(["report-run", fixture.runId, "--config", fixture.configArg, "--pr-summary"]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    (line) => output.push(line)
+  );
+  await readFile(path.join(fixture.runDir, "run-report.md"), "utf8");
+  await readFile(path.join(fixture.runDir, "run-report.json"), "utf8");
+  const prSummary = await readFile(path.join(fixture.runDir, "pr-summary.md"), "utf8");
+  assert.match(prSummary, /^# /);
+  assert.ok(output.some((line) => line.includes("PR summary markdown:")));
+});
+
+test("report-run --pr-summary --stdout-only prints PR markdown only and writes no files", async () => {
+  const fixture = await makeReportRunFixture();
+  const output: string[] = [];
+  await runCommand(
+    parseArgs(["report-run", fixture.runId, "--config", fixture.configArg, "--pr-summary", "--stdout-only"]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    (line) => output.push(line)
+  );
+  await assert.rejects(() => readFile(path.join(fixture.runDir, "run-report.md"), "utf8"));
+  await assert.rejects(() => readFile(path.join(fixture.runDir, "run-report.json"), "utf8"));
+  await assert.rejects(() => readFile(path.join(fixture.runDir, "pr-summary.md"), "utf8"));
+  const text = output.join("\n");
+  assert.match(text, /^# /);
+  assert.match(text, /## Manual Checklist/);
+  assert.doesNotMatch(text, /# AI Change Report/);
+});
+
 test("report-run --stdout-only writes no files and prints markdown", async () => {
   const fixture = await makeReportRunFixture();
   const output: string[] = [];
@@ -1463,6 +1507,50 @@ test("report-run fails when report artefacts already exist unless --force is pro
   );
 });
 
+test("report-run --pr-summary fails atomically when pr-summary.md exists and report files are missing", async () => {
+  const fixture = await makeReportRunFixture();
+  const prSummaryPath = path.join(fixture.runDir, "pr-summary.md");
+  await writeFile(prSummaryPath, "existing-pr-summary", "utf8");
+
+  await assert.rejects(
+    () =>
+      runCommand(
+        parseArgs(["report-run", fixture.runId, "--config", fixture.configArg, "--pr-summary"]),
+        fixture.orchestratorRoot,
+        "linux",
+        async () => {}
+      ),
+    /PR summary artefact already exists\. Use --force to overwrite\./
+  );
+
+  await assert.rejects(() => readFile(path.join(fixture.runDir, "run-report.md"), "utf8"));
+  await assert.rejects(() => readFile(path.join(fixture.runDir, "run-report.json"), "utf8"));
+  assert.equal(await readFile(prSummaryPath, "utf8"), "existing-pr-summary");
+});
+
+test("report-run --pr-summary fails atomically when report file exists and does not overwrite pr-summary.md", async () => {
+  const fixture = await makeReportRunFixture();
+  const reportMarkdownPath = path.join(fixture.runDir, "run-report.md");
+  const prSummaryPath = path.join(fixture.runDir, "pr-summary.md");
+  await writeFile(reportMarkdownPath, "existing-report", "utf8");
+  await writeFile(prSummaryPath, "existing-pr-summary", "utf8");
+
+  await assert.rejects(
+    () =>
+      runCommand(
+        parseArgs(["report-run", fixture.runId, "--config", fixture.configArg, "--pr-summary"]),
+        fixture.orchestratorRoot,
+        "linux",
+        async () => {}
+      ),
+    /Report artefacts already exist\. Use --force to overwrite\./
+  );
+
+  assert.equal(await readFile(reportMarkdownPath, "utf8"), "existing-report");
+  await assert.rejects(() => readFile(path.join(fixture.runDir, "run-report.json"), "utf8"));
+  assert.equal(await readFile(prSummaryPath, "utf8"), "existing-pr-summary");
+});
+
 test("report-run overwrites artefacts with --force", async () => {
   const fixture = await makeReportRunFixture();
   await writeFile(path.join(fixture.runDir, "run-report.md"), "old-md", "utf8");
@@ -1477,6 +1565,25 @@ test("report-run overwrites artefacts with --force", async () => {
   const json = await readFile(path.join(fixture.runDir, "run-report.json"), "utf8");
   assert.notEqual(markdown, "old-md");
   assert.notEqual(json, "old-json");
+});
+
+test("report-run --pr-summary --force overwrites pr-summary.md and writes report files", async () => {
+  const fixture = await makeReportRunFixture();
+  const prSummaryPath = path.join(fixture.runDir, "pr-summary.md");
+  await writeFile(prSummaryPath, "old-pr-summary", "utf8");
+  await runCommand(
+    parseArgs(["report-run", fixture.runId, "--config", fixture.configArg, "--pr-summary", "--force"]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {}
+  );
+  const prSummary = await readFile(prSummaryPath, "utf8");
+  const markdown = await readFile(path.join(fixture.runDir, "run-report.md"), "utf8");
+  const json = await readFile(path.join(fixture.runDir, "run-report.json"), "utf8");
+  assert.notEqual(prSummary, "old-pr-summary");
+  assert.match(prSummary, /^# /);
+  assert.match(markdown, /# AI Change Report/);
+  assert.match(json, /"status":/);
 });
 
 test("report-run fails clearly when run directory is missing", async () => {

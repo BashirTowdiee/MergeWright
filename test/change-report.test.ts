@@ -6,9 +6,12 @@ import test from "node:test";
 import {
   formatChangeReportJson,
   formatChangeReportMarkdown,
+  formatPrSummaryMarkdown,
   generateAndWriteChangeReport,
+  generateAndWritePrSummary,
   generateChangeReport,
-  writeChangeReport
+  writeChangeReport,
+  writePrSummary
 } from "../src/change-report.js";
 import type { ChangeReport } from "../src/change-report.js";
 
@@ -499,4 +502,96 @@ test("generateAndWriteChangeReport writes artefacts and returns generated report
   assert.deepEqual(result.report, expected);
   assert.equal(result.markdownPath, path.resolve(runDir, "run-report.md"));
   assert.equal(result.jsonPath, path.resolve(runDir, "run-report.json"));
+});
+
+test("pr summary formatter includes required sections and deterministic sorted output", async () => {
+  const runDir = await createRunFixture({
+    reviewer: "FAIL",
+    checksState: "failed",
+    changedFiles: ["src/z.ts", "src/a.ts"],
+    changedFilesAddedByPhase: ["src/a.ts", "src/z.ts"],
+    untrackedFiles: ["tmp-b.txt", "tmp-a.txt"],
+    stageText: "## Scope\n- src/a.ts"
+  });
+  const report = await generateChangeReport({ runDir });
+  const before = JSON.stringify(report);
+  const markdownA = formatPrSummaryMarkdown(report);
+  const markdownB = formatPrSummaryMarkdown(report);
+
+  assert.equal(markdownA, markdownB);
+  assert.equal(JSON.stringify(report), before);
+  assert.equal(markdownA.includes(`# ${report.suggestedCommitMessage}`), true);
+  assert.equal(markdownA.includes("## Summary"), true);
+  assert.equal(markdownA.includes("## Changes"), true);
+  assert.equal(markdownA.includes("- src/a.ts"), true);
+  assert.equal(markdownA.includes("- src/z.ts"), true);
+  assert.equal(markdownA.includes("## Testing"), true);
+  assert.equal(markdownA.includes("- Checks state: failed"), true);
+  assert.equal(markdownA.includes("## Risk"), true);
+  assert.equal(markdownA.includes(`- Risk level: ${report.risk}`), true);
+  assert.equal(markdownA.includes("## Review Notes"), true);
+  assert.equal(markdownA.includes("- Reviewer verdict: FAIL"), true);
+  assert.equal(markdownA.includes("## Manual Checklist"), true);
+  assert.equal(markdownA.includes("- [ ] "), true);
+  assert.equal(markdownA.includes("## Rollback"), true);
+});
+
+test("pr summary formatter renders None for empty lists and non-ready status note", () => {
+  const report: ChangeReport = {
+    version: 1,
+    runId: "run-1",
+    projectName: "acme",
+    stageName: "stage-01-test",
+    status: "NEEDS_REVIEW",
+    score: 70,
+    risk: "low",
+    summary: "",
+    phases: {},
+    changedFiles: [],
+    untrackedFiles: [],
+    reviewer: { verdict: "PASS", blockingIssues: [], nonBlockingIssues: [] },
+    checks: { state: "skipped", failedChecks: [] },
+    writeSafety: { state: "passed" },
+    postWriteReview: { required: false, status: "completed" },
+    scopeDriftWarnings: [],
+    riskSignals: [],
+    manualReviewChecklist: [],
+    suggestedCommitMessage: "Test change"
+  };
+  const markdown = formatPrSummaryMarkdown(report);
+  assert.equal(markdown.includes("## Summary\nNone"), true);
+  assert.equal(markdown.includes("## Changes\n- None"), true);
+  assert.equal(markdown.includes("- Risk signals:\n- None"), true);
+  assert.equal(markdown.includes("- Scope drift warnings:\n- None"), true);
+  assert.equal(markdown.includes("- Blocking issues:\n- None"), true);
+  assert.equal(markdown.includes("- Non-blocking issues:\n- None"), true);
+  assert.equal(markdown.includes("- [ ] None"), true);
+  assert.equal(markdown.includes("- Commit readiness: NEEDS_REVIEW (not ready for direct merge)"), true);
+});
+
+test("writePrSummary writes pr-summary.md inside run directory and returns absolute path", async () => {
+  const runDir = await mkdtemp(path.join(os.tmpdir(), "change-report-pr-summary-"));
+  const report = await generateChangeReport({ runDir: await createRunFixture() });
+  const { markdownPath } = await writePrSummary({ runDir, report });
+  assert.equal(markdownPath, path.resolve(runDir, "pr-summary.md"));
+  const markdown = await readFile(markdownPath, "utf8");
+  assert.equal(markdown.includes("## Summary"), true);
+  assert.equal(path.relative(runDir, markdownPath).startsWith(".."), false);
+});
+
+test("generateAndWritePrSummary writes pr-summary.md and returns report", async () => {
+  const runDir = await createRunFixture();
+  const expected = await generateChangeReport({ runDir });
+  const result = await generateAndWritePrSummary({ runDir });
+  assert.deepEqual(result.report, expected);
+  assert.equal(result.markdownPath, path.resolve(runDir, "pr-summary.md"));
+  await readFile(result.markdownPath, "utf8");
+});
+
+test("writePrSummary propagates write errors", async () => {
+  const parentDir = await mkdtemp(path.join(os.tmpdir(), "change-report-pr-summary-error-"));
+  const runDir = path.join(parentDir, "run-dir-is-a-file");
+  await writeFile(runDir, "not-a-directory", "utf8");
+  const report = await generateChangeReport({ runDir: await createRunFixture() });
+  await assert.rejects(() => writePrSummary({ runDir, report }));
 });

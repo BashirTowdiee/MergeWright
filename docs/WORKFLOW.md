@@ -40,6 +40,14 @@ npm run agent -- show-run <run-id> --config configs/my-app.json
 
 Use `list-runs` to find run ids and `show-run` to inspect status, warnings, and artefacts.
 
+Generate AI Change Report plus PR summary Markdown from an existing run:
+
+```bash
+npm run agent -- report-run <run-id> \
+  --config configs/my-app.json \
+  --pr-summary
+```
+
 ## E) Continue Manually
 
 ```bash
