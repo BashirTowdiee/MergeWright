@@ -7,11 +7,11 @@ const docs = defineCollection({
     base: '../docs',
   }),
   schema: z.object({
-    title: z.string(),
-    description: z.string(),
-    order: z.number(),
-    section: z.string().default('Planning'),
-    status: z.enum(['draft', 'review', 'stable']).default('draft'),
+    title: z.string().optional(),
+    description: z.string().optional(),
+    order: z.number().optional(),
+    section: z.string().optional(),
+    status: z.enum(['draft', 'review', 'stable']).optional(),
   }),
 });
 
