@@ -1,0 +1,97 @@
+---
+import '../styles/global.css';
+
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+interface DocNavItem {
+  id: string;
+  data: {
+    title: string;
+    order: number;
+    section: string;
+  };
+}
+
+interface Props {
+  currentDoc: {
+    id: string;
+    data: {
+      title: string;
+      description: string;
+      section: string;
+      status: 'draft' | 'review' | 'stable';
+    };
+  };
+  docs: DocNavItem[];
+  headings: Heading[];
+}
+
+const { currentDoc, docs, headings } = Astro.props;
+const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
+---
+
+<html lang="en-AU">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{currentDoc.data.title} | Shepherds-Staff Docs</title>
+    <meta name="description" content={currentDoc.data.description} />
+  </head>
+  <body>
+    <header class="topbar">
+      <a href="/" class="brand">Shepherds-Staff Project Docs</a>
+    </header>
+    <div class="docs-shell">
+      <aside class="left-nav">
+        <nav aria-label="Documentation navigation">
+          <h2>Documentation</h2>
+          <ul>
+            {docs.map((doc) => (
+              <li>
+                <a
+                  href={`/docs/${doc.id}`}
+                  class={doc.id === currentDoc.id ? 'active' : ''}
+                  aria-current={doc.id === currentDoc.id ? 'page' : undefined}
+                >
+                  <span class="section">{doc.data.section}</span>
+                  <span>{doc.data.title}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </aside>
+
+      <main class="doc-main">
+        <header class="doc-header">
+          <p class="doc-section">{currentDoc.data.section}</p>
+          <h1>{currentDoc.data.title}</h1>
+          <p>{currentDoc.data.description}</p>
+          <p class="doc-status">Status: {currentDoc.data.status}</p>
+        </header>
+        <slot />
+      </main>
+
+      <aside class="right-toc">
+        <nav aria-label="Table of contents">
+          <h2>On this page</h2>
+          {toc.length > 0 ? (
+            <ul>
+              {toc.map((heading) => (
+                <li class={`depth-${heading.depth}`}>
+                  <a href={`#${heading.slug}`}>{heading.text}</a>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No headings available.</p>
+          )}
+        </nav>
+      </aside>
+    </div>
+  </body>
+</html>
