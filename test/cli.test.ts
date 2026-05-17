@@ -346,6 +346,20 @@ test("import-stage-plan fails when --out is missing", () => {
   assert.throws(() => parseArgs(["import-stage-plan", "--from", "x.json"]), /import-stage-plan requires --out <path>/);
 });
 
+test("run-stage requires --stage-plan", () => {
+  assert.throws(
+    () => parseArgs(["run-stage", "stage-01-provider-contract", "--config", "configs/acme.json"]),
+    /run-stage requires --stage-plan <path>/
+  );
+});
+
+test("run-stage requires a stage id", () => {
+  assert.throws(
+    () => parseArgs(["run-stage", "--stage-plan", ".artifacts/runs/provider-switching/stage-plan.json", "--config", "configs/acme.json"]),
+    /run-stage requires <stage-id>/
+  );
+});
+
 test("docs keep auto-chain scoped to run and document final statuses", async () => {
   const commandsDoc = await readFile(path.join(process.cwd(), "docs/COMMANDS.md"), "utf8");
   const workflowDoc = await readFile(path.join(process.cwd(), "docs/WORKFLOW.md"), "utf8");
@@ -562,35 +576,35 @@ test("open-plan failure does not fail run command", async () => {
 test("unsupported commands reject --stream-codex", () => {
   assert.throws(
     () => parseArgs(["list-runs", "--config", "configs/acme.json", "--stream-codex"]),
-    /--stream-codex is only supported for run and continue-run/
+    /--stream-codex is only supported for run, continue-run, and run-stage/
   );
 });
 
 test("check-write-safety rejects --stream-codex", () => {
   assert.throws(
     () => parseArgs(["check-write-safety", "--config", "configs/acme.json", "--stream-codex"]),
-    /--stream-codex is only supported for run and continue-run/
+    /--stream-codex is only supported for run, continue-run, and run-stage/
   );
 });
 
 test("show-run rejects --stream-codex", () => {
   assert.throws(
     () => parseArgs(["show-run", "run-1", "--config", "configs/acme.json", "--stream-codex"]),
-    /--stream-codex is only supported for run and continue-run/
+    /--stream-codex is only supported for run, continue-run, and run-stage/
   );
 });
 
 test("open-run rejects --stream-codex", () => {
   assert.throws(
     () => parseArgs(["open-run", "run-1", "--config", "configs/acme.json", "--stream-codex"]),
-    /--stream-codex is only supported for run and continue-run/
+    /--stream-codex is only supported for run, continue-run, and run-stage/
   );
 });
 
 test("init-project rejects --stream-codex", () => {
   assert.throws(
     () => parseArgs(["init-project", "My App", "--workspace", "/tmp/app", "--stream-codex"]),
-    /--stream-codex is only supported for run and continue-run/
+    /--stream-codex is only supported for run, continue-run, and run-stage/
   );
 });
 
@@ -704,14 +718,14 @@ test("--stream-codex does not enable verbose", () => {
 test("list-runs rejects --allow-writes", () => {
   assert.throws(
     () => parseArgs(["list-runs", "--config", "configs/acme.json", "--allow-writes"]),
-    /--allow-writes is only supported for run and continue-run/
+    /--allow-writes is only supported for run, continue-run, and run-stage/
   );
 });
 
 test("init-project rejects --allow-writes", () => {
   assert.throws(
     () => parseArgs(["init-project", "My App", "--workspace", "/tmp/app", "--allow-writes"]),
-    /--allow-writes is only supported for run and continue-run/
+    /--allow-writes is only supported for run, continue-run, and run-stage/
   );
 });
 

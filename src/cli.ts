@@ -30,6 +30,7 @@ import { checkWriteSafety, type WriteSafetyResult } from "./write-safety.js";
 import { openFileInBrowser, type OpenFileResult } from "./open-file.js";
 import { readStagePlan, writeStagePlan } from "./stage-plan-store.js";
 import { renderStagePlanMarkdown } from "./stage-plan-renderer.js";
+import { runSingleStageFromPlan } from "./stage-runner.js";
 
 interface ParsedArgs {
   command?: string;
@@ -62,6 +63,8 @@ interface ParsedArgs {
   openPlan: boolean;
   importFrom?: string;
   importOut?: string;
+  stagePlanArg?: string;
+  stageId?: string;
 }
 
 interface SummaryResult {
@@ -147,7 +150,8 @@ export async function runCommand(
     "report-run",
     "init-project",
     "check-write-safety",
-    "import-stage-plan"
+    "import-stage-plan",
+    "run-stage"
   ]);
   if (!knownCommands.has(args.command)) {
     throw new Error(`Unknown command: ${args.command}\n\n${renderHelpText()}`);
@@ -206,6 +210,47 @@ export async function runCommand(
     writeLine(`Stages: ${plan.stages.length}`);
     writeLine(`JSON: ${jsonOutputPath}`);
     writeLine(`Markdown: ${markdownOutputPath}`);
+    return;
+  }
+
+  if (args.command === "run-stage") {
+    if (!args.stageId) {
+      throw new Error(
+        "run-stage requires <stage-id>. Usage: agent-stage run-stage <stage-id> --stage-plan <path> --config <config-path> [--allow-writes] [--dry-run] [--verbose] [--stream-codex]"
+      );
+    }
+    if (!args.stagePlanArg) {
+      throw new Error(
+        "run-stage requires --stage-plan <path>. Usage: agent-stage run-stage <stage-id> --stage-plan <path> --config <config-path> [--allow-writes] [--dry-run] [--verbose] [--stream-codex]"
+      );
+    }
+    if (!args.configArg) {
+      throw new Error("Missing required --config <config-path>. No implicit default is used.");
+    }
+    const result = await runSingleStageFromPlan({
+      stageId: args.stageId,
+      stagePlanArg: args.stagePlanArg,
+      configArg: args.configArg,
+      orchestratorRoot,
+      allowWrites: args.allowWrites,
+      dryRun: args.dryRun,
+      verbose: args.verbose,
+      streamCodex: args.streamCodex,
+      progressLogger
+    });
+    if (result.dryRun) {
+      writeLine("Dry run succeeded.");
+      writeLine(`Stage: ${result.stageId}`);
+      writeLine(`Would run using stage plan: ${result.stagePlanPath}`);
+      writeLine(`Would write artefacts: ${result.stageArtefactsDir}`);
+      return;
+    }
+    writeLine("Stage completed and requires review.");
+    writeLine("");
+    writeLine(`Stage: ${result.stageId}`);
+    writeLine(`Status: ${result.status}`);
+    writeLine(`Artefacts: ${result.stageArtefactsDir}`);
+    writeLine(`Stage Plan: ${result.stagePlanPath}`);
     return;
   }
 
@@ -570,6 +615,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
     parsed.projectName = firstArg && !firstArg.startsWith("-") ? firstArg : undefined;
   } else if (command === "show-run" || command === "open-run" || command === "continue-run" || command === "report-run") {
     parsed.runId = firstArg && !firstArg.startsWith("-") ? firstArg : undefined;
+  } else if (command === "run-stage") {
+    parsed.stageId = firstArg && !firstArg.startsWith("-") ? firstArg : undefined;
   }
   const rest =
     command === "run"
@@ -580,6 +627,10 @@ export function parseArgs(argv: string[]): ParsedArgs {
         ? firstArg && firstArg.startsWith("-")
           ? [firstArg, ...tail]
           : tail
+        : command === "run-stage"
+          ? firstArg && firstArg.startsWith("-")
+            ? [firstArg, ...tail]
+            : tail
         : command === "init-project"
           ? firstArg && firstArg.startsWith("-")
             ? [firstArg, ...tail]
@@ -744,14 +795,23 @@ export function parseArgs(argv: string[]): ParsedArgs {
       i += 1;
       continue;
     }
+    if (token === "--stage-plan") {
+      const value = rest[i + 1];
+      if (!value) {
+        throw new Error("Missing value for --stage-plan");
+      }
+      parsed.stagePlanArg = value;
+      i += 1;
+      continue;
+    }
     throw new Error(`Unknown argument: ${token}`);
   }
 
-  if (parsed.allowWrites && parsed.command !== "run" && parsed.command !== "continue-run") {
-    throw new Error("--allow-writes is only supported for run and continue-run");
+  if (parsed.allowWrites && parsed.command !== "run" && parsed.command !== "continue-run" && parsed.command !== "run-stage") {
+    throw new Error("--allow-writes is only supported for run, continue-run, and run-stage");
   }
-  if (parsed.streamCodex && parsed.command !== "run" && parsed.command !== "continue-run") {
-    throw new Error("--stream-codex is only supported for run and continue-run");
+  if (parsed.streamCodex && parsed.command !== "run" && parsed.command !== "continue-run" && parsed.command !== "run-stage") {
+    throw new Error("--stream-codex is only supported for run, continue-run, and run-stage");
   }
   if (parsed.autoChain && parsed.command !== "run") {
     throw new Error("--auto-chain is only supported for run.");
@@ -893,6 +953,27 @@ export function parseArgs(argv: string[]): ParsedArgs {
     }
     if (parsed.repoOverride) {
       throw new Error("--repo is not supported for import-stage-plan.");
+    }
+  }
+  if (parsed.command === "run-stage") {
+    if (parsed.help) {
+      return parsed;
+    }
+    if (!parsed.stageId) {
+      throw new Error(
+        "run-stage requires <stage-id>. Usage: agent-stage run-stage <stage-id> --stage-plan <path> --config <config-path> [--allow-writes] [--dry-run] [--verbose] [--stream-codex]"
+      );
+    }
+    if (!parsed.stagePlanArg) {
+      throw new Error(
+        "run-stage requires --stage-plan <path>. Usage: agent-stage run-stage <stage-id> --stage-plan <path> --config <config-path> [--allow-writes] [--dry-run] [--verbose] [--stream-codex]"
+      );
+    }
+    if (parsed.repoOverride) {
+      throw new Error("--repo is not supported for run-stage.");
+    }
+    if (!parsed.configArg) {
+      throw new Error("Missing required --config <config-path>. No implicit default is used.");
     }
   }
 
@@ -1067,6 +1148,27 @@ function renderHelpText(command?: string): string {
     ].join("\n");
   }
 
+  if (command === "run-stage") {
+    return [
+      "Usage: agent-stage run-stage <stage-id> --stage-plan <path> --config <config-path> [--allow-writes] [--dry-run] [--verbose] [--stream-codex]",
+      "",
+      "Runs exactly one stage from an imported stage plan and stops at human review.",
+      "",
+      "Options:",
+      "  --stage-plan <path>      Required path to stage-plan.json.",
+      "  --config <config-path>   Required execution config path.",
+      "  --dry-run                Validate stage/dependencies/safety; no execution, no status mutation.",
+      "  --allow-writes           Enables workspace-write builder execution (uses existing write-safety gates).",
+      "  --stream-codex           Streams Codex output during planner/builder/reviewer execution.",
+      "",
+      "Notes:",
+      "  - Runs planner, builder, reviewer, checks for one stage only.",
+      "  - Updates successful stage status to review_required.",
+      "  - Persists stage-plan.json and regenerates stage-plan.md.",
+      "  - No multi-stage continuation and no auto-commit."
+    ].join("\n");
+  }
+
   return [
     "Usage: agent-stage <command> [options]",
     "",
@@ -1080,6 +1182,7 @@ function renderHelpText(command?: string): string {
     "  init-project <name> --workspace <path> [--force] [--verbose]",
     "  check-write-safety --config <config-path>",
     "  import-stage-plan --from <path> --out <path> [--force]",
+    "  run-stage <stage-id> --stage-plan <path> --config <config-path> [--allow-writes] [--dry-run] [--verbose] [--stream-codex]",
     "",
     "Use \"agent-stage <command> --help\" for command details.",
     "",
