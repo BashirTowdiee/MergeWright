@@ -10,7 +10,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node --test dist/test/**/*.test.js",
-    "agent": "npm run build && node dist/src/cli.js"
+    "agent": "npm run build && node dist/src/cli.js",
+    "docs:dev": "npm --prefix docs-site run dev",
+    "docs:build": "npm --prefix docs-site run build",
+    "docs:preview": "npm --prefix docs-site run preview",
+    "docs:check": "npm --prefix docs-site run check"
   },
   "devDependencies": {
     "@types/node": "^22.15.29",

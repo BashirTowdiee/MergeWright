@@ -1,0 +1,45 @@
+---
+import { getCollection, render } from 'astro:content';
+import DocsLayout from '../../layouts/DocsLayout.astro';
+
+const sectionOrder: Record<string, number> = {
+  README: 0,
+  Product: 10,
+  Engineering: 20,
+  UX: 30,
+};
+
+function sectionFromId(id: string): string {
+  const section = id.split('/')[0];
+  if (section === 'product') return 'Product';
+  if (section === 'engineering') return 'Engineering';
+  if (section === 'ux') return 'UX';
+  return 'README';
+}
+
+function orderFromId(id: string): number {
+  const section = sectionFromId(id);
+  const file = id.split('/').pop() ?? id;
+  const match = file.match(/^(\d+)/);
+  const localOrder = match ? Number(match[1]) : 0;
+  return (sectionOrder[section] ?? 99) + localOrder;
+}
+
+export async function getStaticPaths() {
+  const docs = await getCollection('docs');
+  return docs.map((doc) => ({
+    params: { slug: doc.id },
+    props: { doc },
+  }));
+}
+
+const { doc } = Astro.props;
+const docs = (await getCollection('docs')).sort(
+  (a, b) => (a.data.order ?? orderFromId(a.id)) - (b.data.order ?? orderFromId(b.id)),
+);
+const { Content, headings } = await render(doc);
+---
+
+<DocsLayout currentDoc={doc} docs={docs} headings={headings}>
+  <Content />
+</DocsLayout>
