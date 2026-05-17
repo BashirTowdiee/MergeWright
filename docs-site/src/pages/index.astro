@@ -2,7 +2,40 @@
 import { getCollection } from 'astro:content';
 import '../styles/global.css';
 
-const docs = (await getCollection('docs')).sort((a, b) => a.data.order - b.data.order);
+const sectionOrder: Record<string, number> = {
+  README: 0,
+  Product: 10,
+  Engineering: 20,
+  UX: 30,
+};
+
+function titleFromId(id: string): string {
+  const name = id.split('/').pop() ?? id;
+  return name
+    .replace(/^\d+-/, '')
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function sectionFromId(id: string): string {
+  const section = id.split('/')[0];
+  if (section === 'product') return 'Product';
+  if (section === 'engineering') return 'Engineering';
+  if (section === 'ux') return 'UX';
+  return 'README';
+}
+
+function orderFromId(id: string): number {
+  const section = sectionFromId(id);
+  const file = id.split('/').pop() ?? id;
+  const match = file.match(/^(\d+)/);
+  const localOrder = match ? Number(match[1]) : 0;
+  return (sectionOrder[section] ?? 99) + localOrder;
+}
+
+const docs = (await getCollection('docs')).sort(
+  (a, b) => (a.data.order ?? orderFromId(a.id)) - (b.data.order ?? orderFromId(b.id)),
+);
 ---
 
 <html lang="en-AU">
@@ -26,14 +59,21 @@ const docs = (await getCollection('docs')).sort((a, b) => a.data.order - b.data.
       </header>
 
       <section class="cards" aria-label="Documentation pages">
-        {docs.map((doc) => (
-          <a class="card" href={`/docs/${doc.id}`}>
-            <p class="card-section">{doc.data.section}</p>
-            <h2>{doc.data.title}</h2>
-            <p>{doc.data.description}</p>
-            <p class="badge">{doc.data.status}</p>
-          </a>
-        ))}
+        {docs.map((doc) => {
+          const title = doc.data.title ?? titleFromId(doc.id);
+          const section = doc.data.section ?? sectionFromId(doc.id);
+          const description = doc.data.description ?? `Planning document for ${title}.`;
+          const status = doc.data.status ?? 'draft';
+
+          return (
+            <a class="card" href={`/docs/${doc.id}`}>
+              <p class="card-section">{section}</p>
+              <h2>{title}</h2>
+              <p>{description}</p>
+              <p class="badge">{status}</p>
+            </a>
+          );
+        })}
       </section>
     </main>
   </body>
