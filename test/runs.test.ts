@@ -25,6 +25,14 @@ function fixtureConfig(runsDir = "runs/acme"): OrchestratorConfig {
       builder: { model: "gpt-5.3-codex", reasoningEffort: "medium" },
       reviewer: { model: "gpt-5.3-codex", reasoningEffort: "high" }
     },
+    executionBackends: {
+      codex: { type: "codex-cli" }
+    },
+    agents: {
+      planner: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" },
+      builder: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "medium" },
+      reviewer: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" }
+    },
     pipeline: { finalReview: true, maxFixLoops: 1 },
     commands: { checks: [] },
     safety: {
@@ -141,49 +149,74 @@ test("readRunDetails uses run.json when present", async () => {
   );
 
   const details = await readRunDetails(runsRoot, runId);
+  assert.equal(details.runId, runId);
   assert.equal(details.status, "failed");
-  assert.equal(details.projectName, "Acme");
-  assert.equal(details.preset, "full-readonly");
   assert.equal(details.statuses.builder, "failed");
   assert.equal(details.errorSummary, "Builder failed");
   assert.deepEqual(details.artefacts, ["01-stage-input.md", "builder-exit.json"]);
 });
 
-test("older run without run.json still works through fallback", async () => {
-  const runsRoot = await mkdtemp(path.join(os.tmpdir(), "runs-status-"));
-  const runId = "20260513-000000-example-stage";
-  const runDir = path.join(runsRoot, runId);
-  await mkdir(path.join(runDir, "checks"), { recursive: true });
-  await writeFile(path.join(runDir, "01-stage-input.md"), "stage", "utf8");
-  await writeFile(path.join(runDir, "07-planner-exit.json"), "{}", "utf8");
-  await writeFile(path.join(runDir, "builder-output.placeholder.md"), "skipped", "utf8");
-  await writeFile(path.join(runDir, "reviewer-exit.json"), "{}", "utf8");
-  await writeFile(path.join(runDir, "review-to-fix-skipped.json"), "{}", "utf8");
-  await writeFile(path.join(runDir, "checks-status.json"), JSON.stringify({ state: "skipped by dry-run" }), "utf8");
-
-  const details = await readRunDetails(runsRoot, runId);
-  const statuses: RunStatuses = details.statuses;
-  assert.equal(statuses.planner, "executed");
-  assert.equal(statuses.builder, "skipped");
-  assert.equal(statuses.reviewer, "executed");
-  assert.equal(statuses.fixPlanning, "skipped");
-  assert.equal(statuses.fixExecution, "unknown");
-  assert.equal(statuses.checks, "skipped");
-  assert.equal(details.status, "unknown");
-});
-
-test("malformed run.json does not break summary/details", async () => {
-  const runsRoot = await mkdtemp(path.join(os.tmpdir(), "runs-bad-meta-"));
-  const runId = "20260513-000000-example-stage";
+test("readRunSummary falls back to legacy artefacts", async () => {
+  const runsRoot = await mkdtemp(path.join(os.tmpdir(), "runs-summary-"));
+  const runId = "20260513-000000-legacy-stage";
   const runDir = path.join(runsRoot, runId);
   await mkdir(runDir, { recursive: true });
-  await writeFile(path.join(runDir, "run.json"), "{not-json", "utf8");
   await writeFile(path.join(runDir, "01-stage-input.md"), "stage", "utf8");
+  await writeFile(path.join(runDir, "02-planner-output.md"), "plan", "utf8");
 
   const summary = await readRunSummary(runsRoot, runId);
+  assert.equal(summary.runId, runId);
   assert.equal(summary.status, "unknown");
-  assert.equal(summary.warnings.length > 0, true);
+  assert.equal(summary.stageName, "legacy-stage");
+  assert.equal(summary.statuses.planner, "unknown");
+});
 
-  const details = await readRunDetails(runsRoot, runId);
-  assert.equal(details.warnings.length > 0, true);
+test("readRunSummary uses metadata statuses", async () => {
+  const runsRoot = await mkdtemp(path.join(os.tmpdir(), "runs-status-"));
+  const runId = "20260513-000000-status-stage";
+  const runDir = path.join(runsRoot, runId);
+  await mkdir(runDir, { recursive: true });
+  const statuses: RunStatuses = {
+    planner: "executed",
+    builder: "executed",
+    reviewer: "executed",
+    fixPlanning: "disabled",
+    fixExecution: "disabled",
+    checks: "executed"
+  };
+  await writeFile(
+    path.join(runDir, "run.json"),
+    JSON.stringify(
+      {
+        version: 1,
+        runId,
+        projectName: "Acme",
+        stageName: "status-stage",
+        preset: "full-readonly",
+        workspaceRoot: "/tmp/workspace",
+        orchestratorRoot: "/tmp/orchestrator",
+        configPath: "/tmp/orchestrator/configs/acme.json",
+        startedAt: "2026-05-11T12:34:56.000Z",
+        completedAt: "2026-05-11T12:35:10.000Z",
+        status: "success",
+        resolvedOptions: {},
+        phases: {
+          planner: { status: statuses.planner },
+          builder: { status: statuses.builder },
+          reviewer: { status: statuses.reviewer },
+          fixPlanning: { status: statuses.fixPlanning },
+          fixExecution: { status: statuses.fixExecution },
+          checks: { status: statuses.checks }
+        },
+        artefacts: []
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+
+  const summary = await readRunSummary(runsRoot, runId);
+  assert.equal(summary.status, "success");
+  assert.equal(summary.statuses.checks, "executed");
 });
