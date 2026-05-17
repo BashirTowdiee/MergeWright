@@ -57,7 +57,7 @@ npm run agent -- run stage-01-example \
   --max-fix-attempts 2
 ```
 
-Classic `run --auto-chain` is bounded. It does not auto-commit, auto-push, auto-merge, or auto-accept changes.
+Classic `run --auto-chain` is bounded. It does not auto-commit, auto-push, auto-merge, or auto-accept changes. Auto-chain terminal statuses include: `PASS`, `NEEDS_FIX`, `NEEDS_FIX_WRITE_DISABLED`, `MAX_FIX_ATTEMPTS_REACHED`, `CHECKS_FAILED`, `FAILED`.
 
 ### 4. Inspect and continue
 
