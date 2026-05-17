@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile, access, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, access, readFile, readdir, rm, chmod } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
@@ -107,6 +107,225 @@ async function initGitRepoClean(workspaceRoot: string): Promise<void> {
   await execFileAsync("git", ["add", "."], { cwd: workspaceRoot });
   await execFileAsync("git", ["commit", "-m", "init"], { cwd: workspaceRoot });
 }
+
+async function makeFakeCodexBinary(binDir: string): Promise<string> {
+  const codexPath = path.join(binDir, "codex");
+  await writeFile(
+    codexPath,
+    `#!/usr/bin/env bash
+set -euo pipefail
+OUT=""
+MODEL=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -o)
+      OUT="$2"
+      shift 2
+      ;;
+    -m)
+      MODEL="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+cat >/dev/null
+printf "## DECISION\\nBUILD\\n\\n## FINAL BUILDER PROMPT\\nplanner prompt via model: %s\\n" "$MODEL" > "$OUT"
+printf "fake-codex-stdout model=%s\\n" "$MODEL"
+`,
+    "utf8"
+  );
+  await chmod(codexPath, 0o755);
+  return codexPath;
+}
+
+test("runStage uses codex-compatible adapter path without override (agent backend model is applied)", async () => {
+  const { orchestratorRoot, configPath } = await makeFixture();
+  await writeFile(
+    configPath,
+    JSON.stringify(
+      {
+        version: 1,
+        projectName: "acme",
+        workspaceRoot: path.join(orchestratorRoot, "target-workspace"),
+        paths: {
+          stagesDir: "stages/acme",
+          promptsDir: "prompts",
+          runsDir: "runs/acme"
+        },
+        codex: {
+          planner: { model: "legacy-planner-model", reasoningEffort: "high" },
+          builder: { model: "legacy-builder-model", reasoningEffort: "medium" },
+          reviewer: { model: "legacy-reviewer-model", reasoningEffort: "high" }
+        },
+        executionBackends: {
+          "codex-local": { type: "codex-cli" }
+        },
+        agents: {
+          planner: { backend: "codex-local", model: "agent-planner-model", reasoningEffort: "high" },
+          builder: { backend: "codex-local", model: "agent-builder-model", reasoningEffort: "medium" },
+          reviewer: { backend: "codex-local", model: "agent-reviewer-model", reasoningEffort: "high" }
+        },
+        pipeline: { finalReview: true, maxFixLoops: 1 },
+        commands: { checks: [] },
+        safety: {
+          requireGitRepo: true,
+          requireCleanStart: true,
+          manualCommit: true,
+          forbidAutoCommit: true,
+          forbidAutoPush: true
+        }
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+  const workspaceRoot = path.join(orchestratorRoot, "target-workspace");
+  await mkdir(path.join(workspaceRoot, ".git"), { recursive: true });
+
+  const binDir = await mkdtemp(path.join(os.tmpdir(), "runner-codex-bin-"));
+  await makeFakeCodexBinary(binDir);
+  const originalPath = process.env.PATH;
+  process.env.PATH = `${binDir}:${originalPath ?? ""}`;
+  try {
+    const result = await runStage({
+      stageName: "example-stage",
+      configArg: path.relative(orchestratorRoot, configPath),
+      dryRun: false,
+      executePlanner: true,
+      executeBuilder: false,
+      verbose: false,
+      orchestratorRoot
+    });
+
+    const plannerCommand = JSON.parse(await readFile(path.join(result.runDir, "03-planner-command.args.json"), "utf8")) as {
+      args: string[];
+    };
+    assert.ok(plannerCommand.args.includes("agent-planner-model"));
+    assert.ok(!plannerCommand.args.includes("legacy-planner-model"));
+    const extracted = await readFile(path.join(result.runDir, "builder-prompt.extracted.md"), "utf8");
+    assert.match(extracted, /agent-planner-model/);
+  } finally {
+    process.env.PATH = originalPath;
+  }
+});
+
+test("explicit codexExecutor override is preserved after adapter wiring", async () => {
+  const { orchestratorRoot, configPath, workspaceRoot } = await makeFixture();
+  const requests: Array<{ role: string; model: string; workspaceRoot: string }> = [];
+
+  await runStage({
+    stageName: "example-stage",
+    configArg: path.relative(orchestratorRoot, configPath),
+    dryRun: false,
+    executePlanner: true,
+    executeBuilder: false,
+    verbose: false,
+    orchestratorRoot,
+    codexExecutor: async (request) => {
+      requests.push({ role: request.role, model: request.model, workspaceRoot: request.workspaceRoot });
+      return {
+        command: "override",
+        args: [],
+        cwd: orchestratorRoot,
+        stdout: "",
+        stderr: "",
+        exitCode: 0,
+        signal: null,
+        durationMs: 1,
+        success: true,
+        outputLastMessagePath: request.outputLastMessagePath,
+        outputLastMessage: "## DECISION\nBUILD\n\n## FINAL BUILDER PROMPT\noverride prompt",
+        skipped: false
+      };
+    }
+  });
+
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].role, "planner");
+  assert.equal(requests[0].model, "gpt-5.3-codex");
+  assert.equal(requests[0].workspaceRoot, workspaceRoot);
+});
+
+test("config with executionBackends+agents and no codex runs planner through wired path", async () => {
+  const { orchestratorRoot, configPath, workspaceRoot } = await makeFixture();
+  await writeFile(
+    configPath,
+    JSON.stringify(
+      {
+        version: 1,
+        projectName: "acme",
+        workspaceRoot,
+        paths: {
+          stagesDir: "stages/acme",
+          promptsDir: "prompts",
+          runsDir: "runs/acme"
+        },
+        executionBackends: {
+          "codex-local": { type: "codex-cli" }
+        },
+        agents: {
+          planner: { backend: "codex-local", model: "agent-planner-model", reasoningEffort: "high" },
+          builder: { backend: "codex-local", model: "agent-builder-model", reasoningEffort: "medium" },
+          reviewer: { backend: "codex-local", model: "agent-reviewer-model", reasoningEffort: "high" }
+        },
+        pipeline: { finalReview: true, maxFixLoops: 1 },
+        commands: { checks: [] },
+        safety: {
+          requireGitRepo: true,
+          requireCleanStart: true,
+          manualCommit: true,
+          forbidAutoCommit: true,
+          forbidAutoPush: true
+        }
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+
+  const calls: Array<{ role: string; model: string }> = [];
+  const result = await runStage({
+    stageName: "example-stage",
+    configArg: path.relative(orchestratorRoot, configPath),
+    dryRun: false,
+    executePlanner: true,
+    executeBuilder: false,
+    verbose: false,
+    orchestratorRoot,
+    codexExecutor: async (request) => {
+      calls.push({ role: request.role, model: request.model });
+      return {
+        command: "override",
+        args: [],
+        cwd: orchestratorRoot,
+        stdout: "",
+        stderr: "",
+        exitCode: 0,
+        signal: null,
+        durationMs: 1,
+        success: true,
+        outputLastMessagePath: request.outputLastMessagePath,
+        outputLastMessage: "## DECISION\nBUILD\n\n## FINAL BUILDER PROMPT\nprompt from no-codex config",
+        skipped: false
+      };
+    }
+  });
+
+  assert.deepEqual(calls, [{ role: "planner", model: "agent-planner-model" }]);
+  const exitMeta = JSON.parse(await readFile(path.join(result.runDir, "07-planner-exit.json"), "utf8")) as {
+    success: boolean;
+    skipped: boolean;
+    code: number;
+  };
+  assert.equal(exitMeta.success, true);
+  assert.equal(exitMeta.skipped, false);
+  assert.equal(exitMeta.code, 0);
+});
 
 test("runsDir invariant passes for projectName Acme and runs/acme", async () => {
   const { orchestratorRoot, configPath } = await makeFixture({
