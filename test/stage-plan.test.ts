@@ -124,3 +124,16 @@ test("empty commitSha fails validation", () => {
   plan.stages[1].commitSha = "";
   assert.throws(() => validateStagePlan(plan), /commitSha must be a non-empty string/);
 });
+
+test("docs stage plan example fixture validates", async () => {
+  const fixturePath = path.join(process.cwd(), "docs", "examples", "stage-plan.example.json");
+  const plan = await readStagePlan(fixturePath);
+
+  assert.equal(plan.id, "provider-switching-example");
+  assert.equal(plan.stages.length, 3);
+  assert.deepEqual(plan.stages.map((stage) => stage.id), [
+    "stage-01-provider-contract",
+    "stage-02-openrouter-adapter",
+    "stage-03-docs-and-safety"
+  ]);
+});
