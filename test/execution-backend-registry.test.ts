@@ -1,7 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  createExecutionBackendDefinitionsFromConfig,
   createExecutionBackendRegistry,
+  createExecutionBackendRegistryFromConfig,
   defaultExecutionBackendDefinitions,
   type ExecutionBackendDefinitions
 } from "../src/execution-backends/execution-backend-registry.js";
@@ -76,5 +78,42 @@ test("registry rejects backend factory type mismatch", () => {
         }
       }),
     /factory returned type "wrong-type" but definition expected "codex-cli"/
+  );
+});
+
+test("creates backend definitions from validated config", () => {
+  const definitions = createExecutionBackendDefinitionsFromConfig({
+    "codex-local": {
+      type: "codex-cli"
+    }
+  });
+
+  assert.deepEqual(definitions, {
+    "codex-local": {
+      type: "codex-cli"
+    }
+  });
+});
+
+test("creates backend registry from validated config", () => {
+  const registry = createExecutionBackendRegistryFromConfig({
+    "codex-local": {
+      type: "codex-cli"
+    }
+  });
+
+  assert.deepEqual(registry.list(), [{ name: "codex-local", type: "codex-cli" }]);
+  assert.ok(registry.get("codex-local") instanceof CodexCliBackend);
+});
+
+test("config-backed registry rejects empty backend names defensively", () => {
+  assert.throws(
+    () =>
+      createExecutionBackendDefinitionsFromConfig({
+        " ": {
+          type: "codex-cli"
+        }
+      }),
+    /backend name must be non-empty/
   );
 });
