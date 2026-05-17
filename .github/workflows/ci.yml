@@ -26,7 +26,7 @@ jobs:
         run: npm ci
 
       - name: Install docs site dependencies
-        run: npm --prefix docs-site ci
+        run: npm --prefix docs-site install
 
       - name: Build CLI
         run: npm run build
