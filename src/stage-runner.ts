@@ -9,6 +9,7 @@ import { renderStagePlanMarkdown } from "./stage-plan-renderer.js";
 import { readStagePlan, writeStagePlan } from "./stage-plan-store.js";
 import type { Stage, StagePlan } from "./stage-plan.js";
 import { assertDependencyReady, assertRunnableStage } from "./stage-status.js";
+import { reassessStagePlan, type ReassessStagePlanResult } from "./stage-reassessment.js";
 
 export interface RunStagePlanOptions {
   stageId: string;
@@ -55,6 +56,14 @@ export interface FixStageOptions {
   streamCodex: boolean;
   progressLogger?: ProgressLogger;
   runHandler?: typeof runStage;
+  reassessDownstream?: boolean;
+  reassessHandler?: (args: {
+    stagePlanArg: string;
+    sourceStageId: string;
+    configArg: string;
+    orchestratorRoot: string;
+    dryRun: boolean;
+  }) => Promise<ReassessStagePlanResult>;
 }
 
 export interface FixStageResult {
@@ -64,6 +73,54 @@ export interface FixStageResult {
   stagePlanPath: string;
   stageArtefactsDir: string;
   feedbackPath: string;
+  reassessment?: ReassessStagePlanResult;
+}
+
+export interface RunStagesOptions {
+  stagePlanArg: string;
+  configArg: string;
+  orchestratorRoot: string;
+  allowWrites: boolean;
+  dryRun: boolean;
+  verbose: boolean;
+  streamCodex: boolean;
+  stopAfterEachStage: boolean;
+  progressLogger?: ProgressLogger;
+  runHandler?: typeof runStage;
+}
+
+export interface ContinueStagesOptions {
+  stagePlanArg: string;
+  configArg: string;
+  orchestratorRoot: string;
+  allowWrites: boolean;
+  dryRun: boolean;
+  verbose: boolean;
+  streamCodex: boolean;
+  progressLogger?: ProgressLogger;
+  runHandler?: typeof runStage;
+}
+
+export interface RunNextStageResult {
+  stageId?: string;
+  status?: "review_required";
+  stagePlanPath: string;
+  stageArtefactsDir?: string;
+  dryRun: boolean;
+  stagePlanStatus: StagePlan["status"];
+  noPendingStages: boolean;
+}
+
+class StageExecutionError extends Error {
+  readonly executionStarted: boolean;
+  constructor(message: string, executionStarted: boolean, cause?: unknown) {
+    super(message);
+    this.name = "StageExecutionError";
+    this.executionStarted = executionStarted;
+    if (cause !== undefined) {
+      (this as Error & { cause?: unknown }).cause = cause;
+    }
+  }
 }
 
 export async function runSingleStageFromPlan(options: RunStagePlanOptions): Promise<RunStagePlanResult> {
@@ -164,7 +221,7 @@ export async function runSingleStageFromPlan(options: RunStagePlanOptions): Prom
         failure: error
       });
     }
-    throw error;
+    throw asStageExecutionError(error, executionStarted);
   } finally {
     await rm(tmpRoot, { recursive: true, force: true });
   }
@@ -298,13 +355,28 @@ export async function fixStageFromPlan(options: FixStageOptions): Promise<FixSta
       failure: undefined
     });
 
+    let reassessment: ReassessStagePlanResult | undefined;
+    if (options.reassessDownstream) {
+      const hasDownstream = plan.stages.some((item) => item.id !== stage.id && item.index > stage.index);
+      if (hasDownstream) {
+        reassessment = await (options.reassessHandler ?? reassessStagePlan)({
+          stagePlanArg: stagePlanPath,
+          sourceStageId: stage.id,
+          configArg: options.configArg,
+          orchestratorRoot,
+          dryRun: false
+        });
+      }
+    }
+
     return {
       stageId: stage.id,
       status: "review_required",
       revision: stage.revision,
       stagePlanPath,
       stageArtefactsDir,
-      feedbackPath
+      feedbackPath,
+      reassessment
     };
   } catch (error) {
     if (executionStarted) {
@@ -324,6 +396,164 @@ export async function fixStageFromPlan(options: FixStageOptions): Promise<FixSta
     throw error;
   } finally {
     await rm(tmpRoot, { recursive: true, force: true });
+  }
+}
+
+export async function runStagesFromPlan(options: RunStagesOptions): Promise<RunNextStageResult> {
+  if (!options.stopAfterEachStage) {
+    throw new Error("Only --stop-after-each-stage mode is supported in SP-5.");
+  }
+  return await runNextStageWithStop({
+    stagePlanArg: options.stagePlanArg,
+    configArg: options.configArg,
+    orchestratorRoot: options.orchestratorRoot,
+    allowWrites: options.allowWrites,
+    dryRun: options.dryRun,
+    verbose: options.verbose,
+    streamCodex: options.streamCodex,
+    progressLogger: options.progressLogger,
+    runHandler: options.runHandler
+  });
+}
+
+export async function continueStagesFromPlan(options: ContinueStagesOptions): Promise<RunNextStageResult> {
+  return await runNextStageWithStop({
+    stagePlanArg: options.stagePlanArg,
+    configArg: options.configArg,
+    orchestratorRoot: options.orchestratorRoot,
+    allowWrites: options.allowWrites,
+    dryRun: options.dryRun,
+    verbose: options.verbose,
+    streamCodex: options.streamCodex,
+    progressLogger: options.progressLogger,
+    runHandler: options.runHandler
+  });
+}
+
+export function findNextRunnableStage(plan: StagePlan): Stage | undefined {
+  return findNextStageForLinearProgression(plan);
+}
+
+export function findNextStageForLinearProgression(plan: StagePlan): Stage | undefined {
+  return [...plan.stages]
+    .sort((a, b) => a.index - b.index)
+    .find((stage) => stage.status === "pending" || stage.status === "failed");
+}
+
+export function assertCanProgress(plan: StagePlan): void {
+  const ordered = [...plan.stages].sort((a, b) => a.index - b.index);
+
+  const reviewRequired = ordered.find((stage) => stage.status === "review_required");
+  if (reviewRequired) {
+    throw new Error(
+      `Cannot continue.\n\nStage ${reviewRequired.id} requires review.\nAccept or fix it before running the next stage.`
+    );
+  }
+
+  const firstUnsettled = ordered.find((stage) => stage.status !== "accepted" && stage.status !== "committed");
+  if (!firstUnsettled) {
+    return;
+  }
+  if (firstUnsettled.status === "needs_revision" || firstUnsettled.status === "invalidated") {
+    throw new Error(
+      `Cannot continue.\n\nStage ${firstUnsettled.id} has status ${firstUnsettled.status}.\nResolve it before running the next stage.`
+    );
+  }
+
+  const candidate = findNextStageForLinearProgression(plan);
+  if (!candidate) {
+    return;
+  }
+  for (const stage of ordered) {
+    if (stage.index >= candidate.index) {
+      break;
+    }
+    if (stage.status !== "accepted" && stage.status !== "committed") {
+      throw new Error(
+        `Cannot continue.\n\nStage ${candidate.id} is blocked by earlier stage ${stage.id} with status ${stage.status}.\nEarlier stages must be accepted or committed before continuing.`
+      );
+    }
+  }
+}
+
+async function runNextStageWithStop(options: {
+  stagePlanArg: string;
+  configArg: string;
+  orchestratorRoot: string;
+  allowWrites: boolean;
+  dryRun: boolean;
+  verbose: boolean;
+  streamCodex: boolean;
+  progressLogger?: ProgressLogger;
+  runHandler?: typeof runStage;
+}): Promise<RunNextStageResult> {
+  const orchestratorRoot = path.resolve(options.orchestratorRoot);
+  const stagePlanPath = path.resolve(orchestratorRoot, options.stagePlanArg);
+  const plan = await readStagePlan(stagePlanPath);
+  const stagePlanDir = path.dirname(stagePlanPath);
+
+  assertCanProgress(plan);
+  const nextStage = findNextStageForLinearProgression(plan);
+  if (!nextStage) {
+    return {
+      stagePlanPath,
+      dryRun: options.dryRun,
+      stagePlanStatus: plan.status,
+      noPendingStages: true
+    };
+  }
+  assertRunnableStage(nextStage);
+  validateDependencies(plan, nextStage);
+  const stageArtefactsDir = path.resolve(stagePlanDir, "stages", nextStage.id);
+
+  if (options.dryRun) {
+    return {
+      stageId: nextStage.id,
+      status: "review_required",
+      stagePlanPath,
+      stageArtefactsDir,
+      dryRun: true,
+      stagePlanStatus: plan.status,
+      noPendingStages: false
+    };
+  }
+
+  const previousPlanStatus = plan.status;
+  const previousPlanUpdatedAt = plan.updatedAt;
+  await updateStagePlanStatus(stagePlanPath, "running");
+  try {
+    const result = await runSingleStageFromPlan({
+      stageId: nextStage.id,
+      stagePlanArg: stagePlanPath,
+      configArg: options.configArg,
+      orchestratorRoot,
+      allowWrites: options.allowWrites,
+      dryRun: false,
+      verbose: options.verbose,
+      streamCodex: options.streamCodex,
+      progressLogger: options.progressLogger,
+      runHandler: options.runHandler
+    });
+    await updateStagePlanStatus(stagePlanPath, "paused");
+    return {
+      stageId: result.stageId,
+      status: result.status,
+      stagePlanPath,
+      stageArtefactsDir: result.stageArtefactsDir,
+      dryRun: false,
+      stagePlanStatus: "paused",
+      noPendingStages: false
+    };
+  } catch (error) {
+    if (error instanceof StageExecutionError && error.executionStarted) {
+      await updateStagePlanStatus(stagePlanPath, "failed");
+      throw error.cause ?? error;
+    }
+    await restoreStagePlanStatus(stagePlanPath, previousPlanStatus, previousPlanUpdatedAt);
+    if (error instanceof StageExecutionError) {
+      throw error.cause ?? error;
+    }
+    throw error;
   }
 }
 
@@ -548,4 +778,30 @@ async function writeStageReport(args: {
     "- checks-output.txt (if checks ran)"
   );
   await writeFile(path.join(args.stageArtefactsDir, "stage-report.md"), `${lines.join("\n")}\n`, "utf8");
+}
+
+async function updateStagePlanStatus(stagePlanPath: string, status: StagePlan["status"]): Promise<void> {
+  const plan = await readStagePlan(stagePlanPath);
+  plan.status = status;
+  plan.updatedAt = new Date().toISOString();
+  await writeStagePlan(stagePlanPath, plan);
+  const stagePlanDir = path.dirname(stagePlanPath);
+  await writeFile(path.join(stagePlanDir, "stage-plan.md"), renderStagePlanMarkdown(plan), "utf8");
+}
+
+async function restoreStagePlanStatus(stagePlanPath: string, status: StagePlan["status"], updatedAt: string): Promise<void> {
+  const plan = await readStagePlan(stagePlanPath);
+  plan.status = status;
+  plan.updatedAt = updatedAt;
+  await writeStagePlan(stagePlanPath, plan);
+  const stagePlanDir = path.dirname(stagePlanPath);
+  await writeFile(path.join(stagePlanDir, "stage-plan.md"), renderStagePlanMarkdown(plan), "utf8");
+}
+
+function asStageExecutionError(error: unknown, executionStarted: boolean): StageExecutionError {
+  if (error instanceof StageExecutionError) {
+    return error;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return new StageExecutionError(message, executionStarted, error);
 }

@@ -353,6 +353,27 @@ test("run-stage requires --stage-plan", () => {
   );
 });
 
+test("run-stages requires --stage-plan", () => {
+  assert.throws(
+    () => parseArgs(["run-stages", "--config", "configs/acme.json", "--stop-after-each-stage"]),
+    /run-stages requires --stage-plan <path>/
+  );
+});
+
+test("run-stages refuses without --stop-after-each-stage in SP-5", () => {
+  assert.throws(
+    () => parseArgs(["run-stages", "--stage-plan", ".artifacts/runs/provider-switching/stage-plan.json", "--config", "configs/acme.json"]),
+    /Only --stop-after-each-stage mode is supported in SP-5/
+  );
+});
+
+test("continue-stages requires --stage-plan", () => {
+  assert.throws(
+    () => parseArgs(["continue-stages", "--config", "configs/acme.json"]),
+    /continue-stages requires --stage-plan <path>/
+  );
+});
+
 test("run-stage requires a stage id", () => {
   assert.throws(
     () => parseArgs(["run-stage", "--stage-plan", ".artifacts/runs/provider-switching/stage-plan.json", "--config", "configs/acme.json"]),
@@ -423,6 +444,31 @@ test("fix-stage requires --feedback and rejects empty feedback", () => {
         "   "
       ]),
     /non-empty --feedback/
+  );
+});
+
+test("reassess-stage-plan requires --stage-plan and --from", () => {
+  assert.throws(
+    () => parseArgs(["reassess-stage-plan", "--from", "stage-01-provider-contract", "--config", "configs/acme.json"]),
+    /reassess-stage-plan requires --stage-plan <path>/
+  );
+  assert.throws(
+    () =>
+      parseArgs([
+        "reassess-stage-plan",
+        "--stage-plan",
+        ".artifacts/runs/provider-switching/stage-plan.json",
+        "--config",
+        "configs/acme.json"
+      ]),
+    /reassess-stage-plan requires --from <stage-id>/
+  );
+});
+
+test("--reassess-downstream is only supported for fix-stage", () => {
+  assert.throws(
+    () => parseArgs(["run-stage", "stage-01-provider-contract", "--stage-plan", "x", "--config", "y", "--reassess-downstream"]),
+    /--reassess-downstream is only supported for fix-stage/
   );
 });
 

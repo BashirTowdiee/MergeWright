@@ -30,7 +30,8 @@ import { checkWriteSafety, type WriteSafetyResult } from "./write-safety.js";
 import { openFileInBrowser, type OpenFileResult } from "./open-file.js";
 import { readStagePlan, writeStagePlan } from "./stage-plan-store.js";
 import { renderStagePlanMarkdown } from "./stage-plan-renderer.js";
-import { acceptStageFromPlan, fixStageFromPlan, runSingleStageFromPlan } from "./stage-runner.js";
+import { acceptStageFromPlan, continueStagesFromPlan, fixStageFromPlan, runSingleStageFromPlan, runStagesFromPlan } from "./stage-runner.js";
+import { reassessStagePlan } from "./stage-reassessment.js";
 
 interface ParsedArgs {
   command?: string;
@@ -66,6 +67,9 @@ interface ParsedArgs {
   stagePlanArg?: string;
   stageId?: string;
   feedback?: string;
+  stopAfterEachStage: boolean;
+  fromStageId?: string;
+  reassessDownstream: boolean;
 }
 
 interface SummaryResult {
@@ -154,7 +158,10 @@ export async function runCommand(
     "import-stage-plan",
     "run-stage",
     "accept-stage",
-    "fix-stage"
+    "fix-stage",
+    "run-stages",
+    "continue-stages",
+    "reassess-stage-plan"
   ]);
   if (!knownCommands.has(args.command)) {
     throw new Error(`Unknown command: ${args.command}\n\n${renderHelpText()}`);
@@ -257,6 +264,96 @@ export async function runCommand(
     return;
   }
 
+  if (args.command === "run-stages") {
+    if (!args.stagePlanArg) {
+      throw new Error(
+        "run-stages requires --stage-plan <path>. Usage: agent-stage run-stages --stage-plan <path> --config <config-path> --stop-after-each-stage [--allow-writes] [--dry-run] [--verbose] [--stream-codex]"
+      );
+    }
+    if (!args.stopAfterEachStage) {
+      throw new Error("Only --stop-after-each-stage mode is supported in SP-5.");
+    }
+    if (!args.configArg) {
+      throw new Error("Missing required --config <config-path>. No implicit default is used.");
+    }
+    const result = await runStagesFromPlan({
+      stagePlanArg: args.stagePlanArg,
+      configArg: args.configArg,
+      orchestratorRoot,
+      allowWrites: args.allowWrites,
+      dryRun: args.dryRun,
+      verbose: args.verbose,
+      streamCodex: args.streamCodex,
+      stopAfterEachStage: args.stopAfterEachStage,
+      progressLogger
+    });
+    if (result.noPendingStages) {
+      writeLine("No pending stages.");
+      writeLine("");
+      writeLine("All stages are accepted or committed.");
+      return;
+    }
+    if (result.dryRun) {
+      writeLine(`Dry run: would run stage ${result.stageId}.`);
+      writeLine(`Stage Plan: ${result.stagePlanPath}`);
+      return;
+    }
+    writeLine("Stage completed and requires review.");
+    writeLine("");
+    writeLine(`Stage: ${result.stageId}`);
+    writeLine(`Status: ${result.status}`);
+    writeLine(`Stage Plan Status: ${result.stagePlanStatus}`);
+    writeLine(`Artefacts: ${result.stageArtefactsDir}`);
+    writeLine("");
+    writeLine("Next:");
+    writeLine(`  accept-stage ${result.stageId}`);
+    writeLine(`  fix-stage ${result.stageId} --feedback "..."`);
+    return;
+  }
+
+  if (args.command === "continue-stages") {
+    if (!args.stagePlanArg) {
+      throw new Error(
+        "continue-stages requires --stage-plan <path>. Usage: agent-stage continue-stages --stage-plan <path> --config <config-path> [--allow-writes] [--dry-run] [--verbose] [--stream-codex]"
+      );
+    }
+    if (!args.configArg) {
+      throw new Error("Missing required --config <config-path>. No implicit default is used.");
+    }
+    const result = await continueStagesFromPlan({
+      stagePlanArg: args.stagePlanArg,
+      configArg: args.configArg,
+      orchestratorRoot,
+      allowWrites: args.allowWrites,
+      dryRun: args.dryRun,
+      verbose: args.verbose,
+      streamCodex: args.streamCodex,
+      progressLogger
+    });
+    if (result.noPendingStages) {
+      writeLine("No pending stages.");
+      writeLine("");
+      writeLine("All stages are accepted or committed.");
+      return;
+    }
+    if (result.dryRun) {
+      writeLine(`Dry run: would run stage ${result.stageId}.`);
+      writeLine(`Stage Plan: ${result.stagePlanPath}`);
+      return;
+    }
+    writeLine("Stage completed and requires review.");
+    writeLine("");
+    writeLine(`Stage: ${result.stageId}`);
+    writeLine(`Status: ${result.status}`);
+    writeLine(`Stage Plan Status: ${result.stagePlanStatus}`);
+    writeLine(`Artefacts: ${result.stageArtefactsDir}`);
+    writeLine("");
+    writeLine("Next:");
+    writeLine(`  accept-stage ${result.stageId}`);
+    writeLine(`  fix-stage ${result.stageId} --feedback "..."`);
+    return;
+  }
+
   if (args.command === "accept-stage") {
     if (!args.stageId) {
       throw new Error(
@@ -309,7 +406,8 @@ export async function runCommand(
       allowWrites: args.allowWrites,
       verbose: args.verbose,
       streamCodex: args.streamCodex,
-      progressLogger
+      progressLogger,
+      reassessDownstream: args.reassessDownstream
     });
     writeLine("Stage fix completed and requires review.");
     writeLine("");
@@ -317,6 +415,57 @@ export async function runCommand(
     writeLine(`Status: ${result.status}`);
     writeLine(`Revision: ${result.revision}`);
     writeLine(`Feedback: ${result.feedbackPath}`);
+    writeLine(`Stage Plan: ${result.stagePlanPath}`);
+    if (result.reassessment) {
+      writeLine(`Reassessed downstream stages: ${result.reassessment.downstreamStageIds.length}`);
+      if (result.reassessment.reassessmentDir) {
+        writeLine(`Reassessment Artefacts: ${result.reassessment.reassessmentDir}`);
+      }
+    }
+    return;
+  }
+
+  if (args.command === "reassess-stage-plan") {
+    if (!args.stagePlanArg) {
+      throw new Error(
+        "reassess-stage-plan requires --stage-plan <path>. Usage: agent-stage reassess-stage-plan --stage-plan <path> --from <stage-id> --config <config-path> [--dry-run]"
+      );
+    }
+    if (!args.fromStageId) {
+      throw new Error(
+        "reassess-stage-plan requires --from <stage-id>. Usage: agent-stage reassess-stage-plan --stage-plan <path> --from <stage-id> --config <config-path> [--dry-run]"
+      );
+    }
+    if (!args.configArg) {
+      throw new Error("Missing required --config <config-path>. No implicit default is used.");
+    }
+    const result = await reassessStagePlan({
+      stagePlanArg: args.stagePlanArg,
+      sourceStageId: args.fromStageId,
+      configArg: args.configArg,
+      orchestratorRoot,
+      dryRun: args.dryRun
+    });
+    if (result.dryRun) {
+      writeLine("Dry run succeeded.");
+      writeLine(`Source stage: ${result.sourceStageId}`);
+      writeLine(`Downstream stages: ${result.downstreamStageIds.length === 0 ? "(none)" : result.downstreamStageIds.join(", ")}`);
+      writeLine(`Stage Plan: ${result.stagePlanPath}`);
+      return;
+    }
+    if (result.downstreamStageIds.length === 0) {
+      writeLine("No downstream stages to reassess.");
+      writeLine(`Source stage: ${result.sourceStageId}`);
+      writeLine(`Stage Plan: ${result.stagePlanPath}`);
+      return;
+    }
+    writeLine("Downstream reassessment completed.");
+    writeLine(`Source stage: ${result.sourceStageId}`);
+    writeLine(`Downstream stages: ${result.downstreamStageIds.length}`);
+    writeLine(`Changed statuses: ${result.changedStatuses.length}`);
+    if (result.reassessmentDir) {
+      writeLine(`Reassessment Artefacts: ${result.reassessmentDir}`);
+    }
     writeLine(`Stage Plan: ${result.stagePlanPath}`);
     return;
   }
@@ -649,10 +798,11 @@ export function parseArgs(argv: string[]): ParsedArgs {
     verbose: false,
     streamCodex: false,
     autoChain: false,
-    generateReport: false
-    ,
+    generateReport: false,
     planHtml: false,
-    openPlan: false
+    openPlan: false,
+    stopAfterEachStage: false,
+    reassessDownstream: false
   };
 
   if (command === "--help" || command === "-h") {
@@ -849,7 +999,13 @@ export function parseArgs(argv: string[]): ParsedArgs {
       if (!value) {
         throw new Error("Missing value for --from");
       }
-      parsed.importFrom = value;
+      if (parsed.command === "import-stage-plan") {
+        parsed.importFrom = value;
+      } else if (parsed.command === "reassess-stage-plan") {
+        parsed.fromStageId = value;
+      } else {
+        throw new Error("--from is only supported for import-stage-plan and reassess-stage-plan.");
+      }
       i += 1;
       continue;
     }
@@ -880,13 +1036,37 @@ export function parseArgs(argv: string[]): ParsedArgs {
       i += 1;
       continue;
     }
+    if (token === "--stop-after-each-stage") {
+      parsed.stopAfterEachStage = true;
+      continue;
+    }
+    if (token === "--reassess-downstream") {
+      parsed.reassessDownstream = true;
+      continue;
+    }
     throw new Error(`Unknown argument: ${token}`);
   }
 
-  if (parsed.allowWrites && parsed.command !== "run" && parsed.command !== "continue-run" && parsed.command !== "run-stage" && parsed.command !== "fix-stage") {
+  if (
+    parsed.allowWrites &&
+    parsed.command !== "run" &&
+    parsed.command !== "continue-run" &&
+    parsed.command !== "run-stage" &&
+    parsed.command !== "fix-stage" &&
+    parsed.command !== "run-stages" &&
+    parsed.command !== "continue-stages"
+  ) {
     throw new Error("--allow-writes is only supported for run, continue-run, and run-stage. fix-stage also supports --allow-writes.");
   }
-  if (parsed.streamCodex && parsed.command !== "run" && parsed.command !== "continue-run" && parsed.command !== "run-stage" && parsed.command !== "fix-stage") {
+  if (
+    parsed.streamCodex &&
+    parsed.command !== "run" &&
+    parsed.command !== "continue-run" &&
+    parsed.command !== "run-stage" &&
+    parsed.command !== "fix-stage" &&
+    parsed.command !== "run-stages" &&
+    parsed.command !== "continue-stages"
+  ) {
     throw new Error("--stream-codex is only supported for run, continue-run, and run-stage. fix-stage also supports --stream-codex.");
   }
   if (parsed.autoChain && parsed.command !== "run") {
@@ -1101,6 +1281,68 @@ export function parseArgs(argv: string[]): ParsedArgs {
       throw new Error("--dry-run is not supported for fix-stage.");
     }
   }
+  if (parsed.command === "reassess-stage-plan") {
+    if (parsed.help) {
+      return parsed;
+    }
+    if (!parsed.stagePlanArg) {
+      throw new Error(
+        "reassess-stage-plan requires --stage-plan <path>. Usage: agent-stage reassess-stage-plan --stage-plan <path> --from <stage-id> --config <config-path> [--dry-run]"
+      );
+    }
+    if (!parsed.fromStageId) {
+      throw new Error(
+        "reassess-stage-plan requires --from <stage-id>. Usage: agent-stage reassess-stage-plan --stage-plan <path> --from <stage-id> --config <config-path> [--dry-run]"
+      );
+    }
+    if (!parsed.configArg) {
+      throw new Error("Missing required --config <config-path>. No implicit default is used.");
+    }
+    if (parsed.repoOverride) {
+      throw new Error("--repo is not supported for reassess-stage-plan.");
+    }
+    if (parsed.feedback) {
+      throw new Error("--feedback is not supported for reassess-stage-plan.");
+    }
+  }
+  if (parsed.reassessDownstream && parsed.command !== "fix-stage") {
+    throw new Error("--reassess-downstream is only supported for fix-stage.");
+  }
+  if (parsed.command === "run-stages") {
+    if (parsed.help) {
+      return parsed;
+    }
+    if (!parsed.stagePlanArg) {
+      throw new Error(
+        "run-stages requires --stage-plan <path>. Usage: agent-stage run-stages --stage-plan <path> --config <config-path> --stop-after-each-stage [--allow-writes] [--dry-run] [--verbose] [--stream-codex]"
+      );
+    }
+    if (!parsed.stopAfterEachStage) {
+      throw new Error("Only --stop-after-each-stage mode is supported in SP-5.");
+    }
+    if (!parsed.configArg) {
+      throw new Error("Missing required --config <config-path>. No implicit default is used.");
+    }
+    if (parsed.repoOverride) {
+      throw new Error("--repo is not supported for run-stages.");
+    }
+  }
+  if (parsed.command === "continue-stages") {
+    if (parsed.help) {
+      return parsed;
+    }
+    if (!parsed.stagePlanArg) {
+      throw new Error(
+        "continue-stages requires --stage-plan <path>. Usage: agent-stage continue-stages --stage-plan <path> --config <config-path> [--allow-writes] [--dry-run] [--verbose] [--stream-codex]"
+      );
+    }
+    if (!parsed.configArg) {
+      throw new Error("Missing required --config <config-path>. No implicit default is used.");
+    }
+    if (parsed.repoOverride) {
+      throw new Error("--repo is not supported for continue-stages.");
+    }
+  }
 
   return parsed;
 }
@@ -1294,6 +1536,37 @@ function renderHelpText(command?: string): string {
     ].join("\n");
   }
 
+  if (command === "run-stages") {
+    return [
+      "Usage: agent-stage run-stages --stage-plan <path> --config <config-path> --stop-after-each-stage [--allow-writes] [--dry-run] [--verbose] [--stream-codex]",
+      "",
+      "Runs exactly one next stage from an imported stage plan and stops at review_required.",
+      "",
+      "Options:",
+      "  --stage-plan <path>         Required path to stage-plan.json.",
+      "  --config <config-path>      Required execution config path.",
+      "  --stop-after-each-stage     Required in SP-5; no full chaining yet.",
+      "  --dry-run                   Validate plan/dependencies and print selected stage only.",
+      "  --allow-writes              Enables workspace-write builder execution (uses existing write-safety gates).",
+      "  --stream-codex              Streams Codex output during planner/builder/reviewer execution."
+    ].join("\n");
+  }
+
+  if (command === "continue-stages") {
+    return [
+      "Usage: agent-stage continue-stages --stage-plan <path> --config <config-path> [--allow-writes] [--dry-run] [--verbose] [--stream-codex]",
+      "",
+      "Continues stage progression by running exactly one next stage when gates are satisfied.",
+      "",
+      "Options:",
+      "  --stage-plan <path>         Required path to stage-plan.json.",
+      "  --config <config-path>      Required execution config path.",
+      "  --dry-run                   Validate progression gates and print selected stage only.",
+      "  --allow-writes              Enables workspace-write builder execution (uses existing write-safety gates).",
+      "  --stream-codex              Streams Codex output during planner/builder/reviewer execution."
+    ].join("\n");
+  }
+
   if (command === "accept-stage") {
     return [
       "Usage: agent-stage accept-stage <stage-id> --stage-plan <path>",
@@ -1313,7 +1586,7 @@ function renderHelpText(command?: string): string {
 
   if (command === "fix-stage") {
     return [
-      "Usage: agent-stage fix-stage <stage-id> --stage-plan <path> --config <config-path> --feedback <text> [--allow-writes] [--verbose] [--stream-codex]",
+      "Usage: agent-stage fix-stage <stage-id> --stage-plan <path> --config <config-path> --feedback <text> [--reassess-downstream] [--allow-writes] [--verbose] [--stream-codex]",
       "",
       "Runs a single-stage fix workflow from human feedback.",
       "",
@@ -1321,6 +1594,7 @@ function renderHelpText(command?: string): string {
       "  --stage-plan <path>      Required path to stage-plan.json.",
       "  --config <config-path>   Required execution config path.",
       "  --feedback <text>        Required human feedback for the selected stage.",
+      "  --reassess-downstream    Reassess downstream stages after successful fix-stage completion.",
       "  --allow-writes           Enables workspace-write builder execution (uses existing write-safety gates).",
       "  --stream-codex           Streams Codex output during planner/builder/reviewer execution.",
       "",
@@ -1330,6 +1604,20 @@ function renderHelpText(command?: string): string {
       "  - Sets stage to fixing during execution.",
       "  - On success increments revision and returns stage to review_required.",
       "  - No multi-stage continuation and no auto-commit."
+    ].join("\n");
+  }
+
+  if (command === "reassess-stage-plan") {
+    return [
+      "Usage: agent-stage reassess-stage-plan --stage-plan <path> --from <stage-id> --config <config-path> [--dry-run]",
+      "",
+      "Classifies downstream stages after a source stage revision.",
+      "",
+      "Options:",
+      "  --stage-plan <path>      Required path to stage-plan.json.",
+      "  --from <stage-id>        Required source stage id.",
+      "  --config <config-path>   Required execution config path.",
+      "  --dry-run                Validate and list downstream targets only; no model execution, no writes."
     ].join("\n");
   }
 
@@ -1347,8 +1635,11 @@ function renderHelpText(command?: string): string {
     "  check-write-safety --config <config-path>",
     "  import-stage-plan --from <path> --out <path> [--force]",
     "  run-stage <stage-id> --stage-plan <path> --config <config-path> [--allow-writes] [--dry-run] [--verbose] [--stream-codex]",
+    "  run-stages --stage-plan <path> --config <config-path> --stop-after-each-stage [--allow-writes] [--dry-run] [--verbose] [--stream-codex]",
+    "  continue-stages --stage-plan <path> --config <config-path> [--allow-writes] [--dry-run] [--verbose] [--stream-codex]",
     "  accept-stage <stage-id> --stage-plan <path>",
-    "  fix-stage <stage-id> --stage-plan <path> --config <config-path> --feedback <text> [--allow-writes] [--verbose] [--stream-codex]",
+    "  fix-stage <stage-id> --stage-plan <path> --config <config-path> --feedback <text> [--reassess-downstream] [--allow-writes] [--verbose] [--stream-codex]",
+    "  reassess-stage-plan --stage-plan <path> --from <stage-id> --config <config-path> [--dry-run]",
     "",
     "Use \"agent-stage <command> --help\" for command details.",
     "",
