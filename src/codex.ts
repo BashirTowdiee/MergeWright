@@ -40,6 +40,14 @@ export interface CodexBuiltCommand {
   promptStdin: string;
 }
 
+export interface CodexExecutionBackendMetadata {
+  backendName: string;
+  backendType: string;
+  agentRole: string;
+  model: string;
+  reasoningEffort: string;
+}
+
 export interface CodexExecutionResult {
   command: string;
   args: string[];
@@ -53,6 +61,7 @@ export interface CodexExecutionResult {
   outputLastMessagePath: string;
   outputLastMessage: string;
   skipped: boolean;
+  backend?: CodexExecutionBackendMetadata;
 }
 
 export interface CodexExecutionOptions {
