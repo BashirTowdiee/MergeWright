@@ -47,11 +47,20 @@ export function createCodexCompatibleExecutor(
       executionOptions
     );
 
-    return toCodexExecutionResult(result);
+    return toCodexExecutionResult(result, {
+      backendName: agentConfig.backend,
+      backendType: backendConfig.type,
+      agentRole: request.role,
+      model: agentConfig.model,
+      reasoningEffort: agentConfig.reasoningEffort
+    });
   };
 }
 
-function toCodexExecutionResult(result: AgentExecutionResult): CodexExecutionResult {
+function toCodexExecutionResult(
+  result: AgentExecutionResult,
+  backend: NonNullable<CodexExecutionResult["backend"]>
+): CodexExecutionResult {
   return {
     command: result.command ?? "",
     args: result.args ?? [],
@@ -64,6 +73,7 @@ function toCodexExecutionResult(result: AgentExecutionResult): CodexExecutionRes
     success: result.success,
     outputLastMessagePath: result.outputLastMessagePath,
     outputLastMessage: result.outputLastMessage,
-    skipped: result.skipped
+    skipped: result.skipped,
+    backend
   };
 }
