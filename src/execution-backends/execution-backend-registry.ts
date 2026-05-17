@@ -1,3 +1,4 @@
+import type { ExecutionBackendConfigMap } from "../config.js";
 import { CodexCliBackend } from "./codex-cli-backend.js";
 import type { ExecutionBackend, ExecutionBackendType } from "./execution-backend-types.js";
 
@@ -49,6 +50,25 @@ export function createExecutionBackendRegistry(
         .sort((left, right) => left.name.localeCompare(right.name));
     }
   };
+}
+
+export function createExecutionBackendDefinitionsFromConfig(
+  executionBackends: ExecutionBackendConfigMap
+): ExecutionBackendDefinitions {
+  const definitions: ExecutionBackendDefinitions = {};
+  for (const [name, backend] of Object.entries(executionBackends)) {
+    if (!name.trim()) {
+      throw new Error("Invalid execution backend config: backend name must be non-empty.");
+    }
+    definitions[name] = { type: backend.type };
+  }
+  return definitions;
+}
+
+export function createExecutionBackendRegistryFromConfig(
+  executionBackends: ExecutionBackendConfigMap
+): ExecutionBackendRegistry {
+  return createExecutionBackendRegistry(createExecutionBackendDefinitionsFromConfig(executionBackends));
 }
 
 export function defaultExecutionBackendDefinitions(): ExecutionBackendDefinitions {
