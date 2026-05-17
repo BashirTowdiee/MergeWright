@@ -34,6 +34,15 @@ npm run agent -- continue-run <run-id> --config configs/my-app.json --execute-re
 
 Classic `run --auto-chain` is bounded and does not commit, push, merge, or auto-accept changes.
 
+Final statuses:
+
+- `PASS`: reviewer passed and checks passed when checks were requested.
+- `NEEDS_FIX`: reviewer or checks found issues that need another pass.
+- `NEEDS_FIX_WRITE_DISABLED`: a fix was required but write execution was not enabled.
+- `MAX_FIX_ATTEMPTS_REACHED`: bounded fix attempts were exhausted.
+- `CHECKS_FAILED`: configured checks failed after implementation or fix work.
+- `FAILED`: execution failed before a controlled terminal status could be reached.
+
 ### Stage Plan workflow
 
 Use Stage Plans when you want to turn an implementation plan into reviewable stages, run one stage at a time, fix stages with human feedback, reassess downstream stages, and optionally commit only after explicit acceptance.
