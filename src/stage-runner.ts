@@ -10,6 +10,7 @@ import { readStagePlan, writeStagePlan } from "./stage-plan-store.js";
 import type { Stage, StagePlan } from "./stage-plan.js";
 import { assertDependencyReady, assertRunnableStage } from "./stage-status.js";
 import { reassessStagePlan, type ReassessStagePlanResult } from "./stage-reassessment.js";
+import { createGitClient, type GitClient } from "./git.js";
 
 export interface RunStagePlanOptions {
   stageId: string;
@@ -36,13 +37,17 @@ export interface AcceptStageOptions {
   stageId: string;
   stagePlanArg: string;
   orchestratorRoot: string;
+  autoCommit?: boolean;
+  commitMessage?: string;
+  git?: GitClient;
 }
 
 export interface AcceptStageResult {
   stageId: string;
-  status: "accepted";
+  status: "accepted" | "committed";
   stagePlanPath: string;
   stageArtefactsDir: string;
+  commitSha?: string;
 }
 
 export interface FixStageOptions {
@@ -253,14 +258,55 @@ export async function acceptStageFromPlan(options: AcceptStageOptions): Promise<
     stage,
     runDir: undefined,
     finalStatus: "accepted",
-    failure: undefined
+    failure: undefined,
+    commitSha: undefined
+  });
+
+  if (!options.autoCommit) {
+    return {
+      stageId: stage.id,
+      status: "accepted",
+      stagePlanPath,
+      stageArtefactsDir
+    };
+  }
+
+  const git = options.git ?? createGitClient();
+  await git.assertGitAvailable(orchestratorRoot);
+  await git.getWorktreeStatus(orchestratorRoot);
+  const changedFiles = await git.getChangedFiles(orchestratorRoot);
+  if (changedFiles.length === 0 || !(await git.hasDiff(orchestratorRoot))) {
+    throw new Error("accept-stage --auto-commit requires a non-empty git diff.");
+  }
+  assertFilesWithinStageScope(changedFiles, stage);
+  const message = options.commitMessage?.trim() || buildDefaultCommitMessage(plan, stage);
+  const commitSha = await git.commitAll(orchestratorRoot, message);
+  const headSha = await git.getHeadSha(orchestratorRoot);
+  if (!commitSha || !headSha) {
+    throw new Error("Failed to resolve commit SHA after git commit.");
+  }
+
+  stage.commitSha = headSha;
+  stage.status = "committed";
+  plan.updatedAt = new Date().toISOString();
+  await writeStagePlan(stagePlanPath, plan);
+  await writeFile(path.join(stagePlanDir, "stage-plan.md"), renderStagePlanMarkdown(plan), "utf8");
+  await writeStageReport({
+    stageArtefactsDir,
+    plan,
+    stage,
+    runDir: undefined,
+    finalStatus: "committed",
+    failure: undefined,
+    commitSha: headSha
   });
 
   return {
     stageId: stage.id,
-    status: "accepted",
+    status: "committed",
     stagePlanPath,
-    stageArtefactsDir
+    stageArtefactsDir,
+    commitSha: headSha
   };
 }
 
@@ -749,8 +795,9 @@ async function writeStageReport(args: {
   plan: StagePlan;
   stage: Stage;
   runDir?: string;
-  finalStatus: "review_required" | "failed" | "accepted";
+  finalStatus: "review_required" | "failed" | "accepted" | "committed";
   failure?: unknown;
+  commitSha?: string;
 }): Promise<void> {
   const failureMessage =
     args.failure == null ? undefined : args.failure instanceof Error ? args.failure.message : String(args.failure);
@@ -764,6 +811,9 @@ async function writeStageReport(args: {
     `- updatedAt: ${new Date().toISOString()}`,
     `- runDir: ${args.runDir ?? "(not available)"}`
   ];
+  if (args.commitSha) {
+    lines.push(`- commitSha: ${args.commitSha}`);
+  }
   if (failureMessage) {
     lines.push(`- error: ${failureMessage}`);
   }
@@ -778,6 +828,68 @@ async function writeStageReport(args: {
     "- checks-output.txt (if checks ran)"
   );
   await writeFile(path.join(args.stageArtefactsDir, "stage-report.md"), `${lines.join("\n")}\n`, "utf8");
+}
+
+function buildDefaultCommitMessage(plan: StagePlan, stage: Stage): string {
+  const subject = `stage(${stage.id}): ${stage.title}`;
+  const checks = stage.checks.length === 0 ? "(none)" : stage.checks.join(", ");
+  const body = [
+    `Stage Plan: ${plan.title}`,
+    `Stage ID: ${stage.id}`,
+    `Stage Title: ${stage.title}`,
+    `Revision: ${stage.revision}`,
+    "Stage status before commit: accepted",
+    `Stage artefact path: ${path.join("stages", stage.id)}`,
+    `Checks: ${checks}`
+  ];
+  return `${subject}\n\n${body.join("\n")}`;
+}
+
+function assertFilesWithinStageScope(changedFiles: string[], stage: Stage): void {
+  const includes = stage.scope.include ?? [];
+  const excludes = stage.scope.exclude ?? [];
+
+  if (includes.length > 0) {
+    const outside = changedFiles.filter((file) => !includes.some((pattern) => matchesScopePattern(file, pattern)));
+    if (outside.length > 0) {
+      throw new Error(
+        `accept-stage --auto-commit refused: changed files are outside stage scope.include for "${stage.id}": ${outside.join(", ")}`
+      );
+    }
+  }
+
+  if (excludes.length > 0) {
+    const blocked = changedFiles.filter((file) => excludes.some((pattern) => matchesScopePattern(file, pattern)));
+    if (blocked.length > 0) {
+      throw new Error(
+        `accept-stage --auto-commit refused: changed files match stage scope.exclude for "${stage.id}": ${blocked.join(", ")}`
+      );
+    }
+  }
+}
+
+function matchesScopePattern(filePath: string, pattern: string): boolean {
+  const normalizedPath = normalizePath(filePath);
+  const normalizedPattern = normalizePath(pattern);
+  if (!normalizedPattern.includes("*")) {
+    if (normalizedPath === normalizedPattern) return true;
+    if (normalizedPath.startsWith(`${normalizedPattern}/`)) return true;
+    return false;
+  }
+  const regex = globToRegex(normalizedPattern);
+  return regex.test(normalizedPath);
+}
+
+function normalizePath(value: string): string {
+  return value.trim().replaceAll("\\", "/").replace(/^\.\/+/, "").replace(/^\/+/, "").replace(/\/+$/, "");
+}
+
+function globToRegex(pattern: string): RegExp {
+  const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+  const withDoubleStar = escaped.replaceAll("**", "__DOUBLE_STAR__");
+  const withSingleStar = withDoubleStar.replaceAll("*", "[^/]*");
+  const finalPattern = withSingleStar.replaceAll("__DOUBLE_STAR__", ".*");
+  return new RegExp(`^${finalPattern}$`);
 }
 
 async function updateStagePlanStatus(stagePlanPath: string, status: StagePlan["status"]): Promise<void> {

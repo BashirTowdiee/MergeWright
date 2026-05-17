@@ -395,6 +395,82 @@ test("accept-stage requires a stage id", () => {
   );
 });
 
+test("accept-stage parses --auto-commit and --commit-message", () => {
+  const args = parseArgs([
+    "accept-stage",
+    "stage-01-provider-contract",
+    "--stage-plan",
+    ".artifacts/runs/provider-switching/stage-plan.json",
+    "--auto-commit",
+    "--commit-message",
+    "stage(provider-contract): custom"
+  ]);
+  assert.equal(args.autoCommit, true);
+  assert.equal(args.commitMessage, "stage(provider-contract): custom");
+});
+
+test("--commit-message requires --auto-commit", () => {
+  assert.throws(
+    () =>
+      parseArgs([
+        "accept-stage",
+        "stage-01-provider-contract",
+        "--stage-plan",
+        ".artifacts/runs/provider-switching/stage-plan.json",
+        "--commit-message",
+        "x"
+      ]),
+    /--commit-message requires --auto-commit/
+  );
+});
+
+test("run-stage rejects --auto-commit in SP-7", () => {
+  assert.throws(
+    () =>
+      parseArgs([
+        "run-stage",
+        "stage-01-provider-contract",
+        "--stage-plan",
+        ".artifacts/runs/provider-switching/stage-plan.json",
+        "--config",
+        "configs/acme.json",
+        "--auto-commit"
+      ]),
+    /only supported with accept-stage/
+  );
+});
+
+test("run-stages rejects --auto-commit in SP-7", () => {
+  assert.throws(
+    () =>
+      parseArgs([
+        "run-stages",
+        "--stage-plan",
+        ".artifacts/runs/provider-switching/stage-plan.json",
+        "--config",
+        "configs/acme.json",
+        "--stop-after-each-stage",
+        "--auto-commit"
+      ]),
+    /only supported with accept-stage/
+  );
+});
+
+test("continue-stages rejects --auto-commit in SP-7", () => {
+  assert.throws(
+    () =>
+      parseArgs([
+        "continue-stages",
+        "--stage-plan",
+        ".artifacts/runs/provider-switching/stage-plan.json",
+        "--config",
+        "configs/acme.json",
+        "--auto-commit"
+      ]),
+    /only supported with accept-stage/
+  );
+});
+
 test("fix-stage requires --stage-plan", () => {
   assert.throws(
     () => parseArgs(["fix-stage", "stage-01-provider-contract", "--config", "configs/acme.json", "--feedback", "x"]),

@@ -3,6 +3,7 @@ import { access, mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import type { GitClient } from "../src/git.js";
 import type { StagePlan, StageStatus } from "../src/stage-plan.js";
 import { acceptStageFromPlan, fixStageFromPlan, runSingleStageFromPlan } from "../src/stage-runner.js";
 
@@ -383,6 +384,327 @@ test("accept-stage refuses disallowed statuses", async () => {
       /cannot be accepted/
     );
   }
+});
+
+test("accept-stage --auto-commit commits accepted review_required stage and records commitSha", async () => {
+  const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "accept-stage-auto-commit-"));
+  const stagePlanDir = path.join(orchestratorRoot, ".artifacts/runs/provider-switching");
+  await mkdir(stagePlanDir, { recursive: true });
+  const stagePlanPath = path.join(stagePlanDir, "stage-plan.json");
+  await writeFile(stagePlanPath, `${JSON.stringify(makePlan("review_required"), null, 2)}\n`, "utf8");
+
+  const calls: string[] = [];
+  const git: GitClient = {
+    assertGitAvailable: async () => {
+      calls.push("assertGitAvailable");
+    },
+    getWorktreeStatus: async () => {
+      calls.push("getWorktreeStatus");
+      return { staged: ["src/providers/contract.ts"], unstaged: [], untracked: [] };
+    },
+    getChangedFiles: async () => {
+      calls.push("getChangedFiles");
+      return ["src/providers/contract.ts"];
+    },
+    hasDiff: async () => {
+      calls.push("hasDiff");
+      return true;
+    },
+    commitAll: async (_cwd, message) => {
+      calls.push(`commitAll:${message.split("\n")[0]}`);
+      return "abc123";
+    },
+    getHeadSha: async () => {
+      calls.push("getHeadSha");
+      return "abc123";
+    }
+  };
+
+  const result = await acceptStageFromPlan({
+    stageId: "stage-01-provider-contract",
+    stagePlanArg: stagePlanPath,
+    orchestratorRoot,
+    autoCommit: true,
+    git
+  });
+
+  assert.equal(result.status, "committed");
+  assert.equal(result.commitSha, "abc123");
+  assert.deepEqual(calls, [
+    "assertGitAvailable",
+    "getWorktreeStatus",
+    "getChangedFiles",
+    "hasDiff",
+    "commitAll:stage(stage-01-provider-contract): Provider contract",
+    "getHeadSha"
+  ]);
+  const planAfter = JSON.parse(await readFile(stagePlanPath, "utf8")) as StagePlan;
+  const stage = planAfter.stages.find((s) => s.id === "stage-01-provider-contract");
+  assert.equal(stage?.status, "committed");
+  assert.equal(stage?.commitSha, "abc123");
+  const report = await readFile(path.join(stagePlanDir, "stages/stage-01-provider-contract/stage-report.md"), "utf8");
+  assert.match(report, /commitSha: abc123/);
+});
+
+test("accept-stage --auto-commit uses custom commit message", async () => {
+  const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "accept-stage-auto-msg-"));
+  const stagePlanDir = path.join(orchestratorRoot, ".artifacts/runs/provider-switching");
+  await mkdir(stagePlanDir, { recursive: true });
+  const stagePlanPath = path.join(stagePlanDir, "stage-plan.json");
+  await writeFile(stagePlanPath, `${JSON.stringify(makePlan("passed"), null, 2)}\n`, "utf8");
+
+  let usedMessage = "";
+  const git: GitClient = {
+    assertGitAvailable: async () => {},
+    getWorktreeStatus: async () => ({ staged: ["src/providers/contract.ts"], unstaged: [], untracked: [] }),
+    getChangedFiles: async () => ["src/providers/contract.ts"],
+    hasDiff: async () => true,
+    commitAll: async (_cwd, message) => {
+      usedMessage = message;
+      return "def456";
+    },
+    getHeadSha: async () => "def456"
+  };
+
+  await acceptStageFromPlan({
+    stageId: "stage-01-provider-contract",
+    stagePlanArg: stagePlanPath,
+    orchestratorRoot,
+    autoCommit: true,
+    commitMessage: "stage(provider-contract): custom",
+    git
+  });
+  assert.equal(usedMessage, "stage(provider-contract): custom");
+});
+
+test("accept-stage --auto-commit refuses no diff and does not set commitSha", async () => {
+  const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "accept-stage-no-diff-"));
+  const stagePlanDir = path.join(orchestratorRoot, ".artifacts/runs/provider-switching");
+  await mkdir(stagePlanDir, { recursive: true });
+  const stagePlanPath = path.join(stagePlanDir, "stage-plan.json");
+  await writeFile(stagePlanPath, `${JSON.stringify(makePlan("review_required"), null, 2)}\n`, "utf8");
+
+  const git: GitClient = {
+    assertGitAvailable: async () => {},
+    getWorktreeStatus: async () => ({ staged: [], unstaged: [], untracked: [] }),
+    getChangedFiles: async () => [],
+    hasDiff: async () => false,
+    commitAll: async () => "x",
+    getHeadSha: async () => "x"
+  };
+
+  await assert.rejects(
+    () =>
+      acceptStageFromPlan({
+        stageId: "stage-01-provider-contract",
+        stagePlanArg: stagePlanPath,
+        orchestratorRoot,
+        autoCommit: true,
+        git
+      }),
+    /non-empty git diff/
+  );
+  const planAfter = JSON.parse(await readFile(stagePlanPath, "utf8")) as StagePlan;
+  const stage = planAfter.stages.find((s) => s.id === "stage-01-provider-contract");
+  assert.equal(stage?.status, "accepted");
+  assert.equal(stage?.commitSha, undefined);
+});
+
+test("accept-stage --auto-commit enforces scope include and exclude", async () => {
+  let includeCommitAllCalls = 0;
+  const makeScopedGit = (changedFiles: string[], onCommitAll?: () => void): GitClient => ({
+    assertGitAvailable: async () => {},
+    getWorktreeStatus: async () => ({ staged: [], unstaged: [], untracked: [] }),
+    getChangedFiles: async () => changedFiles,
+    hasDiff: async () => true,
+    commitAll: async () => {
+      includeCommitAllCalls += 1;
+      onCommitAll?.();
+      return "x";
+    },
+    getHeadSha: async () => "x"
+  });
+
+  const orchestratorRootA = await mkdtemp(path.join(os.tmpdir(), "accept-stage-scope-include-"));
+  const stagePlanDirA = path.join(orchestratorRootA, ".artifacts/runs/provider-switching");
+  await mkdir(stagePlanDirA, { recursive: true });
+  const stagePlanPathA = path.join(stagePlanDirA, "stage-plan.json");
+  const planA = makePlan("review_required");
+  planA.stages[1].scope = { include: ["src/providers/**"], exclude: ["src/providers/generated/**"] };
+  await writeFile(stagePlanPathA, `${JSON.stringify(planA, null, 2)}\n`, "utf8");
+
+  await assert.rejects(
+    () =>
+      acceptStageFromPlan({
+        stageId: "stage-01-provider-contract",
+        stagePlanArg: stagePlanPathA,
+        orchestratorRoot: orchestratorRootA,
+        autoCommit: true,
+        git: makeScopedGit(["src/other/file.ts"])
+      }),
+    /outside stage scope\.include/
+  );
+  const planAfterInclude = JSON.parse(await readFile(stagePlanPathA, "utf8")) as StagePlan;
+  const selectedInclude = planAfterInclude.stages.find((s) => s.id === "stage-01-provider-contract");
+  assert.equal(selectedInclude?.status, "accepted");
+  assert.equal(selectedInclude?.commitSha, undefined);
+  assert.equal(includeCommitAllCalls, 0);
+  assert.equal(planAfterInclude.stages.find((s) => s.id === "stage-00-foundation")?.status, "accepted");
+
+  const orchestratorRootB = await mkdtemp(path.join(os.tmpdir(), "accept-stage-scope-exclude-"));
+  const stagePlanDirB = path.join(orchestratorRootB, ".artifacts/runs/provider-switching");
+  await mkdir(stagePlanDirB, { recursive: true });
+  const stagePlanPathB = path.join(stagePlanDirB, "stage-plan.json");
+  const planB = makePlan("review_required");
+  planB.stages[1].scope = { include: ["src/providers/**"], exclude: ["src/providers/generated/**"] };
+  await writeFile(stagePlanPathB, `${JSON.stringify(planB, null, 2)}\n`, "utf8");
+
+  let excludeCommitAllCalls = 0;
+  await assert.rejects(
+    () =>
+      acceptStageFromPlan({
+        stageId: "stage-01-provider-contract",
+        stagePlanArg: stagePlanPathB,
+        orchestratorRoot: orchestratorRootB,
+        autoCommit: true,
+        git: makeScopedGit(["src/providers/generated/file.ts"], () => {
+          excludeCommitAllCalls += 1;
+        })
+      }),
+    /scope\.exclude/
+  );
+  const planAfterExclude = JSON.parse(await readFile(stagePlanPathB, "utf8")) as StagePlan;
+  const selectedExclude = planAfterExclude.stages.find((s) => s.id === "stage-01-provider-contract");
+  assert.equal(selectedExclude?.status, "accepted");
+  assert.equal(selectedExclude?.commitSha, undefined);
+  assert.equal(excludeCommitAllCalls, 0);
+  assert.equal(planAfterExclude.stages.find((s) => s.id === "stage-00-foundation")?.status, "accepted");
+});
+
+test("accept-stage --auto-commit commit failure does not set commitSha or committed status", async () => {
+  const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "accept-stage-commit-fail-"));
+  const stagePlanDir = path.join(orchestratorRoot, ".artifacts/runs/provider-switching");
+  await mkdir(stagePlanDir, { recursive: true });
+  const stagePlanPath = path.join(stagePlanDir, "stage-plan.json");
+  await writeFile(stagePlanPath, `${JSON.stringify(makePlan("review_required"), null, 2)}\n`, "utf8");
+
+  const git: GitClient = {
+    assertGitAvailable: async () => {},
+    getWorktreeStatus: async () => ({ staged: ["src/providers/contract.ts"], unstaged: [], untracked: [] }),
+    getChangedFiles: async () => ["src/providers/contract.ts"],
+    hasDiff: async () => true,
+    commitAll: async () => {
+      throw new Error("commit failed");
+    },
+    getHeadSha: async () => "never"
+  };
+
+  await assert.rejects(
+    () =>
+      acceptStageFromPlan({
+        stageId: "stage-01-provider-contract",
+        stagePlanArg: stagePlanPath,
+        orchestratorRoot,
+        autoCommit: true,
+        git
+      }),
+    /commit failed/
+  );
+  const planAfter = JSON.parse(await readFile(stagePlanPath, "utf8")) as StagePlan;
+  const stage = planAfter.stages.find((s) => s.id === "stage-01-provider-contract");
+  assert.equal(stage?.status, "accepted");
+  assert.equal(stage?.commitSha, undefined);
+  assert.equal(planAfter.stages.find((s) => s.id === "stage-00-foundation")?.status, "accepted");
+});
+
+test("accept-stage --auto-commit getHeadSha failure after commit does not mark committed", async () => {
+  const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "accept-stage-headsha-fail-"));
+  const stagePlanDir = path.join(orchestratorRoot, ".artifacts/runs/provider-switching");
+  await mkdir(stagePlanDir, { recursive: true });
+  const stagePlanPath = path.join(stagePlanDir, "stage-plan.json");
+  await writeFile(stagePlanPath, `${JSON.stringify(makePlan("review_required"), null, 2)}\n`, "utf8");
+
+  let commitAllCalls = 0;
+  const git: GitClient = {
+    assertGitAvailable: async () => {},
+    getWorktreeStatus: async () => ({ staged: ["src/providers/contract.ts"], unstaged: [], untracked: [] }),
+    getChangedFiles: async () => ["src/providers/contract.ts"],
+    hasDiff: async () => true,
+    commitAll: async () => {
+      commitAllCalls += 1;
+      return "abc123";
+    },
+    getHeadSha: async () => {
+      throw new Error("HEAD sha unavailable");
+    }
+  };
+
+  await assert.rejects(
+    () =>
+      acceptStageFromPlan({
+        stageId: "stage-01-provider-contract",
+        stagePlanArg: stagePlanPath,
+        orchestratorRoot,
+        autoCommit: true,
+        git
+      }),
+    /HEAD sha unavailable/
+  );
+  assert.equal(commitAllCalls, 1);
+  const planAfter = JSON.parse(await readFile(stagePlanPath, "utf8")) as StagePlan;
+  const selected = planAfter.stages.find((s) => s.id === "stage-01-provider-contract");
+  assert.equal(selected?.status, "accepted");
+  assert.equal(selected?.commitSha, undefined);
+  assert.equal(planAfter.stages.find((s) => s.id === "stage-00-foundation")?.status, "accepted");
+  const markdown = await readFile(path.join(stagePlanDir, "stage-plan.md"), "utf8");
+  assert.match(markdown, /accepted/);
+  assert.doesNotMatch(markdown, /commitSha:\s*\S+/);
+});
+
+test("accept-stage --auto-commit fails when git is unavailable and does not attempt commit", async () => {
+  const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "accept-stage-git-unavailable-"));
+  const stagePlanDir = path.join(orchestratorRoot, ".artifacts/runs/provider-switching");
+  await mkdir(stagePlanDir, { recursive: true });
+  const stagePlanPath = path.join(stagePlanDir, "stage-plan.json");
+  await writeFile(stagePlanPath, `${JSON.stringify(makePlan("passed"), null, 2)}\n`, "utf8");
+
+  let commitAllCalled = false;
+  let getHeadShaCalled = false;
+  const git: GitClient = {
+    assertGitAvailable: async () => {
+      throw new Error("git unavailable");
+    },
+    getWorktreeStatus: async () => ({ staged: [], unstaged: [], untracked: [] }),
+    getChangedFiles: async () => [],
+    hasDiff: async () => false,
+    commitAll: async () => {
+      commitAllCalled = true;
+      return "x";
+    },
+    getHeadSha: async () => {
+      getHeadShaCalled = true;
+      return "x";
+    }
+  };
+
+  await assert.rejects(
+    () =>
+      acceptStageFromPlan({
+        stageId: "stage-01-provider-contract",
+        stagePlanArg: stagePlanPath,
+        orchestratorRoot,
+        autoCommit: true,
+        git
+      }),
+    /git unavailable/
+  );
+  assert.equal(commitAllCalled, false);
+  assert.equal(getHeadShaCalled, false);
+  const planAfter = JSON.parse(await readFile(stagePlanPath, "utf8")) as StagePlan;
+  const selected = planAfter.stages.find((s) => s.id === "stage-01-provider-contract");
+  assert.equal(selected?.status, "accepted");
+  assert.equal(selected?.commitSha, undefined);
+  assert.equal(planAfter.stages.find((s) => s.id === "stage-00-foundation")?.status, "accepted");
 });
 
 test("fix-stage validates status and feedback gates", async () => {

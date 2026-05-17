@@ -70,6 +70,8 @@ interface ParsedArgs {
   stopAfterEachStage: boolean;
   fromStageId?: string;
   reassessDownstream: boolean;
+  autoCommit: boolean;
+  commitMessage?: string;
 }
 
 interface SummaryResult {
@@ -357,23 +359,28 @@ export async function runCommand(
   if (args.command === "accept-stage") {
     if (!args.stageId) {
       throw new Error(
-        "accept-stage requires <stage-id>. Usage: agent-stage accept-stage <stage-id> --stage-plan <path>"
+        "accept-stage requires <stage-id>. Usage: agent-stage accept-stage <stage-id> --stage-plan <path> [--auto-commit] [--commit-message <text>]"
       );
     }
     if (!args.stagePlanArg) {
       throw new Error(
-        "accept-stage requires --stage-plan <path>. Usage: agent-stage accept-stage <stage-id> --stage-plan <path>"
+        "accept-stage requires --stage-plan <path>. Usage: agent-stage accept-stage <stage-id> --stage-plan <path> [--auto-commit] [--commit-message <text>]"
       );
     }
     const result = await acceptStageFromPlan({
       stageId: args.stageId,
       stagePlanArg: args.stagePlanArg,
-      orchestratorRoot
+      orchestratorRoot,
+      autoCommit: args.autoCommit,
+      commitMessage: args.commitMessage
     });
-    writeLine("Stage accepted.");
+    writeLine(result.status === "committed" ? "Stage accepted and committed." : "Stage accepted.");
     writeLine("");
     writeLine(`Stage: ${result.stageId}`);
     writeLine(`Status: ${result.status}`);
+    if (result.commitSha) {
+      writeLine(`Commit SHA: ${result.commitSha}`);
+    }
     writeLine(`Stage Plan: ${result.stagePlanPath}`);
     return;
   }
@@ -803,6 +810,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
     openPlan: false,
     stopAfterEachStage: false,
     reassessDownstream: false
+    ,
+    autoCommit: false
   };
 
   if (command === "--help" || command === "-h") {
@@ -1042,6 +1051,19 @@ export function parseArgs(argv: string[]): ParsedArgs {
     }
     if (token === "--reassess-downstream") {
       parsed.reassessDownstream = true;
+      continue;
+    }
+    if (token === "--auto-commit") {
+      parsed.autoCommit = true;
+      continue;
+    }
+    if (token === "--commit-message") {
+      const value = rest[i + 1];
+      if (!value) {
+        throw new Error("Missing value for --commit-message");
+      }
+      parsed.commitMessage = value;
+      i += 1;
       continue;
     }
     throw new Error(`Unknown argument: ${token}`);
@@ -1308,6 +1330,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
   if (parsed.reassessDownstream && parsed.command !== "fix-stage") {
     throw new Error("--reassess-downstream is only supported for fix-stage.");
   }
+  if (parsed.commitMessage && !parsed.autoCommit) {
+    throw new Error("--commit-message requires --auto-commit.");
+  }
   if (parsed.command === "run-stages") {
     if (parsed.help) {
       return parsed;
@@ -1326,6 +1351,9 @@ export function parseArgs(argv: string[]): ParsedArgs {
     if (parsed.repoOverride) {
       throw new Error("--repo is not supported for run-stages.");
     }
+    if (parsed.autoCommit) {
+      throw new Error("SP-7: --auto-commit is only supported with accept-stage.");
+    }
   }
   if (parsed.command === "continue-stages") {
     if (parsed.help) {
@@ -1342,6 +1370,21 @@ export function parseArgs(argv: string[]): ParsedArgs {
     if (parsed.repoOverride) {
       throw new Error("--repo is not supported for continue-stages.");
     }
+    if (parsed.autoCommit) {
+      throw new Error("SP-7: --auto-commit is only supported with accept-stage.");
+    }
+  }
+  if (parsed.command === "run-stage" && parsed.autoCommit) {
+    throw new Error("SP-7: --auto-commit is only supported with accept-stage.");
+  }
+  if (parsed.command === "accept-stage" && parsed.commitMessage && !parsed.autoCommit) {
+    throw new Error("--commit-message requires --auto-commit.");
+  }
+  if (parsed.command !== "accept-stage" && parsed.autoCommit) {
+    throw new Error("SP-7: --auto-commit is only supported with accept-stage.");
+  }
+  if (parsed.command !== "accept-stage" && parsed.commitMessage) {
+    throw new Error("--commit-message is only supported with accept-stage --auto-commit.");
   }
 
   return parsed;
@@ -1527,6 +1570,7 @@ function renderHelpText(command?: string): string {
       "  --dry-run                Validate stage/dependencies/safety; no execution, no status mutation.",
       "  --allow-writes           Enables workspace-write builder execution (uses existing write-safety gates).",
       "  --stream-codex           Streams Codex output during planner/builder/reviewer execution.",
+      "  --auto-commit            Rejected in SP-7. Auto-commit is only supported with accept-stage.",
       "",
       "Notes:",
       "  - Runs planner, builder, reviewer, checks for one stage only.",
@@ -1548,7 +1592,8 @@ function renderHelpText(command?: string): string {
       "  --stop-after-each-stage     Required in SP-5; no full chaining yet.",
       "  --dry-run                   Validate plan/dependencies and print selected stage only.",
       "  --allow-writes              Enables workspace-write builder execution (uses existing write-safety gates).",
-      "  --stream-codex              Streams Codex output during planner/builder/reviewer execution."
+      "  --stream-codex              Streams Codex output during planner/builder/reviewer execution.",
+      "  --auto-commit               Rejected in SP-7. Auto-commit is only supported with accept-stage."
     ].join("\n");
   }
 
@@ -1563,24 +1608,29 @@ function renderHelpText(command?: string): string {
       "  --config <config-path>      Required execution config path.",
       "  --dry-run                   Validate progression gates and print selected stage only.",
       "  --allow-writes              Enables workspace-write builder execution (uses existing write-safety gates).",
-      "  --stream-codex              Streams Codex output during planner/builder/reviewer execution."
+      "  --stream-codex              Streams Codex output during planner/builder/reviewer execution.",
+      "  --auto-commit               Rejected in SP-7. Auto-commit is only supported with accept-stage."
     ].join("\n");
   }
 
   if (command === "accept-stage") {
     return [
-      "Usage: agent-stage accept-stage <stage-id> --stage-plan <path>",
+      "Usage: agent-stage accept-stage <stage-id> --stage-plan <path> [--auto-commit] [--commit-message <text>]",
       "",
       "Accepts a single stage after human review with no execution.",
       "",
       "Options:",
       "  --stage-plan <path>      Required path to stage-plan.json.",
+      "  --auto-commit            Commit accepted stage changes and mark stage committed (SP-7 explicit opt-in).",
+      "  --commit-message <text>  Optional custom commit message (requires --auto-commit).",
       "",
       "Notes:",
       "  - Allowed only from review_required or passed.",
       "  - Persists stage-plan.json and regenerates stage-plan.md.",
       "  - Does not execute planner/builder/reviewer.",
-      "  - Does not commit."
+      "  - With --auto-commit: requires git, non-empty diff, and scope include/exclude validation.",
+      "  - run-stage/run-stages/continue-stages reject --auto-commit in SP-7.",
+      "  - Committed stages must use later correction-stage flow; no in-place rewrite."
     ].join("\n");
   }
 
@@ -1637,7 +1687,7 @@ function renderHelpText(command?: string): string {
     "  run-stage <stage-id> --stage-plan <path> --config <config-path> [--allow-writes] [--dry-run] [--verbose] [--stream-codex]",
     "  run-stages --stage-plan <path> --config <config-path> --stop-after-each-stage [--allow-writes] [--dry-run] [--verbose] [--stream-codex]",
     "  continue-stages --stage-plan <path> --config <config-path> [--allow-writes] [--dry-run] [--verbose] [--stream-codex]",
-    "  accept-stage <stage-id> --stage-plan <path>",
+    "  accept-stage <stage-id> --stage-plan <path> [--auto-commit] [--commit-message <text>]",
     "  fix-stage <stage-id> --stage-plan <path> --config <config-path> --feedback <text> [--reassess-downstream] [--allow-writes] [--verbose] [--stream-codex]",
     "  reassess-stage-plan --stage-plan <path> --from <stage-id> --config <config-path> [--dry-run]",
     "",

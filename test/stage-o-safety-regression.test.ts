@@ -69,12 +69,12 @@ test("dangerous command regression cases are rejected", () => {
   );
 });
 
-test("src runtime has no auto-commit/auto-push git mutation command paths", async () => {
+test("src runtime has no implicit auto-commit/auto-push git mutation command paths", async () => {
   const srcDir = path.resolve(process.cwd(), "src");
   const files = (await readdir(srcDir)).filter((file) => file.endsWith(".ts"));
   const runtimeFiles = files.filter((file) => !file.endsWith(".test.ts"));
   const needles = ["git commit", "git push", "\"commit\"", "\"push\""];
-  const allow = new Set(["config.ts", "init-project.ts", "commands.ts", "write-safety.ts"]);
+  const allow = new Set(["config.ts", "init-project.ts", "commands.ts", "write-safety.ts", "git.ts", "stage-runner.ts"]);
 
   for (const file of runtimeFiles) {
     if (allow.has(file)) continue;

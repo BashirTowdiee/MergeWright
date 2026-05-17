@@ -80,7 +80,8 @@ No git mutation commands are used.
 
 Note: full Codex stdout/stderr remains in run artefacts (`*-stdout.log`, `*-stderr.log`). Streaming is off by default; use `--stream-codex` to view live raw Codex output while preserving artefacts.
 
-Auto-commit and auto-push are intentionally unsupported.
+Auto-push remains unsupported.
+SP-7 adds explicit auto-commit only for `accept-stage --auto-commit` after human review acceptance. `run-stage`, `run-stages`, and `continue-stages` still reject `--auto-commit`.
 
 ## V2 Acceptance Commands
 - Normal write-enabled run (fail-closed with reviewer):

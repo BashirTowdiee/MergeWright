@@ -422,6 +422,7 @@ Notes:
 - updates successful stage status to `review_required`
 - persists `stage-plan.json` and regenerates `stage-plan.md`
 - no multi-stage continuation and no auto-commit
+- `--auto-commit` is rejected in SP-7 (review gate not yet accepted)
 
 ## `accept-stage`
 
@@ -430,7 +431,7 @@ Purpose: mark one reviewed stage as accepted without any execution.
 Usage:
 
 ```bash
-npm run agent -- accept-stage <stage-id> --stage-plan <path>
+npm run agent -- accept-stage <stage-id> --stage-plan <path> [--auto-commit] [--commit-message "<text>"]
 ```
 
 Notes:
@@ -439,7 +440,16 @@ Notes:
 - writes updated `stage-plan.json` and regenerated `stage-plan.md`
 - writes/updates stage report
 - does not execute planner/builder/reviewer
-- does not commit
+- commits only when explicit `--auto-commit` is provided
+- `--auto-commit` safety checks:
+  - git must be available
+  - diff must be non-empty
+  - changed files must satisfy `scope.include`/`scope.exclude` when present
+- default commit message: `stage(<stage-id>): <stage title>`
+- optional custom commit message: `--commit-message "<text>"`
+- successful auto-commit stores `commitSha`, updates status to `committed`, persists plan files, and updates stage report with commit SHA
+- SP-7 limitation: accept-stage commits current repo diff at accept time; it does not isolate pre-existing unrelated edits beyond scope validation
+- committed stages must be handled later via correction-stage workflow (no in-place fix)
 
 ## `fix-stage`
 
@@ -459,3 +469,8 @@ Notes:
 - sets stage to `fixing` while executing
 - on success increments revision and sets status back to `review_required`
 - no multi-stage continuation and no auto-commit
+
+## `run-stages` and `continue-stages` auto-commit note
+
+- In SP-7, `--auto-commit` is rejected for both `run-stages` and `continue-stages`.
+- These commands still stop at `review_required` and require explicit human acceptance before any commit.
