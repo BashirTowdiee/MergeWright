@@ -150,8 +150,10 @@ test("readRunDetails uses run.json when present", async () => {
 
   const details = await readRunDetails(runsRoot, runId);
   assert.equal(details.runId, runId);
-  assert.equal(details.metadata?.status, "failed");
-  assert.deepEqual(details.artefacts, ["01-stage-input.md", "builder-exit.json", "run.json"]);
+  assert.equal(details.status, "failed");
+  assert.equal(details.statuses.builder, "failed");
+  assert.equal(details.errorSummary, "Builder failed");
+  assert.deepEqual(details.artefacts, ["01-stage-input.md", "builder-exit.json"]);
 });
 
 test("readRunSummary falls back to legacy artefacts", async () => {
@@ -166,7 +168,7 @@ test("readRunSummary falls back to legacy artefacts", async () => {
   assert.equal(summary.runId, runId);
   assert.equal(summary.status, "unknown");
   assert.equal(summary.stageName, "legacy-stage");
-  assert.equal(summary.hasPlannerOutput, true);
+  assert.equal(summary.statuses.planner, "unknown");
 });
 
 test("readRunSummary uses metadata statuses", async () => {
@@ -180,7 +182,7 @@ test("readRunSummary uses metadata statuses", async () => {
     reviewer: "executed",
     fixPlanning: "disabled",
     fixExecution: "disabled",
-    checks: "passed"
+    checks: "executed"
   };
   await writeFile(
     path.join(runDir, "run.json"),
@@ -196,7 +198,7 @@ test("readRunSummary uses metadata statuses", async () => {
         configPath: "/tmp/orchestrator/configs/acme.json",
         startedAt: "2026-05-11T12:34:56.000Z",
         completedAt: "2026-05-11T12:35:10.000Z",
-        status: "passed",
+        status: "success",
         resolvedOptions: {},
         phases: {
           planner: { status: statuses.planner },
@@ -215,6 +217,6 @@ test("readRunSummary uses metadata statuses", async () => {
   );
 
   const summary = await readRunSummary(runsRoot, runId);
-  assert.equal(summary.status, "passed");
-  assert.equal(summary.statuses.checks, "passed");
+  assert.equal(summary.status, "success");
+  assert.equal(summary.statuses.checks, "executed");
 });
