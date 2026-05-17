@@ -1,16 +1,20 @@
 # Product Discovery
 
+## Status
+
+Proposed product direction. This document frames Shepherds-Staff as a product beyond the current CLI implementation. Current behaviour should still be verified against the root README and code.
+
 ## Product summary
 
 Shepherds-Staff is a local-first agentic workflow orchestrator for safe, staged, auditable AI-assisted software development.
 
-It helps developers use AI coding agents in a controlled engineering process by separating work into phases such as:
+It helps developers use AI coding agents in a controlled engineering process by separating work into explicit phases:
 
 ```txt
 Planner -> Builder -> Reviewer -> Fix Planner -> Fix Executor -> Checks -> Report
 ```
 
-The current product surface is the CLI. Future surfaces may include a local web dashboard, VS Code extension, or desktop app.
+The current product surface is the CLI. Future surfaces may include a local API, local web dashboard, VS Code extension, or desktop app.
 
 ## Product vision
 
@@ -44,7 +48,7 @@ Shepherds-Staff solves this by turning AI coding work into a structured workflow
 
 ## Current product state
 
-Current capabilities include:
+Current CLI capabilities include:
 
 - Project configuration.
 - Stage files.
@@ -155,7 +159,7 @@ A local developer tool is easier to trust, dogfood, and integrate with existing 
 
 ### CLI remains foundational
 
-The CLI is the automation backbone. Future GUI surfaces should expose orchestration state rather than duplicate orchestration logic.
+The CLI is the automation backbone. Future GUI and editor surfaces should expose orchestration state rather than duplicate orchestration logic.
 
 ## Existing workflow
 
@@ -225,11 +229,11 @@ Shepherds-Staff is differentiated by:
 
 The key product distinction is workflow trust.
 
-## MVP scope
+## MVP boundary
 
-The current CLI is the existing MVP surface. The next product phase should formalise the product model around the current CLI and prepare for API and GUI surfaces.
+The CLI is the current MVP surface. The next product phase should formalise the product model around the CLI and prepare for API and GUI surfaces.
 
-In scope:
+Current or near-term scope:
 
 - CLI orchestration.
 - Run lifecycle model.
@@ -263,19 +267,23 @@ Out of scope for now:
 
 ### CLI
 
-Best for automation, scripting, dogfooding, local workflows, advanced users, and repeatable commands.
+Current. Best for automation, scripting, dogfooding, local workflows, advanced users, and repeatable commands.
+
+### Local API
+
+Proposed. Best for exposing the orchestration core to local dashboards and editor extensions.
 
 ### Local web dashboard
 
-Best for run visibility, phase timelines, artefact browsing, review gates, change report inspection, live logs, and workflow control.
+Proposed. Best for run visibility, phase timelines, artefact browsing, review gates, change report inspection, live logs, and workflow control.
 
 ### VS Code extension
 
-Best as a thin launcher and control surface after the local API and dashboard are stable.
+Future. Best as a thin launcher and control surface after the local API and dashboard are stable.
 
 ### Desktop app
 
-Only worth considering after the local web dashboard proves value.
+Future. Only worth considering after the local web dashboard proves value.
 
 ## Key product questions
 
@@ -283,7 +291,7 @@ Only worth considering after the local web dashboard proves value.
 2. Should the product optimise for manual phase control or human-gated auto-chain?
 3. Should the product remain local-only, or leave room for hosted/team modes later?
 4. Should Shepherds-Staff eventually support controlled commits?
-5. Should GUI work start before more CLI features?
+5. Should the dashboard initially inspect existing runs only, or also start and continue runs?
 
 Initial recommendation:
 
@@ -292,6 +300,7 @@ Initial recommendation:
 - Local-first now, without blocking future hosted/team modes.
 - Manual commit first, controlled auto-commit later.
 - Stabilise run state, artefact manifest, and API boundaries before building a large GUI.
+- Build the dashboard as read-only over existing run data first, then add execution controls.
 
 ## Success criteria
 
