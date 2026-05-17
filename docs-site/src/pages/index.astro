@@ -136,6 +136,10 @@ function keyFromId(id: string): string {
   return file.replace(/\.md$/, '').toLowerCase().replace(/_/g, '-');
 }
 
+function routeForDocId(id: string): string {
+  return `/docs/${keyFromId(id)}`;
+}
+
 function titleFromId(id: string): string {
   const name = keyFromId(id);
   return name.replace(/^\d+-/, '').replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
@@ -204,11 +208,11 @@ const uncategorisedDocs = docs
       </header>
 
       <section class="quick-links" aria-label="Recommended starting points">
-        <a href="/docs/README">Overview</a>
-        <a href="/docs/WORKFLOW">Workflow guide</a>
-        <a href="/docs/COMMANDS">Command reference</a>
-        <a href="/docs/STAGE_PLAN_WORKFLOW">Stage Plans</a>
-        <a href="/docs/SAFETY">Safety model</a>
+        <a href="/docs/readme">Overview</a>
+        <a href="/docs/workflow">Workflow guide</a>
+        <a href="/docs/commands">Command reference</a>
+        <a href="/docs/stage-plan-workflow">Stage Plans</a>
+        <a href="/docs/safety">Safety model</a>
       </section>
 
       {groupedDocs.map(({ category, items }) => (
@@ -224,7 +228,7 @@ const uncategorisedDocs = docs
               const meta = metadataForDoc(doc);
 
               return (
-                <a class="card" href={`/docs/${doc.id}`}>
+                <a class="card" href={routeForDocId(doc.id)}>
                   <p class="card-section">{meta.section}</p>
                   <h3>{meta.title}</h3>
                   <p>{meta.description}</p>
@@ -247,7 +251,7 @@ const uncategorisedDocs = docs
             {uncategorisedDocs.map((doc) => {
               const meta = metadataForDoc(doc);
               return (
-                <a class="card" href={`/docs/${doc.id}`}>
+                <a class="card" href={routeForDocId(doc.id)}>
                   <p class="card-section">{meta.section}</p>
                   <h3>{meta.title}</h3>
                   <p>{meta.description}</p>
