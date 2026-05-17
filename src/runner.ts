@@ -4,6 +4,7 @@ import { loadAndValidateConfig, resolveConfigPath, validateWorkspaceSafety } fro
 import { executeCheckCommand, resolveCheckCommandCwd } from "./commands.js";
 import type { CodexExecutor } from "./codex.js";
 import { createCodexCompatibleExecutor } from "./execution-backends/codex-compatible-executor.js";
+import { serialiseBackendCommandArtefact } from "./execution-backends/backend-command-artefact.js";
 import { parsePlannerOutput } from "./planner-output.js";
 import { writePlanHtmlFromRun } from "./plan-html.js";
 import { loadPromptTemplates, renderTemplate, type TemplateVariables } from "./prompts.js";
@@ -510,17 +511,14 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
       );
     });
 
-    artefacts["03-planner-command.args.json"] = JSON.stringify(
-      {
-        command: execution.command,
-        args: execution.args,
-        cwd: execution.cwd,
-        outputLastMessagePath: execution.outputLastMessagePath,
-        promptViaStdin: true
-      },
-      null,
-      2
-    );
+    artefacts["03-planner-command.args.json"] = serialiseBackendCommandArtefact({
+      command: execution.command,
+      args: execution.args,
+      cwd: execution.cwd,
+      outputLastMessagePath: execution.outputLastMessagePath,
+      promptViaStdin: true,
+      backend: execution.backend
+    });
     artefacts["04-planner-stdout.log"] = execution.stdout;
     artefacts["05-planner-stderr.log"] = execution.stderr;
     artefacts["06-planner-output-last-message.md"] = execution.outputLastMessage;
@@ -565,6 +563,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
       await updatePhaseAndPersist("planner", {
         status: "executed",
         completedAt: new Date().toISOString(),
+        backend: execution.backend,
         artefacts: [
           "03-planner-command.args.json",
           "04-planner-stdout.log",
@@ -650,18 +649,15 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
         );
       });
 
-      artefacts["builder-command.json"] = JSON.stringify(
-        {
-          command: builderExecution.command,
-          args: builderExecution.args,
-          cwd: builderExecution.cwd,
+      artefacts["builder-command.json"] = serialiseBackendCommandArtefact({
+        command: builderExecution.command,
+        args: builderExecution.args,
+        cwd: builderExecution.cwd,
         outputLastMessagePath: builderExecution.outputLastMessagePath,
-          promptViaStdin: true,
-          sandboxMode: allowWrites ? "workspace-write" : "read-only"
-        },
-        null,
-        2
-      );
+        promptViaStdin: true,
+        sandboxMode: allowWrites ? "workspace-write" : "read-only",
+        backend: builderExecution.backend
+      });
       artefacts["builder-prompt.executed.md"] = extractedBuilderPrompt;
       artefacts["builder-stdout.log"] = builderExecution.stdout;
       artefacts["builder-stderr.log"] = builderExecution.stderr;
@@ -745,6 +741,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
       await updatePhaseAndPersist("builder", {
         status: "executed",
         completedAt: new Date().toISOString(),
+        backend: builderExecution.backend,
         artefacts: ["builder-command.json", "builder-prompt.executed.md", "builder-stdout.log", "builder-stderr.log", "builder-output-last-message.md", "builder-exit.json"]
       });
       progressLogger.phaseComplete("builder", `completed in ${formatDurationMs(builderExecution.durationMs)}`);
@@ -786,18 +783,15 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
         );
       });
 
-      artefacts["reviewer-command.json"] = JSON.stringify(
-        {
-          command: reviewerExecution.command,
-          args: reviewerExecution.args,
-          cwd: reviewerExecution.cwd,
-          outputLastMessagePath: reviewerExecution.outputLastMessagePath,
-          promptViaStdin: true,
-          sandboxMode: "read-only"
-        },
-        null,
-        2
-      );
+      artefacts["reviewer-command.json"] = serialiseBackendCommandArtefact({
+        command: reviewerExecution.command,
+        args: reviewerExecution.args,
+        cwd: reviewerExecution.cwd,
+        outputLastMessagePath: reviewerExecution.outputLastMessagePath,
+        promptViaStdin: true,
+        sandboxMode: "read-only",
+        backend: reviewerExecution.backend
+      });
       artefacts["reviewer-stdout.log"] = reviewerExecution.stdout;
       artefacts["reviewer-stderr.log"] = reviewerExecution.stderr;
       artefacts["reviewer-output-last-message.md"] = reviewerExecution.outputLastMessage;
@@ -850,6 +844,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
       await updatePhaseAndPersist("reviewer", {
         status: "executed",
         completedAt: new Date().toISOString(),
+        backend: reviewerExecution.backend,
         artefacts: ["reviewer-command.json", "reviewer-stdout.log", "reviewer-stderr.log", "reviewer-output-last-message.md", "reviewer-exit.json"]
       });
       progressLogger.phaseComplete("reviewer", `completed in ${formatDurationMs(reviewerExecution.durationMs)}`);
@@ -903,18 +898,15 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
         );
       });
 
-      artefacts["review-to-fix-command.json"] = JSON.stringify(
-        {
-          command: reviewToFixExecution.command,
-          args: reviewToFixExecution.args,
-          cwd: reviewToFixExecution.cwd,
-          outputLastMessagePath: reviewToFixExecution.outputLastMessagePath,
-          promptViaStdin: true,
-          sandboxMode: "read-only"
-        },
-        null,
-        2
-      );
+      artefacts["review-to-fix-command.json"] = serialiseBackendCommandArtefact({
+        command: reviewToFixExecution.command,
+        args: reviewToFixExecution.args,
+        cwd: reviewToFixExecution.cwd,
+        outputLastMessagePath: reviewToFixExecution.outputLastMessagePath,
+        promptViaStdin: true,
+        sandboxMode: "read-only",
+        backend: reviewToFixExecution.backend
+      });
       artefacts["review-to-fix-stdout.log"] = reviewToFixExecution.stdout;
       artefacts["review-to-fix-stderr.log"] = reviewToFixExecution.stderr;
       artefacts["review-to-fix-output-last-message.md"] = reviewToFixExecution.outputLastMessage;
@@ -1031,18 +1023,15 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
               }
             );
           });
-          artefacts["fix-command.json"] = JSON.stringify(
-            {
-              command: fixExecution.command,
-              args: fixExecution.args,
-              cwd: fixExecution.cwd,
-              outputLastMessagePath: fixExecution.outputLastMessagePath,
-              promptViaStdin: true,
-              sandboxMode: allowWrites ? "workspace-write" : "read-only"
-            },
-            null,
-            2
-          );
+          artefacts["fix-command.json"] = serialiseBackendCommandArtefact({
+            command: fixExecution.command,
+            args: fixExecution.args,
+            cwd: fixExecution.cwd,
+            outputLastMessagePath: fixExecution.outputLastMessagePath,
+            promptViaStdin: true,
+            sandboxMode: allowWrites ? "workspace-write" : "read-only",
+            backend: fixExecution.backend
+          });
           artefacts["fix-prompt.executed.md"] = fixPrompt;
           artefacts["fix-stdout.log"] = fixExecution.stdout;
           artefacts["fix-stderr.log"] = fixExecution.stderr;
@@ -1109,6 +1098,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
           await updatePhaseAndPersist("fixExecution", {
             status: "executed",
             completedAt: new Date().toISOString(),
+            backend: fixExecution.backend,
             artefacts: ["fix-command.json", "fix-prompt.executed.md", "fix-stdout.log", "fix-stderr.log", "fix-output-last-message.md", "fix-exit.json"]
           });
           progressLogger.phaseComplete("fix", `completed in ${formatDurationMs(fixExecution.durationMs)}`);
@@ -1129,6 +1119,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
       await updatePhaseAndPersist("fixPlanning", {
         status: "executed",
         completedAt: new Date().toISOString(),
+        backend: reviewToFixExecution.backend,
         artefacts: ["review-to-fix-command.json", "review-to-fix-stdout.log", "review-to-fix-stderr.log", "review-to-fix-output-last-message.md", "review-to-fix-exit.json", "review-to-fix-decision.json"]
       });
       progressLogger.phaseComplete("fix-planning", `completed in ${formatDurationMs(reviewToFixExecution.durationMs)}`);

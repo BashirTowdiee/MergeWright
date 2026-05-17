@@ -217,7 +217,7 @@ test("explicit codexExecutor override is preserved after adapter wiring", async 
   const { orchestratorRoot, configPath, workspaceRoot } = await makeFixture();
   const requests: Array<{ role: string; model: string; workspaceRoot: string }> = [];
 
-  await runStage({
+  const result = await runStage({
     stageName: "example-stage",
     configArg: path.relative(orchestratorRoot, configPath),
     dryRun: false,
@@ -248,6 +248,10 @@ test("explicit codexExecutor override is preserved after adapter wiring", async 
   assert.equal(requests[0].role, "planner");
   assert.equal(requests[0].model, "gpt-5.3-codex");
   assert.equal(requests[0].workspaceRoot, workspaceRoot);
+  const plannerCommand = JSON.parse(await readFile(path.join(result.runDir, "03-planner-command.args.json"), "utf8")) as {
+    backend?: unknown;
+  };
+  assert.equal(plannerCommand.backend, undefined);
 });
 
 test("config with executionBackends+agents and no codex runs planner through wired path", async () => {
@@ -325,6 +329,133 @@ test("config with executionBackends+agents and no codex runs planner through wir
   assert.equal(exitMeta.success, true);
   assert.equal(exitMeta.skipped, false);
   assert.equal(exitMeta.code, 0);
+});
+
+test("new executionBackends+agents config produces backend metadata without override", async () => {
+  const { orchestratorRoot, configPath, workspaceRoot } = await makeFixture();
+  await writeFile(
+    configPath,
+    JSON.stringify(
+      {
+        version: 1,
+        projectName: "acme",
+        workspaceRoot,
+        paths: {
+          stagesDir: "stages/acme",
+          promptsDir: "prompts",
+          runsDir: "runs/acme"
+        },
+        executionBackends: {
+          "codex-local": { type: "codex-cli" }
+        },
+        agents: {
+          planner: { backend: "codex-local", model: "agent-planner-model", reasoningEffort: "high" },
+          builder: { backend: "codex-local", model: "agent-builder-model", reasoningEffort: "medium" },
+          reviewer: { backend: "codex-local", model: "agent-reviewer-model", reasoningEffort: "high" }
+        },
+        pipeline: { finalReview: true, maxFixLoops: 1 },
+        commands: { checks: [] },
+        safety: {
+          requireGitRepo: true,
+          requireCleanStart: true,
+          manualCommit: true,
+          forbidAutoCommit: true,
+          forbidAutoPush: true
+        }
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+  const binDir = await mkdtemp(path.join(os.tmpdir(), "runner-codex-bin-"));
+  await makeFakeCodexBinary(binDir);
+  const originalPath = process.env.PATH;
+  process.env.PATH = `${binDir}:${originalPath ?? ""}`;
+  try {
+    const result = await runStage({
+      stageName: "example-stage",
+      configArg: path.relative(orchestratorRoot, configPath),
+      dryRun: false,
+      executePlanner: true,
+      executeBuilder: false,
+      verbose: false,
+      orchestratorRoot
+    });
+    const plannerCommand = JSON.parse(await readFile(path.join(result.runDir, "03-planner-command.args.json"), "utf8")) as {
+      backend?: { backendName: string; backendType: string; agentRole: string; model: string; reasoningEffort: string };
+    };
+    assert.deepEqual(plannerCommand.backend, {
+      backendName: "codex-local",
+      backendType: "codex-cli",
+      agentRole: "planner",
+      model: "agent-planner-model",
+      reasoningEffort: "high"
+    });
+  } finally {
+    process.env.PATH = originalPath;
+  }
+});
+
+test("planner command artefact includes backend metadata via configured adapter", async () => {
+  const { orchestratorRoot, configPath } = await makeFixture();
+  const binDir = await mkdtemp(path.join(os.tmpdir(), "runner-codex-bin-"));
+  await makeFakeCodexBinary(binDir);
+  const originalPath = process.env.PATH;
+  process.env.PATH = `${binDir}:${originalPath ?? ""}`;
+  try {
+  const result = await runStage({
+    stageName: "example-stage",
+    configArg: path.relative(orchestratorRoot, configPath),
+    dryRun: false,
+    executePlanner: true,
+    executeBuilder: false,
+    verbose: false,
+    orchestratorRoot
+  });
+  const plannerCommand = JSON.parse(await readFile(path.join(result.runDir, "03-planner-command.args.json"), "utf8")) as {
+    backend?: { backendName: string; backendType: string; agentRole: string; model: string; reasoningEffort: string };
+  };
+  assert.deepEqual(plannerCommand.backend, {
+    backendName: "codex",
+    backendType: "codex-cli",
+    agentRole: "planner",
+    model: "gpt-5.3-codex",
+    reasoningEffort: "high"
+  });
+  } finally {
+    process.env.PATH = originalPath;
+  }
+});
+
+test("builder and reviewer command artefacts include backend metadata via configured adapter", async () => {
+  const { orchestratorRoot, configPath } = await makeFixture();
+  const binDir = await mkdtemp(path.join(os.tmpdir(), "runner-codex-bin-"));
+  await makeFakeCodexBinary(binDir);
+  const originalPath = process.env.PATH;
+  process.env.PATH = `${binDir}:${originalPath ?? ""}`;
+  try {
+  const result = await runStage({
+    stageName: "example-stage",
+    configArg: path.relative(orchestratorRoot, configPath),
+    dryRun: false,
+    executePlanner: true,
+    executeBuilder: true,
+    executeReviewer: true,
+    verbose: false,
+    orchestratorRoot
+  });
+  const builderCommand = JSON.parse(await readFile(path.join(result.runDir, "builder-command.json"), "utf8")) as {
+    backend?: { agentRole: string };
+  };
+  const reviewerCommand = JSON.parse(await readFile(path.join(result.runDir, "reviewer-command.json"), "utf8")) as {
+    backend?: { agentRole: string };
+  };
+  assert.equal(builderCommand.backend?.agentRole, "builder");
+  assert.equal(reviewerCommand.backend?.agentRole, "reviewer");
+  } finally {
+    process.env.PATH = originalPath;
+  }
 });
 
 test("runsDir invariant passes for projectName Acme and runs/acme", async () => {

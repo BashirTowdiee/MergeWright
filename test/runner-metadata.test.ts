@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { runStage } from "../src/runner.js";
@@ -54,6 +54,39 @@ async function makeFixture(): Promise<{ orchestratorRoot: string; configPath: st
   return { orchestratorRoot, configPath, workspaceRoot };
 }
 
+async function makeFakeCodexBinary(binDir: string): Promise<void> {
+  const codexPath = path.join(binDir, "codex");
+  await writeFile(
+    codexPath,
+    `#!/usr/bin/env bash
+set -euo pipefail
+OUT=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -o)
+      OUT="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+cat >/dev/null
+if [[ "$OUT" == *"review-to-fix-output-last-message.md" ]]; then
+  printf "## DECISION\\nFIX_REQUIRED\\n\\n## RATIONALE\\nneeds fix\\n\\n## FINAL FIX PROMPT\\nApply fix\\n" > "$OUT"
+elif [[ "$OUT" == *"planner-output-last-message.md" ]]; then
+  printf "## DECISION\\nBUILD\\n\\n## FINAL BUILDER PROMPT\\nImplement\\n" > "$OUT"
+else
+  printf "ok\\n" > "$OUT"
+fi
+printf "fake-codex-stdout\\n"
+`,
+    "utf8"
+  );
+  await chmod(codexPath, 0o755);
+}
+
 test("every run writes run.json", async () => {
   const { orchestratorRoot, configPath } = await makeFixture();
   const result = await runStage({
@@ -96,6 +129,77 @@ test("dry-run metadata marks skipped phases and success", async () => {
   assert.equal(runMetadata.phases.fixPlanning.status, "skipped");
   assert.equal(runMetadata.phases.fixExecution.status, "skipped");
   assert.equal(runMetadata.phases.checks.status, "skipped");
+});
+
+test("executed phase metadata includes backend metadata when adapter provides it", async () => {
+  const { orchestratorRoot, configPath } = await makeFixture();
+  const binDir = await mkdtemp(path.join(os.tmpdir(), "runner-meta-codex-bin-"));
+  await makeFakeCodexBinary(binDir);
+  const originalPath = process.env.PATH;
+  process.env.PATH = `${binDir}:${originalPath ?? ""}`;
+  let result: Awaited<ReturnType<typeof runStage>> | undefined;
+  try {
+    result = await runStage({
+      stageName: "example-stage",
+      configArg: path.relative(orchestratorRoot, configPath),
+      dryRun: false,
+      executePlanner: true,
+      executeBuilder: true,
+      executeReviewer: true,
+      planFix: true,
+      executeFix: true,
+      verbose: false,
+      orchestratorRoot
+    });
+  } finally {
+    process.env.PATH = originalPath;
+  }
+  assert.ok(result);
+  const runMetadata = JSON.parse(await readFile(path.join(result.runDir, "run.json"), "utf8")) as {
+    phases: Record<string, { status: string; backend?: { backendType: string } }>;
+  };
+  assert.equal(runMetadata.phases.planner.status, "executed");
+  assert.equal(runMetadata.phases.builder.status, "executed");
+  assert.equal(runMetadata.phases.reviewer.status, "executed");
+  assert.equal(runMetadata.phases.fixPlanning.status, "executed");
+  assert.equal(runMetadata.phases.fixExecution.status, "executed");
+  assert.equal(runMetadata.phases.planner.backend?.backendType, "codex-cli");
+  assert.equal(runMetadata.phases.builder.backend?.backendType, "codex-cli");
+  assert.equal(runMetadata.phases.reviewer.backend?.backendType, "codex-cli");
+  assert.equal(runMetadata.phases.fixPlanning.backend?.backendType, "codex-cli");
+  assert.equal(runMetadata.phases.fixExecution.backend?.backendType, "codex-cli");
+});
+
+test("metadata does not invent backend metadata when explicit codexExecutor override returns no backend", async () => {
+  const { orchestratorRoot, configPath } = await makeFixture();
+  const result = await runStage({
+    stageName: "example-stage",
+    configArg: path.relative(orchestratorRoot, configPath),
+    dryRun: false,
+    executePlanner: true,
+    executeBuilder: false,
+    verbose: false,
+    orchestratorRoot,
+    codexExecutor: async (request) => ({
+      command: "override",
+      args: [],
+      cwd: orchestratorRoot,
+      stdout: "",
+      stderr: "",
+      exitCode: 0,
+      signal: null,
+      durationMs: 1,
+      success: true,
+      outputLastMessagePath: request.outputLastMessagePath,
+      outputLastMessage: "## DECISION\nBUILD\n\n## FINAL BUILDER PROMPT\noverride prompt",
+      skipped: false
+    })
+  });
+  const runMetadata = JSON.parse(await readFile(path.join(result.runDir, "run.json"), "utf8")) as {
+    phases: Record<string, { status: string; backend?: unknown }>;
+  };
+  assert.equal(runMetadata.phases.planner.status, "executed");
+  assert.equal(runMetadata.phases.planner.backend, undefined);
 });
 
 test("builder failure marks run failed with failed phase", async () => {
