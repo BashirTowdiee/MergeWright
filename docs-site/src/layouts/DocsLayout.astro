@@ -121,6 +121,10 @@ function keyFromId(id: string): string {
   return file.replace(/\.md$/, '').toLowerCase().replace(/_/g, '-');
 }
 
+function routeForDocId(id: string): string {
+  return `/docs/${keyFromId(id)}`;
+}
+
 function titleFromId(id: string): string {
   return keyFromId(id).replace(/^\d+-/, '').replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }
@@ -192,9 +196,9 @@ const currentMeta = metadataForDoc(currentDoc);
                   return (
                     <li>
                       <a
-                        href={`/docs/${doc.id}`}
-                        class={doc.id === currentDoc.id ? 'active' : ''}
-                        aria-current={doc.id === currentDoc.id ? 'page' : undefined}
+                        href={routeForDocId(doc.id)}
+                        class={keyFromId(doc.id) === keyFromId(currentDoc.id) ? 'active' : ''}
+                        aria-current={keyFromId(doc.id) === keyFromId(currentDoc.id) ? 'page' : undefined}
                       >
                         <span>{meta.title}</span>
                         <span class={`nav-status status-${meta.status ?? 'draft'}`}>{meta.status ?? 'draft'}</span>
@@ -214,9 +218,9 @@ const currentMeta = metadataForDoc(currentDoc);
                   return (
                     <li>
                       <a
-                        href={`/docs/${doc.id}`}
-                        class={doc.id === currentDoc.id ? 'active' : ''}
-                        aria-current={doc.id === currentDoc.id ? 'page' : undefined}
+                        href={routeForDocId(doc.id)}
+                        class={keyFromId(doc.id) === keyFromId(currentDoc.id) ? 'active' : ''}
+                        aria-current={keyFromId(doc.id) === keyFromId(currentDoc.id) ? 'page' : undefined}
                       >
                         <span>{meta.title}</span>
                         <span class={`nav-status status-${meta.status ?? 'draft'}`}>{meta.status ?? 'draft'}</span>
