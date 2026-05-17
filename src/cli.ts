@@ -30,7 +30,7 @@ import { checkWriteSafety, type WriteSafetyResult } from "./write-safety.js";
 import { openFileInBrowser, type OpenFileResult } from "./open-file.js";
 import { readStagePlan, writeStagePlan } from "./stage-plan-store.js";
 import { renderStagePlanMarkdown } from "./stage-plan-renderer.js";
-import { runSingleStageFromPlan } from "./stage-runner.js";
+import { acceptStageFromPlan, fixStageFromPlan, runSingleStageFromPlan } from "./stage-runner.js";
 
 interface ParsedArgs {
   command?: string;
@@ -65,6 +65,7 @@ interface ParsedArgs {
   importOut?: string;
   stagePlanArg?: string;
   stageId?: string;
+  feedback?: string;
 }
 
 interface SummaryResult {
@@ -151,7 +152,9 @@ export async function runCommand(
     "init-project",
     "check-write-safety",
     "import-stage-plan",
-    "run-stage"
+    "run-stage",
+    "accept-stage",
+    "fix-stage"
   ]);
   if (!knownCommands.has(args.command)) {
     throw new Error(`Unknown command: ${args.command}\n\n${renderHelpText()}`);
@@ -250,6 +253,70 @@ export async function runCommand(
     writeLine(`Stage: ${result.stageId}`);
     writeLine(`Status: ${result.status}`);
     writeLine(`Artefacts: ${result.stageArtefactsDir}`);
+    writeLine(`Stage Plan: ${result.stagePlanPath}`);
+    return;
+  }
+
+  if (args.command === "accept-stage") {
+    if (!args.stageId) {
+      throw new Error(
+        "accept-stage requires <stage-id>. Usage: agent-stage accept-stage <stage-id> --stage-plan <path>"
+      );
+    }
+    if (!args.stagePlanArg) {
+      throw new Error(
+        "accept-stage requires --stage-plan <path>. Usage: agent-stage accept-stage <stage-id> --stage-plan <path>"
+      );
+    }
+    const result = await acceptStageFromPlan({
+      stageId: args.stageId,
+      stagePlanArg: args.stagePlanArg,
+      orchestratorRoot
+    });
+    writeLine("Stage accepted.");
+    writeLine("");
+    writeLine(`Stage: ${result.stageId}`);
+    writeLine(`Status: ${result.status}`);
+    writeLine(`Stage Plan: ${result.stagePlanPath}`);
+    return;
+  }
+
+  if (args.command === "fix-stage") {
+    if (!args.stageId) {
+      throw new Error(
+        "fix-stage requires <stage-id>. Usage: agent-stage fix-stage <stage-id> --stage-plan <path> --config <config-path> --feedback <text> [--allow-writes] [--verbose] [--stream-codex]"
+      );
+    }
+    if (!args.stagePlanArg) {
+      throw new Error(
+        "fix-stage requires --stage-plan <path>. Usage: agent-stage fix-stage <stage-id> --stage-plan <path> --config <config-path> --feedback <text> [--allow-writes] [--verbose] [--stream-codex]"
+      );
+    }
+    if (!args.feedback) {
+      throw new Error(
+        "fix-stage requires --feedback <text>. Usage: agent-stage fix-stage <stage-id> --stage-plan <path> --config <config-path> --feedback <text> [--allow-writes] [--verbose] [--stream-codex]"
+      );
+    }
+    if (!args.configArg) {
+      throw new Error("Missing required --config <config-path>. No implicit default is used.");
+    }
+    const result = await fixStageFromPlan({
+      stageId: args.stageId,
+      stagePlanArg: args.stagePlanArg,
+      configArg: args.configArg,
+      feedback: args.feedback,
+      orchestratorRoot,
+      allowWrites: args.allowWrites,
+      verbose: args.verbose,
+      streamCodex: args.streamCodex,
+      progressLogger
+    });
+    writeLine("Stage fix completed and requires review.");
+    writeLine("");
+    writeLine(`Stage: ${result.stageId}`);
+    writeLine(`Status: ${result.status}`);
+    writeLine(`Revision: ${result.revision}`);
+    writeLine(`Feedback: ${result.feedbackPath}`);
     writeLine(`Stage Plan: ${result.stagePlanPath}`);
     return;
   }
@@ -615,7 +682,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
     parsed.projectName = firstArg && !firstArg.startsWith("-") ? firstArg : undefined;
   } else if (command === "show-run" || command === "open-run" || command === "continue-run" || command === "report-run") {
     parsed.runId = firstArg && !firstArg.startsWith("-") ? firstArg : undefined;
-  } else if (command === "run-stage") {
+  } else if (command === "run-stage" || command === "accept-stage" || command === "fix-stage") {
     parsed.stageId = firstArg && !firstArg.startsWith("-") ? firstArg : undefined;
   }
   const rest =
@@ -627,7 +694,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
         ? firstArg && firstArg.startsWith("-")
           ? [firstArg, ...tail]
           : tail
-        : command === "run-stage"
+        : command === "run-stage" || command === "accept-stage" || command === "fix-stage"
           ? firstArg && firstArg.startsWith("-")
             ? [firstArg, ...tail]
             : tail
@@ -804,14 +871,23 @@ export function parseArgs(argv: string[]): ParsedArgs {
       i += 1;
       continue;
     }
+    if (token === "--feedback") {
+      const value = rest[i + 1];
+      if (!value) {
+        throw new Error("Missing value for --feedback");
+      }
+      parsed.feedback = value;
+      i += 1;
+      continue;
+    }
     throw new Error(`Unknown argument: ${token}`);
   }
 
-  if (parsed.allowWrites && parsed.command !== "run" && parsed.command !== "continue-run" && parsed.command !== "run-stage") {
-    throw new Error("--allow-writes is only supported for run, continue-run, and run-stage");
+  if (parsed.allowWrites && parsed.command !== "run" && parsed.command !== "continue-run" && parsed.command !== "run-stage" && parsed.command !== "fix-stage") {
+    throw new Error("--allow-writes is only supported for run, continue-run, and run-stage. fix-stage also supports --allow-writes.");
   }
-  if (parsed.streamCodex && parsed.command !== "run" && parsed.command !== "continue-run" && parsed.command !== "run-stage") {
-    throw new Error("--stream-codex is only supported for run, continue-run, and run-stage");
+  if (parsed.streamCodex && parsed.command !== "run" && parsed.command !== "continue-run" && parsed.command !== "run-stage" && parsed.command !== "fix-stage") {
+    throw new Error("--stream-codex is only supported for run, continue-run, and run-stage. fix-stage also supports --stream-codex.");
   }
   if (parsed.autoChain && parsed.command !== "run") {
     throw new Error("--auto-chain is only supported for run.");
@@ -974,6 +1050,55 @@ export function parseArgs(argv: string[]): ParsedArgs {
     }
     if (!parsed.configArg) {
       throw new Error("Missing required --config <config-path>. No implicit default is used.");
+    }
+  }
+  if (parsed.command === "accept-stage") {
+    if (parsed.help) {
+      return parsed;
+    }
+    if (!parsed.stageId) {
+      throw new Error("accept-stage requires <stage-id>. Usage: agent-stage accept-stage <stage-id> --stage-plan <path>");
+    }
+    if (!parsed.stagePlanArg) {
+      throw new Error("accept-stage requires --stage-plan <path>. Usage: agent-stage accept-stage <stage-id> --stage-plan <path>");
+    }
+    if (parsed.repoOverride) {
+      throw new Error("--repo is not supported for accept-stage.");
+    }
+    if (parsed.configArg) {
+      throw new Error("--config is not supported for accept-stage.");
+    }
+  }
+  if (parsed.command === "fix-stage") {
+    if (parsed.help) {
+      return parsed;
+    }
+    if (!parsed.stageId) {
+      throw new Error(
+        "fix-stage requires <stage-id>. Usage: agent-stage fix-stage <stage-id> --stage-plan <path> --config <config-path> --feedback <text> [--allow-writes] [--verbose] [--stream-codex]"
+      );
+    }
+    if (!parsed.stagePlanArg) {
+      throw new Error(
+        "fix-stage requires --stage-plan <path>. Usage: agent-stage fix-stage <stage-id> --stage-plan <path> --config <config-path> --feedback <text> [--allow-writes] [--verbose] [--stream-codex]"
+      );
+    }
+    if (!parsed.configArg) {
+      throw new Error("Missing required --config <config-path>. No implicit default is used.");
+    }
+    if (!parsed.feedback) {
+      throw new Error(
+        "fix-stage requires --feedback <text>. Usage: agent-stage fix-stage <stage-id> --stage-plan <path> --config <config-path> --feedback <text> [--allow-writes] [--verbose] [--stream-codex]"
+      );
+    }
+    if (!parsed.feedback.trim()) {
+      throw new Error("fix-stage requires non-empty --feedback.");
+    }
+    if (parsed.repoOverride) {
+      throw new Error("--repo is not supported for fix-stage.");
+    }
+    if (parsed.dryRun) {
+      throw new Error("--dry-run is not supported for fix-stage.");
     }
   }
 
@@ -1169,6 +1294,45 @@ function renderHelpText(command?: string): string {
     ].join("\n");
   }
 
+  if (command === "accept-stage") {
+    return [
+      "Usage: agent-stage accept-stage <stage-id> --stage-plan <path>",
+      "",
+      "Accepts a single stage after human review with no execution.",
+      "",
+      "Options:",
+      "  --stage-plan <path>      Required path to stage-plan.json.",
+      "",
+      "Notes:",
+      "  - Allowed only from review_required or passed.",
+      "  - Persists stage-plan.json and regenerates stage-plan.md.",
+      "  - Does not execute planner/builder/reviewer.",
+      "  - Does not commit."
+    ].join("\n");
+  }
+
+  if (command === "fix-stage") {
+    return [
+      "Usage: agent-stage fix-stage <stage-id> --stage-plan <path> --config <config-path> --feedback <text> [--allow-writes] [--verbose] [--stream-codex]",
+      "",
+      "Runs a single-stage fix workflow from human feedback.",
+      "",
+      "Options:",
+      "  --stage-plan <path>      Required path to stage-plan.json.",
+      "  --config <config-path>   Required execution config path.",
+      "  --feedback <text>        Required human feedback for the selected stage.",
+      "  --allow-writes           Enables workspace-write builder execution (uses existing write-safety gates).",
+      "  --stream-codex           Streams Codex output during planner/builder/reviewer execution.",
+      "",
+      "Notes:",
+      "  - Refuses committed stages and stages with commitSha.",
+      "  - Writes stage feedback artefact under stage artefacts directory.",
+      "  - Sets stage to fixing during execution.",
+      "  - On success increments revision and returns stage to review_required.",
+      "  - No multi-stage continuation and no auto-commit."
+    ].join("\n");
+  }
+
   return [
     "Usage: agent-stage <command> [options]",
     "",
@@ -1183,6 +1347,8 @@ function renderHelpText(command?: string): string {
     "  check-write-safety --config <config-path>",
     "  import-stage-plan --from <path> --out <path> [--force]",
     "  run-stage <stage-id> --stage-plan <path> --config <config-path> [--allow-writes] [--dry-run] [--verbose] [--stream-codex]",
+    "  accept-stage <stage-id> --stage-plan <path>",
+    "  fix-stage <stage-id> --stage-plan <path> --config <config-path> --feedback <text> [--allow-writes] [--verbose] [--stream-codex]",
     "",
     "Use \"agent-stage <command> --help\" for command details.",
     "",

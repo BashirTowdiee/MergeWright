@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import type { StagePlan, StageStatus } from "../src/stage-plan.js";
-import { runSingleStageFromPlan } from "../src/stage-runner.js";
+import { acceptStageFromPlan, fixStageFromPlan, runSingleStageFromPlan } from "../src/stage-runner.js";
 
 function makePlan(stage2Status: StageStatus, depStatus: StageStatus = "accepted"): StagePlan {
   return {
@@ -310,3 +310,332 @@ test("failure marks only selected stage failed when execution started", async ()
   assert.equal(dep?.status, "accepted");
 });
 
+test("accept-stage accepts review_required and passed only", async () => {
+  for (const status of ["review_required", "passed"] as const) {
+    const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), `accept-stage-${status}-`));
+    const stagePlanDir = path.join(orchestratorRoot, ".artifacts/runs/provider-switching");
+    await mkdir(stagePlanDir, { recursive: true });
+    const stagePlanPath = path.join(stagePlanDir, "stage-plan.json");
+    await writeFile(stagePlanPath, `${JSON.stringify(makePlan(status), null, 2)}\n`, "utf8");
+
+    const before = JSON.parse(await readFile(stagePlanPath, "utf8")) as StagePlan;
+    const oldUpdatedAt = before.updatedAt;
+
+    const result = await acceptStageFromPlan({
+      stageId: "stage-01-provider-contract",
+      stagePlanArg: stagePlanPath,
+      orchestratorRoot
+    });
+    assert.equal(result.status, "accepted");
+
+    const planAfter = JSON.parse(await readFile(stagePlanPath, "utf8")) as StagePlan;
+    assert.notEqual(planAfter.updatedAt, oldUpdatedAt);
+    assert.equal(planAfter.stages.find((s) => s.id === "stage-01-provider-contract")?.status, "accepted");
+    assert.equal(planAfter.stages.find((s) => s.id === "stage-00-foundation")?.status, "accepted");
+    await access(path.join(stagePlanDir, "stage-plan.md"));
+    await access(path.join(stagePlanDir, "stages/stage-01-provider-contract/stage-report.md"));
+  }
+});
+
+test("accept-stage refuses unknown stage", async () => {
+  const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "accept-stage-unknown-"));
+  const stagePlanDir = path.join(orchestratorRoot, ".artifacts/runs/provider-switching");
+  await mkdir(stagePlanDir, { recursive: true });
+  const stagePlanPath = path.join(stagePlanDir, "stage-plan.json");
+  await writeFile(stagePlanPath, `${JSON.stringify(makePlan("review_required"), null, 2)}\n`, "utf8");
+  await assert.rejects(
+    () =>
+      acceptStageFromPlan({
+        stageId: "unknown",
+        stagePlanArg: stagePlanPath,
+        orchestratorRoot
+      }),
+    /Unknown stage id/
+  );
+});
+
+test("accept-stage refuses disallowed statuses", async () => {
+  const disallowed: StageStatus[] = [
+    "pending",
+    "running",
+    "accepted",
+    "committed",
+    "failed",
+    "fix_required",
+    "fixing",
+    "needs_revision",
+    "invalidated",
+    "skipped"
+  ];
+  for (const status of disallowed) {
+    const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), `accept-stage-refuse-${status}-`));
+    const stagePlanDir = path.join(orchestratorRoot, ".artifacts/runs/provider-switching");
+    await mkdir(stagePlanDir, { recursive: true });
+    const stagePlanPath = path.join(stagePlanDir, "stage-plan.json");
+    await writeFile(stagePlanPath, `${JSON.stringify(makePlan(status), null, 2)}\n`, "utf8");
+    await assert.rejects(
+      () =>
+        acceptStageFromPlan({
+          stageId: "stage-01-provider-contract",
+          stagePlanArg: stagePlanPath,
+          orchestratorRoot
+        }),
+      /cannot be accepted/
+    );
+  }
+});
+
+test("fix-stage validates status and feedback gates", async () => {
+  const cfgStatuses: Array<{ status: StageStatus; allowed: boolean }> = [
+    { status: "review_required", allowed: true },
+    { status: "failed", allowed: true },
+    { status: "fix_required", allowed: true },
+    { status: "accepted", allowed: true },
+    { status: "pending", allowed: false },
+    { status: "invalidated", allowed: false },
+    { status: "skipped", allowed: false },
+    { status: "committed", allowed: false }
+  ];
+
+  for (const { status, allowed } of cfgStatuses) {
+    const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), `fix-stage-gate-${status}-`));
+    const stagePlanDir = path.join(orchestratorRoot, ".artifacts/runs/provider-switching");
+    await mkdir(stagePlanDir, { recursive: true });
+    const stagePlanPath = path.join(stagePlanDir, "stage-plan.json");
+    await writeFile(stagePlanPath, `${JSON.stringify(makePlan(status), null, 2)}\n`, "utf8");
+    const cfgPath = await writeFixtureConfig(orchestratorRoot, orchestratorRoot);
+
+    const runner = async () =>
+      ({
+        stageName: "stage-01-provider-contract",
+        orchestratorRoot,
+        targetWorkspaceRoot: orchestratorRoot,
+        configPath: cfgPath,
+        runDir: orchestratorRoot,
+        artefacts: [],
+        dryRun: false,
+        checksState: "executed",
+        allowWrites: false,
+        writeSafetyState: "not checked",
+        writeEnabledPhases: []
+      }) as Awaited<ReturnType<typeof import("../src/runner.js").runStage>>;
+
+    if (allowed) {
+      await fixStageFromPlan({
+        stageId: "stage-01-provider-contract",
+        stagePlanArg: stagePlanPath,
+        configArg: cfgPath,
+        feedback: "Please make it provider-neutral.",
+        orchestratorRoot,
+        allowWrites: false,
+        verbose: false,
+        streamCodex: false,
+        runHandler: runner
+      });
+    } else {
+      await assert.rejects(
+        () =>
+          fixStageFromPlan({
+            stageId: "stage-01-provider-contract",
+            stagePlanArg: stagePlanPath,
+            configArg: cfgPath,
+            feedback: "Please make it provider-neutral.",
+            orchestratorRoot,
+            allowWrites: false,
+            verbose: false,
+            streamCodex: false,
+            runHandler: runner
+          }),
+        /cannot be fixed|Cannot fix committed stage/
+      );
+    }
+  }
+});
+
+test("fix-stage refuses unknown stage, empty feedback, and commitSha", async () => {
+  const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "fix-stage-validation-"));
+  const stagePlanDir = path.join(orchestratorRoot, ".artifacts/runs/provider-switching");
+  await mkdir(stagePlanDir, { recursive: true });
+  const plan = makePlan("review_required");
+  plan.stages[1].commitSha = "abc123";
+  const stagePlanPath = path.join(stagePlanDir, "stage-plan.json");
+  await writeFile(stagePlanPath, `${JSON.stringify(plan, null, 2)}\n`, "utf8");
+  const cfgPath = await writeFixtureConfig(orchestratorRoot, orchestratorRoot);
+
+  await assert.rejects(
+    () =>
+      fixStageFromPlan({
+        stageId: "missing",
+        stagePlanArg: stagePlanPath,
+        configArg: cfgPath,
+        feedback: "x",
+        orchestratorRoot,
+        allowWrites: false,
+        verbose: false,
+        streamCodex: false
+      }),
+    /Unknown stage id/
+  );
+  await assert.rejects(
+    () =>
+      fixStageFromPlan({
+        stageId: "stage-01-provider-contract",
+        stagePlanArg: stagePlanPath,
+        configArg: cfgPath,
+        feedback: "   ",
+        orchestratorRoot,
+        allowWrites: false,
+        verbose: false,
+        streamCodex: false
+      }),
+    /non-empty --feedback/
+  );
+  await assert.rejects(
+    () =>
+      fixStageFromPlan({
+        stageId: "stage-01-provider-contract",
+        stagePlanArg: stagePlanPath,
+        configArg: cfgPath,
+        feedback: "x",
+        orchestratorRoot,
+        allowWrites: false,
+        verbose: false,
+        streamCodex: false
+      }),
+    /Cannot fix committed stage/
+  );
+});
+
+test("fix-stage success increments revision, restores review_required, and preserves unrelated stages", async () => {
+  const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "fix-stage-success-"));
+  const stagePlanDir = path.join(orchestratorRoot, ".artifacts/runs/provider-switching");
+  await mkdir(stagePlanDir, { recursive: true });
+  const stagePlanPath = path.join(stagePlanDir, "stage-plan.json");
+  await writeFile(stagePlanPath, `${JSON.stringify(makePlan("review_required"), null, 2)}\n`, "utf8");
+  const cfgPath = await writeFixtureConfig(orchestratorRoot, orchestratorRoot);
+  const runDir = path.join(orchestratorRoot, "fake-fix-run");
+  await mkdir(runDir, { recursive: true });
+  await writeFile(path.join(runDir, "06-planner-output-last-message.md"), "planner", "utf8");
+  await writeFile(path.join(runDir, "builder-output-last-message.md"), "builder", "utf8");
+  await writeFile(path.join(runDir, "reviewer-output-last-message.md"), "reviewer", "utf8");
+  await writeFile(path.join(runDir, "checks-status.json"), "{\"ok\":true}", "utf8");
+
+  const before = JSON.parse(await readFile(stagePlanPath, "utf8")) as StagePlan;
+  const oldUpdatedAt = before.updatedAt;
+
+  let observedFixingStatus: StageStatus | undefined;
+  const result = await fixStageFromPlan({
+    stageId: "stage-01-provider-contract",
+    stagePlanArg: stagePlanPath,
+    configArg: cfgPath,
+    feedback: "Tighten provider abstraction.",
+    orchestratorRoot,
+    allowWrites: false,
+    verbose: false,
+    streamCodex: false,
+    runHandler: async () => {
+      const planDuring = JSON.parse(await readFile(stagePlanPath, "utf8")) as StagePlan;
+      observedFixingStatus = planDuring.stages.find((s) => s.id === "stage-01-provider-contract")?.status;
+      return {
+        stageName: "stage-01-provider-contract",
+        orchestratorRoot,
+        targetWorkspaceRoot: orchestratorRoot,
+        configPath: cfgPath,
+        runDir,
+        artefacts: [],
+        dryRun: false,
+        checksState: "executed",
+        allowWrites: false,
+        writeSafetyState: "not checked",
+        writeEnabledPhases: []
+      } as Awaited<ReturnType<typeof import("../src/runner.js").runStage>>;
+    }
+  });
+
+  assert.equal(observedFixingStatus, "fixing");
+  assert.equal(result.status, "review_required");
+  assert.equal(result.revision, 2);
+  await access(result.feedbackPath);
+  const planAfter = JSON.parse(await readFile(stagePlanPath, "utf8")) as StagePlan;
+  assert.notEqual(planAfter.updatedAt, oldUpdatedAt);
+  assert.equal(planAfter.stages.find((s) => s.id === "stage-01-provider-contract")?.status, "review_required");
+  assert.equal(planAfter.stages.find((s) => s.id === "stage-01-provider-contract")?.revision, 2);
+  assert.equal(planAfter.stages.find((s) => s.id === "stage-00-foundation")?.status, "accepted");
+  await access(path.join(stagePlanDir, "stage-plan.md"));
+  await access(path.join(stagePlanDir, "stages/stage-01-provider-contract/stage-report.md"));
+});
+
+test("fix-stage failure preserves feedback artefact, sets failed, and does not increment revision", async () => {
+  const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "fix-stage-failure-"));
+  const stagePlanDir = path.join(orchestratorRoot, ".artifacts/runs/provider-switching");
+  await mkdir(stagePlanDir, { recursive: true });
+  const stagePlanPath = path.join(stagePlanDir, "stage-plan.json");
+  await writeFile(stagePlanPath, `${JSON.stringify(makePlan("review_required"), null, 2)}\n`, "utf8");
+  const cfgPath = await writeFixtureConfig(orchestratorRoot, orchestratorRoot);
+
+  const before = JSON.parse(await readFile(stagePlanPath, "utf8")) as StagePlan;
+  const oldUpdatedAt = before.updatedAt;
+
+  await assert.rejects(
+    () =>
+      fixStageFromPlan({
+        stageId: "stage-01-provider-contract",
+        stagePlanArg: stagePlanPath,
+        configArg: cfgPath,
+        feedback: "fix it",
+        orchestratorRoot,
+        allowWrites: false,
+        verbose: false,
+        streamCodex: false,
+        runHandler: async () => {
+          throw new Error("fix failed");
+        }
+      }),
+    /fix failed/
+  );
+
+  const planAfter = JSON.parse(await readFile(stagePlanPath, "utf8")) as StagePlan;
+  assert.notEqual(planAfter.updatedAt, oldUpdatedAt);
+  assert.equal(planAfter.stages.find((s) => s.id === "stage-01-provider-contract")?.status, "failed");
+  assert.equal(planAfter.stages.find((s) => s.id === "stage-01-provider-contract")?.revision, 1);
+  assert.equal(planAfter.stages.find((s) => s.id === "stage-00-foundation")?.status, "accepted");
+  await access(path.join(stagePlanDir, "stages/stage-01-provider-contract/feedback-revision-2.md"));
+});
+
+test("fix-stage pre-execution failure does not mutate stage plan and still records feedback artefact", async () => {
+  const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "fix-stage-pre-execution-failure-"));
+  const stagePlanDir = path.join(orchestratorRoot, ".artifacts/runs/provider-switching");
+  await mkdir(stagePlanDir, { recursive: true });
+  const stagePlanPath = path.join(stagePlanDir, "stage-plan.json");
+  await writeFile(stagePlanPath, `${JSON.stringify(makePlan("review_required"), null, 2)}\n`, "utf8");
+
+  const before = JSON.parse(await readFile(stagePlanPath, "utf8")) as StagePlan;
+  const oldUpdatedAt = before.updatedAt;
+  const oldSelectedStatus = before.stages.find((s) => s.id === "stage-01-provider-contract")?.status;
+  const oldSelectedRevision = before.stages.find((s) => s.id === "stage-01-provider-contract")?.revision;
+  const oldDepStatus = before.stages.find((s) => s.id === "stage-00-foundation")?.status;
+
+  await assert.rejects(
+    () =>
+      fixStageFromPlan({
+        stageId: "stage-01-provider-contract",
+        stagePlanArg: stagePlanPath,
+        configArg: "missing-config.json",
+        feedback: "Fix before execution starts.",
+        orchestratorRoot,
+        allowWrites: false,
+        verbose: false,
+        streamCodex: false
+      }),
+    /not found|ENOENT/i
+  );
+
+  const planAfter = JSON.parse(await readFile(stagePlanPath, "utf8")) as StagePlan;
+  assert.equal(planAfter.updatedAt, oldUpdatedAt);
+  assert.equal(planAfter.stages.find((s) => s.id === "stage-01-provider-contract")?.status, oldSelectedStatus);
+  assert.equal(planAfter.stages.find((s) => s.id === "stage-01-provider-contract")?.revision, oldSelectedRevision);
+  assert.equal(planAfter.stages.find((s) => s.id === "stage-00-foundation")?.status, oldDepStatus);
+  assert.notEqual(planAfter.stages.find((s) => s.id === "stage-01-provider-contract")?.status, "failed");
+
+  await access(path.join(stagePlanDir, "stages/stage-01-provider-contract/feedback-revision-2.md"));
+});

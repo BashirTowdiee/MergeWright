@@ -368,6 +368,9 @@ npm run agent -- show-run --help
 npm run agent -- open-run --help
 npm run agent -- init-project --help
 npm run agent -- check-write-safety --help
+npm run agent -- run-stage --help
+npm run agent -- accept-stage --help
+npm run agent -- fix-stage --help
 ```
 
 ## `import-stage-plan`
@@ -403,3 +406,56 @@ Notes:
 - writes `<out>/stage-plan.json`
 - writes `<out>/stage-plan.md`
 - does not execute planner/builder/reviewer
+
+## `run-stage`
+
+Purpose: run exactly one selected stage from a stage plan and stop at human review.
+
+Usage:
+
+```bash
+npm run agent -- run-stage <stage-id> --stage-plan <path> --config <config-path> [--allow-writes] [--dry-run] [--verbose] [--stream-codex]
+```
+
+Notes:
+
+- updates successful stage status to `review_required`
+- persists `stage-plan.json` and regenerates `stage-plan.md`
+- no multi-stage continuation and no auto-commit
+
+## `accept-stage`
+
+Purpose: mark one reviewed stage as accepted without any execution.
+
+Usage:
+
+```bash
+npm run agent -- accept-stage <stage-id> --stage-plan <path>
+```
+
+Notes:
+
+- allowed only from `review_required` or `passed`
+- writes updated `stage-plan.json` and regenerated `stage-plan.md`
+- writes/updates stage report
+- does not execute planner/builder/reviewer
+- does not commit
+
+## `fix-stage`
+
+Purpose: apply human feedback to one uncommitted stage and return it to review.
+
+Usage:
+
+```bash
+npm run agent -- fix-stage <stage-id> --stage-plan <path> --config <config-path> --feedback "<text>" [--allow-writes] [--verbose] [--stream-codex]
+```
+
+Notes:
+
+- requires non-empty `--feedback`
+- refuses committed stages and stages with `commitSha`
+- writes stage feedback artefact under `<run-dir>/stages/<stage-id>/`
+- sets stage to `fixing` while executing
+- on success increments revision and sets status back to `review_required`
+- no multi-stage continuation and no auto-commit

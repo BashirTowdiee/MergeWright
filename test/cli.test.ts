@@ -360,6 +360,72 @@ test("run-stage requires a stage id", () => {
   );
 });
 
+test("accept-stage requires --stage-plan", () => {
+  assert.throws(
+    () => parseArgs(["accept-stage", "stage-01-provider-contract"]),
+    /accept-stage requires --stage-plan <path>/
+  );
+});
+
+test("accept-stage requires a stage id", () => {
+  assert.throws(
+    () => parseArgs(["accept-stage", "--stage-plan", ".artifacts/runs/provider-switching/stage-plan.json"]),
+    /accept-stage requires <stage-id>/
+  );
+});
+
+test("fix-stage requires --stage-plan", () => {
+  assert.throws(
+    () => parseArgs(["fix-stage", "stage-01-provider-contract", "--config", "configs/acme.json", "--feedback", "x"]),
+    /fix-stage requires --stage-plan <path>/
+  );
+});
+
+test("fix-stage requires a stage id", () => {
+  assert.throws(
+    () =>
+      parseArgs([
+        "fix-stage",
+        "--stage-plan",
+        ".artifacts/runs/provider-switching/stage-plan.json",
+        "--config",
+        "configs/acme.json",
+        "--feedback",
+        "x"
+      ]),
+    /fix-stage requires <stage-id>/
+  );
+});
+
+test("fix-stage requires --feedback and rejects empty feedback", () => {
+  assert.throws(
+    () =>
+      parseArgs([
+        "fix-stage",
+        "stage-01-provider-contract",
+        "--stage-plan",
+        ".artifacts/runs/provider-switching/stage-plan.json",
+        "--config",
+        "configs/acme.json"
+      ]),
+    /fix-stage requires --feedback <text>/
+  );
+  assert.throws(
+    () =>
+      parseArgs([
+        "fix-stage",
+        "stage-01-provider-contract",
+        "--stage-plan",
+        ".artifacts/runs/provider-switching/stage-plan.json",
+        "--config",
+        "configs/acme.json",
+        "--feedback",
+        "   "
+      ]),
+    /non-empty --feedback/
+  );
+});
+
 test("docs keep auto-chain scoped to run and document final statuses", async () => {
   const commandsDoc = await readFile(path.join(process.cwd(), "docs/COMMANDS.md"), "utf8");
   const workflowDoc = await readFile(path.join(process.cwd(), "docs/WORKFLOW.md"), "utf8");
