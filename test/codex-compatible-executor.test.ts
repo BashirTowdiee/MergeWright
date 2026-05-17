@@ -139,7 +139,14 @@ test("codex-compatible executor delegates to configured backend and agent model"
     success: true,
     outputLastMessagePath: "/tmp/run/out.md",
     outputLastMessage: "last message",
-    skipped: false
+    skipped: false,
+    backend: {
+      backendName: "codex-local",
+      backendType: "codex-cli",
+      agentRole: "builder",
+      model: "agent-builder",
+      reasoningEffort: "medium"
+    }
   });
 });
 
@@ -176,6 +183,7 @@ test("codex-compatible executor preserves explicit codexExecutor override", asyn
   assert.equal(result.command, "override");
   assert.deepEqual(result.args, ["planner"]);
   assert.equal(result.outputLastMessage, "request-model");
+  assert.equal(result.backend, undefined);
 });
 
 test("codex-compatible executor rejects stale unknown backend references", async () => {
