@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { formatSummaryLines, parseArgs, runCommand } from "../src/cli.js";
@@ -30,6 +30,320 @@ test("run help contains presets and dry-run", async () => {
   assert.match(text, /Incompatible with --preset and explicit phase flags/);
   assert.match(text, /Retry loop is hard bounded by --max-fix-attempts \(0\.\.5\)/);
   assert.match(text, /PASS \| NEEDS_FIX \| NEEDS_FIX_WRITE_DISABLED \| MAX_FIX_ATTEMPTS_REACHED \| CHECKS_FAILED \| FAILED/);
+});
+
+test("import-stage-plan writes stage-plan.json and stage-plan.md", async () => {
+  const tmpDir = await mkdtemp(path.join(os.tmpdir(), "import-stage-plan-"));
+  const sourcePath = path.join(tmpDir, "source.stage-plan.json");
+  const outDir = path.join(tmpDir, "out");
+  const plan = {
+    schemaVersion: 1,
+    id: "provider-switching",
+    title: "Provider Switching",
+    goal: "Switch providers safely",
+    source: "imported",
+    status: "ready",
+    createdAt: "2026-05-17T00:00:00.000Z",
+    updatedAt: "2026-05-17T00:00:00.000Z",
+    stages: [
+      {
+        id: "stage-1",
+        index: 1,
+        title: "Plan",
+        goal: "Define migration",
+        status: "pending",
+        dependsOn: [],
+        assumptions: [],
+        scope: { include: ["src"], exclude: [] },
+        acceptanceCriteria: ["criteria"],
+        checks: [],
+        expectedOutputs: [],
+        revision: 1
+      }
+    ]
+  };
+  await writeFile(sourcePath, `${JSON.stringify(plan, null, 2)}\n`, "utf8");
+
+  const output: string[] = [];
+  await runCommand(parseArgs(["import-stage-plan", "--from", sourcePath, "--out", outDir]), process.cwd(), "linux", async () => {}, (line) =>
+    output.push(line)
+  );
+
+  const jsonPath = path.join(outDir, "stage-plan.json");
+  const markdownPath = path.join(outDir, "stage-plan.md");
+  const json = await readFile(jsonPath, "utf8");
+  const markdown = await readFile(markdownPath, "utf8");
+  assert.match(json, /"title": "Provider Switching"/);
+  assert.match(markdown, /^# Provider Switching/m);
+  assert.match(output.join("\n"), /Imported stage plan: Provider Switching/);
+});
+
+test("import-stage-plan validates the source JSON", async () => {
+  const tmpDir = await mkdtemp(path.join(os.tmpdir(), "import-stage-plan-invalid-"));
+  const sourcePath = path.join(tmpDir, "invalid.json");
+  await writeFile(sourcePath, "{not-json", "utf8");
+  await assert.rejects(
+    () => runCommand(parseArgs(["import-stage-plan", "--from", sourcePath, "--out", path.join(tmpDir, "out")]), process.cwd(), "linux", async () => {}),
+    /Invalid stage plan file/
+  );
+});
+
+test("import-stage-plan fails for invalid-but-well-formed stage plan JSON and writes no outputs", async () => {
+  const tmpDir = await mkdtemp(path.join(os.tmpdir(), "import-stage-plan-invalid-shape-"));
+  const sourcePath = path.join(tmpDir, "invalid-shape.json");
+  const outDir = path.join(tmpDir, "out");
+  await writeFile(
+    sourcePath,
+    JSON.stringify(
+      {
+        schemaVersion: 1,
+        id: "plan-1",
+        title: "Invalid plan",
+        goal: "Has invalid stage shape",
+        source: "manual",
+        status: "draft",
+        createdAt: "2026-05-17T00:00:00.000Z",
+        updatedAt: "2026-05-17T00:00:00.000Z",
+        stages: [
+          {
+            id: "stage-1",
+            index: 1,
+            title: "Stage 1",
+            goal: "Goal 1",
+            status: "pending",
+            dependsOn: [],
+            assumptions: [],
+            scope: { include: [], exclude: [] },
+            checks: [],
+            expectedOutputs: [],
+            revision: 1
+          }
+        ]
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+
+  await assert.rejects(
+    () => runCommand(parseArgs(["import-stage-plan", "--from", sourcePath, "--out", outDir]), process.cwd(), "linux", async () => {}),
+    /Invalid stage plan file/
+  );
+
+  await assert.rejects(() => access(path.join(outDir, "stage-plan.json")));
+  await assert.rejects(() => access(path.join(outDir, "stage-plan.md")));
+});
+
+test("import-stage-plan refuses overwrite without --force", async () => {
+  const tmpDir = await mkdtemp(path.join(os.tmpdir(), "import-stage-plan-no-force-"));
+  const sourcePath = path.join(tmpDir, "source.stage-plan.json");
+  const outDir = path.join(tmpDir, "out");
+  await mkdir(outDir, { recursive: true });
+  await writeFile(path.join(outDir, "stage-plan.json"), "{}", "utf8");
+  await writeFile(path.join(outDir, "stage-plan.md"), "# old\n", "utf8");
+  await writeFile(
+    sourcePath,
+    JSON.stringify(
+      {
+        schemaVersion: 1,
+        id: "p",
+        title: "T",
+        goal: "G",
+        source: "manual",
+        status: "draft",
+        createdAt: "2026-05-17T00:00:00.000Z",
+        updatedAt: "2026-05-17T00:00:00.000Z",
+        stages: [
+          {
+            id: "s1",
+            index: 1,
+            title: "S1",
+            goal: "G1",
+            status: "pending",
+            dependsOn: [],
+            assumptions: [],
+            scope: { include: [], exclude: [] },
+            acceptanceCriteria: ["ok"],
+            checks: [],
+            expectedOutputs: [],
+            revision: 1
+          }
+        ]
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+  await assert.rejects(
+    () => runCommand(parseArgs(["import-stage-plan", "--from", sourcePath, "--out", outDir]), process.cwd(), "linux", async () => {}),
+    /Output file already exists/
+  );
+});
+
+test("import-stage-plan refuses partial overwrite when stage-plan.json exists without --force", async () => {
+  const tmpDir = await mkdtemp(path.join(os.tmpdir(), "import-stage-plan-partial-json-"));
+  const sourcePath = path.join(tmpDir, "source.stage-plan.json");
+  const outDir = path.join(tmpDir, "out");
+  const existingJsonPath = path.join(outDir, "stage-plan.json");
+  const markdownPath = path.join(outDir, "stage-plan.md");
+  await mkdir(outDir, { recursive: true });
+  await writeFile(existingJsonPath, "{\"keep\":true}\n", "utf8");
+  await writeFile(
+    sourcePath,
+    JSON.stringify(
+      {
+        schemaVersion: 1,
+        id: "p",
+        title: "T",
+        goal: "G",
+        source: "manual",
+        status: "draft",
+        createdAt: "2026-05-17T00:00:00.000Z",
+        updatedAt: "2026-05-17T00:00:00.000Z",
+        stages: [
+          {
+            id: "s1",
+            index: 1,
+            title: "S1",
+            goal: "G1",
+            status: "pending",
+            dependsOn: [],
+            assumptions: [],
+            scope: { include: [], exclude: [] },
+            acceptanceCriteria: ["ok"],
+            checks: [],
+            expectedOutputs: [],
+            revision: 1
+          }
+        ]
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+
+  await assert.rejects(
+    () => runCommand(parseArgs(["import-stage-plan", "--from", sourcePath, "--out", outDir]), process.cwd(), "linux", async () => {}),
+    /Output file already exists/
+  );
+  const existingJson = await readFile(existingJsonPath, "utf8");
+  assert.equal(existingJson, "{\"keep\":true}\n");
+  await assert.rejects(() => access(markdownPath));
+});
+
+test("import-stage-plan refuses partial overwrite when stage-plan.md exists without --force", async () => {
+  const tmpDir = await mkdtemp(path.join(os.tmpdir(), "import-stage-plan-partial-md-"));
+  const sourcePath = path.join(tmpDir, "source.stage-plan.json");
+  const outDir = path.join(tmpDir, "out");
+  const jsonPath = path.join(outDir, "stage-plan.json");
+  const existingMarkdownPath = path.join(outDir, "stage-plan.md");
+  await mkdir(outDir, { recursive: true });
+  await writeFile(existingMarkdownPath, "# keep\n", "utf8");
+  await writeFile(
+    sourcePath,
+    JSON.stringify(
+      {
+        schemaVersion: 1,
+        id: "p",
+        title: "T",
+        goal: "G",
+        source: "manual",
+        status: "draft",
+        createdAt: "2026-05-17T00:00:00.000Z",
+        updatedAt: "2026-05-17T00:00:00.000Z",
+        stages: [
+          {
+            id: "s1",
+            index: 1,
+            title: "S1",
+            goal: "G1",
+            status: "pending",
+            dependsOn: [],
+            assumptions: [],
+            scope: { include: [], exclude: [] },
+            acceptanceCriteria: ["ok"],
+            checks: [],
+            expectedOutputs: [],
+            revision: 1
+          }
+        ]
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+
+  await assert.rejects(
+    () => runCommand(parseArgs(["import-stage-plan", "--from", sourcePath, "--out", outDir]), process.cwd(), "linux", async () => {}),
+    /Output file already exists/
+  );
+  const existingMarkdown = await readFile(existingMarkdownPath, "utf8");
+  assert.equal(existingMarkdown, "# keep\n");
+  await assert.rejects(() => access(jsonPath));
+});
+
+test("import-stage-plan overwrites with --force", async () => {
+  const tmpDir = await mkdtemp(path.join(os.tmpdir(), "import-stage-plan-force-"));
+  const sourcePath = path.join(tmpDir, "source.stage-plan.json");
+  const outDir = path.join(tmpDir, "out");
+  await mkdir(outDir, { recursive: true });
+  await writeFile(path.join(outDir, "stage-plan.json"), "{\"old\":true}\n", "utf8");
+  await writeFile(path.join(outDir, "stage-plan.md"), "# old\n", "utf8");
+  await writeFile(
+    sourcePath,
+    JSON.stringify(
+      {
+        schemaVersion: 1,
+        id: "p",
+        title: "New Title",
+        goal: "G",
+        source: "manual",
+        status: "draft",
+        createdAt: "2026-05-17T00:00:00.000Z",
+        updatedAt: "2026-05-17T00:00:00.000Z",
+        stages: [
+          {
+            id: "s1",
+            index: 1,
+            title: "S1",
+            goal: "G1",
+            status: "pending",
+            dependsOn: [],
+            assumptions: [],
+            scope: { include: [], exclude: [] },
+            acceptanceCriteria: ["ok"],
+            checks: [],
+            expectedOutputs: [],
+            revision: 1
+          }
+        ]
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+  await runCommand(
+    parseArgs(["import-stage-plan", "--from", sourcePath, "--out", outDir, "--force"]),
+    process.cwd(),
+    "linux",
+    async () => {},
+    () => {}
+  );
+  const markdown = await readFile(path.join(outDir, "stage-plan.md"), "utf8");
+  assert.match(markdown, /^# New Title/m);
+});
+
+test("import-stage-plan fails when --from is missing", () => {
+  assert.throws(() => parseArgs(["import-stage-plan", "--out", "x"]), /import-stage-plan requires --from <path>/);
+});
+
+test("import-stage-plan fails when --out is missing", () => {
+  assert.throws(() => parseArgs(["import-stage-plan", "--from", "x.json"]), /import-stage-plan requires --out <path>/);
 });
 
 test("docs keep auto-chain scoped to run and document final statuses", async () => {
@@ -411,7 +725,7 @@ test("--allow-writes without builder/fix fails clearly", () => {
 test("run rejects --force", () => {
   assert.throws(
     () => parseArgs(["run", "example-stage", "--config", "configs/acme.json", "--force"]),
-    /--force is only supported for init-project and report-run/
+    /--force is only supported for init-project, report-run, and import-stage-plan/
   );
 });
 
@@ -426,7 +740,7 @@ test("continue-run rejects --force", () => {
         "--execute-builder",
         "--force"
       ]),
-    /--force is only supported for init-project and report-run/
+    /--force is only supported for init-project, report-run, and import-stage-plan/
   );
 });
 
@@ -479,7 +793,7 @@ test("report-run rejects --json --pr-summary --stdout-only combination", () => {
 test("list-runs rejects --force", () => {
   assert.throws(
     () => parseArgs(["list-runs", "--config", "configs/acme.json", "--force"]),
-    /--force is only supported for init-project and report-run/
+    /--force is only supported for init-project, report-run, and import-stage-plan/
   );
 });
 

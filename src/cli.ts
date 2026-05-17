@@ -2,7 +2,7 @@
 import process from "node:process";
 import { spawn } from "node:child_process";
 import path from "node:path";
-import { access } from "node:fs/promises";
+import { access, mkdir, writeFile } from "node:fs/promises";
 import { loadAndValidateConfig, resolveConfigPath } from "./config.js";
 import {
   formatChangeReportJson,
@@ -28,6 +28,8 @@ import {
 import { listRunDirectories, readRunDetails, readRunSummary, resolveRunDir, resolveRunsRoot } from "./runs.js";
 import { checkWriteSafety, type WriteSafetyResult } from "./write-safety.js";
 import { openFileInBrowser, type OpenFileResult } from "./open-file.js";
+import { readStagePlan, writeStagePlan } from "./stage-plan-store.js";
+import { renderStagePlanMarkdown } from "./stage-plan-renderer.js";
 
 interface ParsedArgs {
   command?: string;
@@ -58,6 +60,8 @@ interface ParsedArgs {
   generateReport: boolean;
   planHtml: boolean;
   openPlan: boolean;
+  importFrom?: string;
+  importOut?: string;
 }
 
 interface SummaryResult {
@@ -134,7 +138,17 @@ export async function runCommand(
     throw new Error(`Missing command.\n\n${renderHelpText()}`);
   }
 
-  const knownCommands = new Set(["run", "continue-run", "list-runs", "show-run", "open-run", "report-run", "init-project", "check-write-safety"]);
+  const knownCommands = new Set([
+    "run",
+    "continue-run",
+    "list-runs",
+    "show-run",
+    "open-run",
+    "report-run",
+    "init-project",
+    "check-write-safety",
+    "import-stage-plan"
+  ]);
   if (!knownCommands.has(args.command)) {
     throw new Error(`Unknown command: ${args.command}\n\n${renderHelpText()}`);
   }
@@ -154,6 +168,44 @@ export async function runCommand(
     for (const line of formatInitProjectSummaryLines(result, orchestratorRoot)) {
       writeLine(line);
     }
+    return;
+  }
+
+  if (args.command === "import-stage-plan") {
+    if (!args.importFrom) {
+      throw new Error(
+        "import-stage-plan requires --from <path>. Usage: agent-stage import-stage-plan --from <path> --out <path> [--force]"
+      );
+    }
+    if (!args.importOut) {
+      throw new Error(
+        "import-stage-plan requires --out <path>. Usage: agent-stage import-stage-plan --from <path> --out <path> [--force]"
+      );
+    }
+
+    const sourcePath = path.resolve(orchestratorRoot, args.importFrom);
+    const outputDir = path.resolve(orchestratorRoot, args.importOut);
+    const jsonOutputPath = path.join(outputDir, "stage-plan.json");
+    const markdownOutputPath = path.join(outputDir, "stage-plan.md");
+
+    if (!args.force) {
+      if (await pathExists(jsonOutputPath)) {
+        throw new Error(`Output file already exists: ${jsonOutputPath}. Use --force to overwrite.`);
+      }
+      if (await pathExists(markdownOutputPath)) {
+        throw new Error(`Output file already exists: ${markdownOutputPath}. Use --force to overwrite.`);
+      }
+    }
+
+    const plan = await readStagePlan(sourcePath);
+    await mkdir(outputDir, { recursive: true });
+    await writeStagePlan(jsonOutputPath, plan);
+    await writeFile(markdownOutputPath, renderStagePlanMarkdown(plan), "utf8");
+
+    writeLine(`Imported stage plan: ${plan.title}`);
+    writeLine(`Stages: ${plan.stages.length}`);
+    writeLine(`JSON: ${jsonOutputPath}`);
+    writeLine(`Markdown: ${markdownOutputPath}`);
     return;
   }
 
@@ -606,8 +658,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
       continue;
     }
     if (token === "--force") {
-      if (parsed.command !== "init-project" && parsed.command !== "report-run") {
-        throw new Error("--force is only supported for init-project and report-run");
+      if (parsed.command !== "init-project" && parsed.command !== "report-run" && parsed.command !== "import-stage-plan") {
+        throw new Error("--force is only supported for init-project, report-run, and import-stage-plan");
       }
       parsed.force = true;
       continue;
@@ -671,6 +723,24 @@ export function parseArgs(argv: string[]): ParsedArgs {
         throw new Error("Missing value for --workspace");
       }
       parsed.workspaceArg = value;
+      i += 1;
+      continue;
+    }
+    if (token === "--from") {
+      const value = rest[i + 1];
+      if (!value) {
+        throw new Error("Missing value for --from");
+      }
+      parsed.importFrom = value;
+      i += 1;
+      continue;
+    }
+    if (token === "--out") {
+      const value = rest[i + 1];
+      if (!value) {
+        throw new Error("Missing value for --out");
+      }
+      parsed.importOut = value;
       i += 1;
       continue;
     }
@@ -802,6 +872,27 @@ export function parseArgs(argv: string[]): ParsedArgs {
     }
     if (parsed.repoOverride) {
       throw new Error("--repo is not supported for report-run.");
+    }
+  }
+  if (parsed.command === "import-stage-plan") {
+    if (parsed.help) {
+      return parsed;
+    }
+    if (!parsed.importFrom) {
+      throw new Error(
+        "import-stage-plan requires --from <path>. Usage: agent-stage import-stage-plan --from <path> --out <path> [--force]"
+      );
+    }
+    if (!parsed.importOut) {
+      throw new Error(
+        "import-stage-plan requires --out <path>. Usage: agent-stage import-stage-plan --from <path> --out <path> [--force]"
+      );
+    }
+    if (parsed.configArg) {
+      throw new Error("--config is not supported for import-stage-plan.");
+    }
+    if (parsed.repoOverride) {
+      throw new Error("--repo is not supported for import-stage-plan.");
     }
   }
 
@@ -958,6 +1049,24 @@ function renderHelpText(command?: string): string {
     ].join("\n");
   }
 
+  if (command === "import-stage-plan") {
+    return [
+      "Usage: agent-stage import-stage-plan --from <path> --out <path> [--force]",
+      "",
+      "Imports and validates an existing stage plan JSON, then writes canonical JSON and Markdown artefacts.",
+      "",
+      "Options:",
+      "  --from <path>            Required source stage plan JSON file.",
+      "  --out <path>             Required output directory for stage-plan.json and stage-plan.md.",
+      "  --force                  Overwrite existing output files.",
+      "",
+      "Notes:",
+      "  - Uses SP-1 stage plan validation.",
+      "  - Does not run planner/builder/reviewer.",
+      "  - Does not mutate stage statuses."
+    ].join("\n");
+  }
+
   return [
     "Usage: agent-stage <command> [options]",
     "",
@@ -970,6 +1079,7 @@ function renderHelpText(command?: string): string {
     "  report-run <run-id> --config <config-path> [--json] [--pr-summary] [--stdout-only] [--force] [--verbose]",
     "  init-project <name> --workspace <path> [--force] [--verbose]",
     "  check-write-safety --config <config-path>",
+    "  import-stage-plan --from <path> --out <path> [--force]",
     "",
     "Use \"agent-stage <command> --help\" for command details.",
     "",

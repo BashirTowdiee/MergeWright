@@ -369,3 +369,37 @@ npm run agent -- open-run --help
 npm run agent -- init-project --help
 npm run agent -- check-write-safety --help
 ```
+
+## `import-stage-plan`
+
+Purpose: import an existing Stage Plan JSON, validate it, and write canonical JSON + Markdown artefacts.
+
+Usage:
+
+```bash
+npm run agent -- import-stage-plan --from <path> --out <path> [--force]
+```
+
+Required args:
+
+- `--from <path>` source stage plan JSON file
+- `--out <path>` output directory
+
+Common flags:
+
+- `--force` overwrite existing `stage-plan.json` and `stage-plan.md`
+
+Example:
+
+```bash
+npm run agent -- import-stage-plan \
+  --from docs/provider-switching.stage-plan.json \
+  --out .artifacts/runs/provider-switching
+```
+
+Notes:
+
+- validates input using Stage Plan schema validation
+- writes `<out>/stage-plan.json`
+- writes `<out>/stage-plan.md`
+- does not execute planner/builder/reviewer
