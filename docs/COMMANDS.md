@@ -1,394 +1,126 @@
-# Command Reference (v1)
+# Command Reference
 
-## Top-Level Help
-
-Purpose: show command list, safety defaults, and high-level usage.
+Use command-level help to verify the latest parser options:
 
 ```bash
 npm run agent -- --help
-```
-
-Also supported:
-
-```bash
 npm run agent -- <command> --help
 ```
 
-## Presets
+## Classic run commands
 
-Supported run presets:
+### `init-project`
 
-- `plan`
-- `build`
-- `review`
-- `fix-plan`
-- `full-readonly`
-
-Preset behavior:
-
-- expands phase flags for `run`
-- can be combined with explicit phase flags
-- not supported by `continue-run`
-
-## `init-project`
-
-Purpose: create orchestrator-side config/stage/runs scaffolding for a target repo.
-
-Usage:
+Create orchestrator-side config, stage, and run scaffolding for a target repository.
 
 ```bash
 npm run agent -- init-project <name> --workspace <path> [--force] [--verbose]
 ```
 
-Required args:
-
-- `<name>` project display name
-- `--workspace <path>` target repo path (validation target)
-
-Common flags:
-
-- `--force` overwrite generated orchestrator files
-- `--verbose` print detailed init writes
-
-Example:
-
-```bash
-npm run agent -- init-project "My App" --workspace /path/to/repo
-```
-
 Notes:
 
-- does not write into target workspace
-- does not require `--config`
+- writes inside the orchestrator repo only
+- validates the target workspace path
+- does not mutate the target repo
 
-## `run`
+### `run`
 
-Purpose: create a new run directory and execute selected phases (or dry-run them).
-
-Usage:
+Create a new classic run directory and execute selected phases or a preset.
 
 ```bash
-npm run agent -- run <stage-name> --config <config-path> [--repo <path>] [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--auto-chain] [--max-fix-attempts <number>] [--dry-run] [--verbose] [--stream-codex] [--plan-html] [--open-plan] [--generate-report]
+npm run agent -- run <stage-name> --config <config-path> [--preset <name>] [--execute-planner] [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--auto-chain] [--max-fix-attempts <number>] [--dry-run] [--verbose] [--stream-codex] [--plan-html] [--open-plan] [--generate-report]
 ```
 
-Required args:
-
-- `<stage-name>` stage file name without `.md`
-- `--config <config-path>` config path (no implicit default)
-
-Common flags:
-
-- `--repo <path>` override `workspaceRoot` from config
-- `--preset <name>` preset expansion
-- `--execute-planner`
-- `--execute-builder` (requires planner)
-- `--execute-reviewer` (requires planner)
-- `--plan-fix` (requires reviewer)
-- `--execute-fix` (requires fix-plan)
-- `--run-checks`
-- `--allow-writes` (builder/fix only, requires write safety pass)
-- `--auto-chain` (bounded auto-chain execution)
-- `--max-fix-attempts <number>` (`--auto-chain` only; integer `0..5`, default `1`)
-- `--dry-run`
-- `--verbose`
-- `--stream-codex` (stream raw Codex stdout/stderr live; artefacts still captured)
-- `--plan-html` (write `plan.html` visualisation into run directory)
-- `--open-plan` (implies `--plan-html`; attempts browser open, safely skipped in CI/non-interactive environments)
-- `--generate-report` (generate `run-report.md` and `run-report.json` after successful command completion)
-
-Examples:
+Common examples:
 
 ```bash
 npm run agent -- run stage-01-example --config configs/my-app.json --preset plan --dry-run
 npm run agent -- run stage-01-example --config configs/my-app.json --preset full-readonly --dry-run
-npm run agent -- run stage-01-example --config configs/my-app.json --execute-planner --execute-builder
-npm run agent -- run stage-01-example --config configs/my-app.json --auto-chain --dry-run
-npm run agent -- run stage-01-example --config configs/my-app.json --auto-chain
-npm run agent -- run stage-01-example --config configs/my-app.json --preset plan --dry-run --generate-report
+npm run agent -- run stage-01-example --config configs/my-app.json --auto-chain --allow-writes --max-fix-attempts 2
 ```
 
 Notes:
 
 - creates `runs/<project>/<run-id>/`
-- with `--plan-html`, also creates `runs/<project>/<run-id>/plan.html` (visualisation only; canonical plan remains Markdown/JSON artefacts)
-- `--dry-run` skips Codex and checks execution while recording skipped/dry-run artifacts
-- with `--generate-report`, report artefacts are generated after the run summary
-- `--generate-report` writes or refreshes `run-report.md` and `run-report.json` only after a successful `run` (including successful `run --auto-chain`)
-- if the primary `run` command fails, automatic report generation is skipped so the original failure remains clear
-- if a run directory exists after failure, generate the report manually with `report-run <run-id> --config <config-path>`
-- automatic report generation overwrites existing `run-report.md` and `run-report.json` in the run directory
-- automatic report generation does not execute Codex, does not run checks, does not run git commands, and does not mutate the target workspace
-- prints live phase progress to terminal while running
-- default mode does not stream full Codex stdout/stderr to terminal (see run artefacts instead)
-- `--stream-codex` enables live raw Codex stdout/stderr streaming while preserving run artefacts
-- `--auto-chain` is supported only for `run` (not `continue-run`)
-- `--auto-chain` runs an initial pass: planner -> builder -> reviewer -> review-to-fix
-- if reviewer is `PASS`, checks run and final status is `PASS`
-- if review-to-fix decision is `PROCEED`, checks run and final status is `PASS`
-- if review-to-fix decision is `FIX_REQUIRED`, auto-chain runs fix/reviewer retries up to `--max-fix-attempts`
-- retries are bounded; no retry loop can exceed configured `--max-fix-attempts` (hard bounded to `0..5`)
-- `--max-fix-attempts=0` means stop immediately on `FIX_REQUIRED` with `MAX_FIX_ATTEMPTS_REACHED` and no fix execution
-- terminal statuses include `PASS`, `NEEDS_FIX`, `NEEDS_FIX_WRITE_DISABLED`, `MAX_FIX_ATTEMPTS_REACHED`, `CHECKS_FAILED`, `FAILED`
-- checks failures produce `CHECKS_FAILED`
-- fix attempts require `--allow-writes`; without writes, `FIX_REQUIRED` returns `NEEDS_FIX_WRITE_DISABLED`
-- reviewer and review-to-fix phases remain read-only; workspace-write is used only for fix execution when `--allow-writes` is enabled and write safety passes
-- `--auto-chain` rejects `--preset` and explicit phase flags (`--execute-planner`, `--execute-builder`, `--execute-reviewer`, `--plan-fix`, `--execute-fix`, `--run-checks`)
-- `--auto-chain --dry-run` remains projection-only
-- `--auto-chain --dry-run --generate-report` prints a skip note because projection mode does not create a run directory
-- `--max-fix-attempts` is actively used by Stage E execution as the bounded retry limit
-- `--stream-codex` streams live Codex output during auto-chain while artefact capture remains unchanged
-- `--verbose` increases orchestrator progress/detail logging; it does not imply `--stream-codex`
+- `--auto-chain` is supported only for `run`
+- `--auto-chain` cannot be combined with presets or explicit phase flags
+- auto-chain fix attempts are bounded by `--max-fix-attempts` with hard range `0..5`
+- classic `run --auto-chain` does not auto-commit, auto-push, auto-merge, or auto-accept
 
-## `continue-run`
+### `continue-run`
 
-Purpose: resume selected phases in an existing run directory.
-
-Usage:
+Resume selected phases in an existing classic run directory.
 
 ```bash
 npm run agent -- continue-run <run-id> --config <config-path> [--execute-builder] [--execute-reviewer] [--plan-fix] [--execute-fix] [--run-checks] [--allow-writes] [--dry-run] [--verbose] [--stream-codex] [--plan-html] [--open-plan] [--generate-report]
 ```
 
-Required args:
-
-- `<run-id>` existing run id
-- `--config <config-path>` config path
-
-Common flags:
-
-- `--execute-builder`
-- `--execute-reviewer`
-- `--plan-fix`
-- `--execute-fix`
-- `--run-checks`
-- `--allow-writes` (builder/fix only, requires write safety pass)
-- `--dry-run`
-- `--verbose`
-- `--stream-codex` (stream raw Codex stdout/stderr live; artefacts still captured)
-- `--plan-html` (write `plan.html` visualisation into run directory)
-- `--open-plan` (implies `--plan-html`; attempts browser open, safely skipped in CI/non-interactive environments)
-- `--generate-report` (regenerate `run-report.md` and `run-report.json` after successful command completion)
-
-Examples:
-
-```bash
-npm run agent -- continue-run <run-id> --config configs/my-app.json --execute-builder
-npm run agent -- continue-run <run-id> --config configs/my-app.json --execute-reviewer --plan-fix
-npm run agent -- continue-run <run-id> --config configs/my-app.json --run-checks
-npm run agent -- continue-run <run-id> --config configs/my-app.json --run-checks --generate-report
-```
-
 Notes:
 
 - requires at least one continuation phase flag
-- `--execute-planner` is not supported
-- `--preset` is not supported
-- prints live continuation phase progress to terminal while running
-- default mode stays concise; use `--stream-codex` to watch Codex output live
-- with `--generate-report`, report artefacts are regenerated after the continuation summary
-- if the primary `continue-run` command fails, automatic report generation is skipped so the original failure remains clear
-- if a run directory exists after failure, generate the report manually with `report-run <run-id> --config <config-path>`
-- automatic report generation overwrites existing `run-report.md` and `run-report.json` in the run directory
-- automatic report generation does not execute Codex, does not run checks, does not run git commands, and does not mutate the target workspace
+- planner continuation is unsupported
+- presets are unsupported for `continue-run`
+- does not auto-commit, auto-push, auto-merge, or auto-accept
 
-## `list-runs`
+### `list-runs`, `show-run`, `open-run`
 
-Purpose: list runs and summarized statuses for a project.
-
-Usage:
-
-```bash
-npm run agent -- list-runs --config <config-path>
-```
-
-Required args:
-
-- `--config <config-path>`
-
-Example:
+Inspect classic run artefacts.
 
 ```bash
 npm run agent -- list-runs --config configs/my-app.json
-```
-
-Notes:
-
-- reads from configured runs root
-- uses `run.json` metadata when valid
-
-## `show-run`
-
-Purpose: display detailed metadata, phase statuses, and artefact listing for a run.
-
-Usage:
-
-```bash
-npm run agent -- show-run <run-id> --config <config-path>
-```
-
-Required args:
-
-- `<run-id>`
-- `--config <config-path>`
-
-Example:
-
-```bash
 npm run agent -- show-run <run-id> --config configs/my-app.json
-```
-
-Notes:
-
-- shows warnings if metadata is malformed
-- falls back to artefact inference when needed
-
-## `open-run`
-
-Purpose: open run directory for inspection (macOS helper).
-
-Usage:
-
-```bash
-npm run agent -- open-run <run-id> --config <config-path>
-```
-
-Required args:
-
-- `<run-id>`
-- `--config <config-path>`
-
-Example:
-
-```bash
 npm run agent -- open-run <run-id> --config configs/my-app.json
 ```
 
-Notes:
+### `report-run`
 
-- on non-macOS platforms, prints run directory path instead
-
-## `report-run`
-
-Purpose: generate AI Change Report artefacts for an existing run directory.
-
-Usage:
+Generate AI Change Report artefacts for an existing run.
 
 ```bash
 npm run agent -- report-run <run-id> --config <config-path> [--json] [--pr-summary] [--stdout-only] [--force] [--verbose]
 ```
 
-Required args:
-
-- `<run-id>`
-- `--config <config-path>`
-
-Common flags:
-
-- `--json` print JSON report to stdout (stdout is JSON-only and suitable for piping to tools)
-- `--pr-summary` also generate PR summary Markdown for GitHub body usage
-- `--stdout-only` print report output without writing artefacts
-- `--force` overwrite existing `run-report.md`, `run-report.json`, and `pr-summary.md`
-- `--verbose` print detailed progress context
-
-Examples:
-
-```bash
-npm run agent -- report-run <run-id> --config configs/my-app.json
-npm run agent -- report-run <run-id> --config configs/my-app.json --pr-summary
-npm run agent -- report-run <run-id> --config configs/my-app.json --stdout-only
-npm run agent -- report-run <run-id> --config configs/my-app.json --stdout-only --json
-npm run agent -- report-run <run-id> --config configs/my-app.json --pr-summary --stdout-only
-npm run agent -- report-run <run-id> --config configs/my-app.json --force
-```
-
 Notes:
 
+- reads existing run artefacts only
 - does not execute Codex
 - does not run checks
 - does not run git commands
-- does not mutate target workspace
-- does not create PRs and does not call GitHub APIs
-- default writes `run-report.md` and `run-report.json` inside the run directory and prints a human summary
-- `--pr-summary` also writes `pr-summary.md`
-- `--json` output is JSON-only (no progress logs or human summary on stdout)
-- `--stdout-only` prints Markdown by default, or JSON when combined with `--json`
-- `--pr-summary --stdout-only` prints PR summary Markdown only
-- `--json --pr-summary --stdout-only` is rejected because stdout can contain only one machine-readable format
-- reads existing run artefacts only
-- optional `changeReport` config is loaded from the project config; when omitted, built-in defaults are used
-- risk path rules use simple path matching (exact, prefix for `.../`, or substring), not full glob semantics
-- precedence is deterministic: high-risk matches override medium/low, medium overrides low
-- hard readiness rules still override score thresholds (for example failed run or failed required review)
-- report policy affects reporting only; it does not affect Codex execution, checks execution, or write safety behavior
+- does not mutate the target workspace
 
-## `check-write-safety`
-Purpose: inspect whether a target repo is ready for a future write-enabled builder/fix run.
+### `check-write-safety`
 
-Usage:
+Inspect whether a target repo is ready for a future write-enabled builder/fix run.
 
 ```bash
 npm run agent -- check-write-safety --config <config-path>
 ```
 
-Required args:
+Notes:
 
-- `--config <config-path>`
-
-Behavior:
-
-- loads and validates config (including `writeSafety`)
-- inspects git repo state with read-only git commands only
-- reports branch, clean/dirty state, blocked path matches, warnings/failures
-- exits non-zero when readiness fails (including `writeSafety.enabled=false`)
+- read-only git inspection only
 - does not execute Codex
-- does not run target tests/build
 - does not mutate workspace files
-- prints live write-safety progress checkpoints before the final summary
+- exits non-zero when readiness fails
 
-## Progress Logging
+## Stage Plan commands
 
-`run`, `continue-run`, and `check-write-safety` emit live phase-level status by default:
+Stage Plan commands operate on a canonical `stage-plan.json` path. They are designed for one-stage-at-a-time, human-gated delivery.
 
-- start / completion / skipped / failure markers
-- write-safety and write-audit activity markers
-- check execution progress markers
-- run artefact location hints
+### `import-stage-plan`
 
-Use `--verbose` to add detail such as config path, model/reasoning/sandbox per Codex phase, and concrete check commands.
-
-## Command-Level Help
-
-Use help per command to verify current options:
-
-```bash
-npm run agent -- run --help
-npm run agent -- continue-run --help
-npm run agent -- list-runs --help
-npm run agent -- show-run --help
-npm run agent -- open-run --help
-npm run agent -- init-project --help
-npm run agent -- check-write-safety --help
-npm run agent -- run-stage --help
-npm run agent -- accept-stage --help
-npm run agent -- fix-stage --help
-```
-
-## `import-stage-plan`
-
-Purpose: import an existing Stage Plan JSON, validate it, and write canonical JSON + Markdown artefacts.
-
-Usage:
+Validate an existing Stage Plan JSON file and render canonical JSON and Markdown artefacts.
 
 ```bash
 npm run agent -- import-stage-plan --from <path> --out <path> [--force]
 ```
 
-Required args:
+Required flags:
 
-- `--from <path>` source stage plan JSON file
-- `--out <path>` output directory
+- `--from <path>` source Stage Plan JSON
+- `--out <path>` output run directory
 
-Common flags:
+Optional flags:
 
 - `--force` overwrite existing `stage-plan.json` and `stage-plan.md`
 
@@ -396,81 +128,241 @@ Example:
 
 ```bash
 npm run agent -- import-stage-plan \
-  --from docs/provider-switching.stage-plan.json \
+  --from docs/examples/stage-plan.example.json \
   --out .artifacts/runs/provider-switching
 ```
 
-Notes:
+Artefacts:
 
-- validates input using Stage Plan schema validation
-- writes `<out>/stage-plan.json`
-- writes `<out>/stage-plan.md`
-- does not execute planner/builder/reviewer
+- `<out>/stage-plan.json`
+- `<out>/stage-plan.md`
 
-## `run-stage`
+Does not:
 
-Purpose: run exactly one selected stage from a stage plan and stop at human review.
+- execute planner/builder/reviewer
+- run checks
+- run git commands
+- mutate stage statuses
 
-Usage:
+Failure modes:
+
+- missing `--from`
+- missing `--out`
+- invalid JSON
+- invalid Stage Plan schema
+- target artefacts already exist without `--force`
+
+### `run-stage`
+
+Run exactly one selected Stage Plan stage and stop at `review_required`.
 
 ```bash
 npm run agent -- run-stage <stage-id> --stage-plan <path> --config <config-path> [--allow-writes] [--dry-run] [--verbose] [--stream-codex]
 ```
 
+Required args:
+
+- `<stage-id>` stage to run
+- `--stage-plan <path>` canonical Stage Plan JSON
+- `--config <config-path>` project config for execution
+
 Notes:
 
-- updates successful stage status to `review_required`
+- validates stage status and dependencies
+- only `pending` and `failed` stages are runnable
+- dependencies must be `accepted` or `committed`
+- successful execution sets the selected stage to `review_required`
 - persists `stage-plan.json` and regenerates `stage-plan.md`
-- no multi-stage continuation and no auto-commit
-- `--auto-commit` is rejected in SP-7 (review gate not yet accepted)
+- writes per-stage artefacts under `<run-dir>/stages/<stage-id>/`
+- `--auto-commit` is rejected because the stage has not been accepted
 
-## `accept-stage`
+Does not:
 
-Purpose: mark one reviewed stage as accepted without any execution.
+- run any other stage
+- accept the stage
+- commit changes
+- reassess downstream stages
 
-Usage:
+### `run-stages`
+
+Run the next linear stage and stop after that stage.
+
+```bash
+npm run agent -- run-stages --stage-plan <path> --stop-after-each-stage --config <config-path> [--allow-writes] [--dry-run] [--verbose] [--stream-codex]
+```
+
+Current SP-5 behaviour:
+
+- `--stop-after-each-stage` is required
+- runs at most one stage per invocation
+- uses conservative linear progression
+- a blocked earlier pending/failed stage prevents skipping ahead
+- successful execution stops at `review_required`
+- Stage Plan status becomes `paused` after a successful stage run
+
+Does not:
+
+- auto-accept
+- auto-commit
+- run a full chain
+- skip review gates
+
+`--auto-commit` is rejected.
+
+### `continue-stages`
+
+Continue to the next Stage Plan stage after prior gates are satisfied.
+
+```bash
+npm run agent -- continue-stages --stage-plan <path> --config <config-path> [--allow-writes] [--dry-run] [--verbose] [--stream-codex]
+```
+
+Continuation is blocked when:
+
+- any stage is `review_required`
+- a dependency is not `accepted` or `committed`
+- the next stage is `needs_revision`
+- the next stage is `invalidated`
+
+Does not:
+
+- auto-accept
+- auto-commit
+- run more than one stage
+- rewrite stale stage definitions
+
+`--auto-commit` is rejected.
+
+### `accept-stage`
+
+Mark one reviewed stage as accepted without execution.
 
 ```bash
 npm run agent -- accept-stage <stage-id> --stage-plan <path> [--auto-commit] [--commit-message "<text>"]
 ```
 
-Notes:
+Allowed source statuses:
 
-- allowed only from `review_required` or `passed`
-- writes updated `stage-plan.json` and regenerated `stage-plan.md`
-- writes/updates stage report
-- does not execute planner/builder/reviewer
-- commits only when explicit `--auto-commit` is provided
-- `--auto-commit` safety checks:
-  - git must be available
-  - diff must be non-empty
-  - changed files must satisfy `scope.include`/`scope.exclude` when present
-- default commit message: `stage(<stage-id>): <stage title>`
-- optional custom commit message: `--commit-message "<text>"`
-- successful auto-commit stores `commitSha`, updates status to `committed`, persists plan files, and updates stage report with commit SHA
-- SP-7 limitation: accept-stage commits current repo diff at accept time; it does not isolate pre-existing unrelated edits beyond scope validation
-- committed stages must be handled later via correction-stage workflow (no in-place fix)
+- `review_required`
+- `passed`
 
-## `fix-stage`
+Behaviour without `--auto-commit`:
 
-Purpose: apply human feedback to one uncommitted stage and return it to review.
+- sets selected stage to `accepted`
+- persists `stage-plan.json`
+- regenerates `stage-plan.md`
+- updates stage report
+- does not run planner/builder/reviewer/checks
+- does not run git commands
 
-Usage:
+Behaviour with `--auto-commit`:
+
+- first accepts the stage
+- checks git availability
+- requires non-empty diff
+- validates changed files against stage `scope.include` and `scope.exclude`
+- commits using default or custom commit message
+- retrieves HEAD SHA
+- records `commitSha`
+- sets selected stage to `committed`
+- persists `stage-plan.json`
+- regenerates `stage-plan.md`
+- updates stage report with commit SHA
+
+Default commit message:
+
+```text
+stage(<stage-id>): <stage title>
+```
+
+Failure modes:
+
+- stage is not `review_required` or `passed`
+- git unavailable
+- no diff
+- scope violation
+- commit failure
+- HEAD SHA retrieval failure
+
+On auto-commit failure, the stage is not marked `committed` and `commitSha` is not set.
+
+### `fix-stage`
+
+Apply human feedback to one uncommitted stage and return it to review.
 
 ```bash
-npm run agent -- fix-stage <stage-id> --stage-plan <path> --config <config-path> --feedback "<text>" [--allow-writes] [--verbose] [--stream-codex]
+npm run agent -- fix-stage <stage-id> --stage-plan <path> --config <config-path> --feedback "<text>" [--reassess-downstream] [--allow-writes] [--verbose] [--stream-codex]
 ```
 
 Notes:
 
 - requires non-empty `--feedback`
-- refuses committed stages and stages with `commitSha`
-- writes stage feedback artefact under `<run-dir>/stages/<stage-id>/`
-- sets stage to `fixing` while executing
-- on success increments revision and sets status back to `review_required`
-- no multi-stage continuation and no auto-commit
+- refuses committed stages and any stage with `commitSha`
+- writes feedback artefacts under `<run-dir>/stages/<stage-id>/`
+- scopes execution to the selected stage only
+- increments revision on successful fix
+- returns the selected stage to `review_required`
+- `--reassess-downstream` runs reassessment only after successful fix
 
-## `run-stages` and `continue-stages` auto-commit note
+Does not:
 
-- In SP-7, `--auto-commit` is rejected for both `run-stages` and `continue-stages`.
-- These commands still stop at `review_required` and require explicit human acceptance before any commit.
+- continue to the next stage
+- auto-accept
+- auto-commit
+- rewrite committed history
+
+### `reassess-stage-plan`
+
+Classify downstream stages after a source stage changes.
+
+```bash
+npm run agent -- reassess-stage-plan --stage-plan <path> --from <stage-id> --config <config-path> [--dry-run] [--verbose]
+```
+
+Required flags:
+
+- `--stage-plan <path>`
+- `--from <stage-id>` source stage to reassess from
+- `--config <config-path>` when model execution is required
+
+Classifications:
+
+- `unchanged`
+- `needs_revision`
+- `invalidated`
+
+Behaviour:
+
+- identifies downstream stages
+- builds a classification-only reassessment prompt
+- validates structured JSON result
+- writes reassessment artefacts under `<run-dir>/reassessments/<source-stage-id>/revision-<revision>/`
+- marks downstream stages as `needs_revision` or `invalidated` when classified that way
+- leaves `unchanged` stages untouched
+
+Does not:
+
+- implement code
+- rewrite downstream stage definitions
+- accept stages
+- commit changes
+- run downstream implementation stages
+
+## Command-level help
+
+```bash
+npm run agent -- import-stage-plan --help
+npm run agent -- run-stage --help
+npm run agent -- run-stages --help
+npm run agent -- accept-stage --help
+npm run agent -- fix-stage --help
+npm run agent -- reassess-stage-plan --help
+npm run agent -- continue-stages --help
+```
+
+## Documentation links
+
+- `docs/STAGE_PLAN_WORKFLOW.md`
+- `docs/WORKFLOW.md`
+- `docs/SAFETY.md`
+- `docs/WRITE_MODE.md`
