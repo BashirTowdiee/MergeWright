@@ -2,7 +2,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { loadAndValidateConfig, resolveConfigPath, validateWorkspaceSafety } from "./config.js";
 import { executeCheckCommand, resolveCheckCommandCwd } from "./commands.js";
-import { DEFAULT_CODEX_EXEC_CAPABILITIES, executeCodex, type CodexExecutor } from "./codex.js";
+import type { CodexExecutor } from "./codex.js";
+import { createCodexCompatibleExecutor } from "./execution-backends/codex-compatible-executor.js";
 import { parsePlannerOutput } from "./planner-output.js";
 import { writePlanHtmlFromRun } from "./plan-html.js";
 import { loadPromptTemplates, renderTemplate, type TemplateVariables } from "./prompts.js";
@@ -90,6 +91,9 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
   progressLogger.phaseStart("setup", "loading config");
   const configPath = resolveConfigPath(orchestratorRoot, options.configArg);
   const config = await loadAndValidateConfig(configPath);
+  const executor: CodexExecutor = createCodexCompatibleExecutor(config, {
+    overrideCodexExecutor: options.codexExecutor
+  });
   progressLogger.verbose(`Config: ${configPath}`);
 
   const targetWorkspaceRoot = path.resolve(options.repoOverride ?? config.workspaceRoot);
@@ -482,9 +486,6 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
     await updatePhaseAndPersist("planner", { status: "unknown", startedAt: new Date().toISOString() });
     failedPhase = "planner";
     const outputLastMessagePath = path.resolve(runDir, "06-planner-output-last-message.md");
-    const executor: CodexExecutor =
-      options.codexExecutor ??
-      ((request, execOptions) => executeCodex(request, DEFAULT_CODEX_EXEC_CAPABILITIES, execOptions));
     progressLogger.info("[planner] waiting for Codex...");
     let execution!: Awaited<ReturnType<typeof executor>>;
     await runCodexPhase("planner", async () => {
@@ -761,9 +762,6 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
       await updatePhaseAndPersist("reviewer", { status: "unknown", startedAt: new Date().toISOString() });
       failedPhase = "reviewer";
       const reviewerOutputLastMessagePath = path.resolve(runDir, "reviewer-output-last-message.md");
-      const executor: CodexExecutor =
-        options.codexExecutor ??
-        ((request, execOptions) => executeCodex(request, DEFAULT_CODEX_EXEC_CAPABILITIES, execOptions));
       progressLogger.info("[reviewer] waiting for Codex...");
       let reviewerExecution!: Awaited<ReturnType<typeof executor>>;
       await runCodexPhase("reviewer", async () => {
