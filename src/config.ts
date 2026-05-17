@@ -6,10 +6,29 @@ import {
   DEFAULT_CHANGE_REPORT_POLICY,
   type ChangeReportPolicy
 } from "./change-report.js";
+import type { ExecutionBackendType } from "./execution-backends/execution-backend-types.js";
 
 export interface CodexRoleConfig {
   model: string;
   reasoningEffort: string;
+}
+
+export interface ExecutionBackendConfig {
+  type: ExecutionBackendType;
+}
+
+export type ExecutionBackendConfigMap = Record<string, ExecutionBackendConfig>;
+
+export interface AgentRoleConfig {
+  backend: string;
+  model: string;
+  reasoningEffort: string;
+}
+
+export interface AgentConfigMap {
+  planner: AgentRoleConfig;
+  builder: AgentRoleConfig;
+  reviewer: AgentRoleConfig;
 }
 
 export interface OrchestratorConfig {
@@ -26,6 +45,8 @@ export interface OrchestratorConfig {
     builder: CodexRoleConfig;
     reviewer: CodexRoleConfig;
   };
+  executionBackends: ExecutionBackendConfigMap;
+  agents: AgentConfigMap;
   pipeline: {
     finalReview: boolean;
     maxFixLoops: number;
@@ -112,15 +133,16 @@ export function validateConfig(input: unknown): OrchestratorConfig {
   const root = assertObject(input, "root");
 
   const paths = assertObject(root.paths, "paths");
-  const codex = assertObject(root.codex, "codex");
-  const planner = assertObject(codex.planner, "codex.planner");
-  const builder = assertObject(codex.builder, "codex.builder");
-  const reviewer = assertObject(codex.reviewer, "codex.reviewer");
+  const codexRaw = root.codex == null ? undefined : assertObject(root.codex, "codex");
   const pipeline = assertObject(root.pipeline, "pipeline");
   const commands = assertObject(root.commands, "commands");
   const safety = assertObject(root.safety, "safety");
   const writeSafety = root.writeSafety == null ? {} : assertObject(root.writeSafety, "writeSafety");
   const changeReport = root.changeReport == null ? {} : assertObject(root.changeReport, "changeReport");
+
+  const executionBackends = parseExecutionBackends(root.executionBackends, codexRaw);
+  const agents = parseAgents(root.agents, codexRaw, executionBackends);
+  const codex = codexRaw == null ? codexFromAgents(agents) : parseCodexConfig(codexRaw);
 
   const manualCommit = assertBoolean(safety.manualCommit, "safety.manualCommit");
   if (!manualCommit) {
@@ -155,20 +177,9 @@ export function validateConfig(input: unknown): OrchestratorConfig {
       promptsDir: assertString(paths.promptsDir, "paths.promptsDir"),
       runsDir: assertString(paths.runsDir, "paths.runsDir")
     },
-    codex: {
-      planner: {
-        model: assertString(planner.model, "codex.planner.model"),
-        reasoningEffort: assertString(planner.reasoningEffort, "codex.planner.reasoningEffort")
-      },
-      builder: {
-        model: assertString(builder.model, "codex.builder.model"),
-        reasoningEffort: assertString(builder.reasoningEffort, "codex.builder.reasoningEffort")
-      },
-      reviewer: {
-        model: assertString(reviewer.model, "codex.reviewer.model"),
-        reasoningEffort: assertString(reviewer.reasoningEffort, "codex.reviewer.reasoningEffort")
-      }
-    },
+    codex,
+    executionBackends,
+    agents,
     pipeline: {
       finalReview: assertBoolean(pipeline.finalReview, "pipeline.finalReview"),
       maxFixLoops: assertNumber(pipeline.maxFixLoops, "pipeline.maxFixLoops")
@@ -220,6 +231,121 @@ export function validateConfig(input: unknown): OrchestratorConfig {
     },
     changeReport: parseChangeReportPolicy(changeReport)
   };
+}
+
+function parseCodexConfig(raw: Record<string, unknown>): OrchestratorConfig["codex"] {
+  const planner = assertObject(raw.planner, "codex.planner");
+  const builder = assertObject(raw.builder, "codex.builder");
+  const reviewer = assertObject(raw.reviewer, "codex.reviewer");
+
+  return {
+    planner: {
+      model: assertString(planner.model, "codex.planner.model"),
+      reasoningEffort: assertString(planner.reasoningEffort, "codex.planner.reasoningEffort")
+    },
+    builder: {
+      model: assertString(builder.model, "codex.builder.model"),
+      reasoningEffort: assertString(builder.reasoningEffort, "codex.builder.reasoningEffort")
+    },
+    reviewer: {
+      model: assertString(reviewer.model, "codex.reviewer.model"),
+      reasoningEffort: assertString(reviewer.reasoningEffort, "codex.reviewer.reasoningEffort")
+    }
+  };
+}
+
+function parseExecutionBackends(value: unknown, codexRaw: Record<string, unknown> | undefined): ExecutionBackendConfigMap {
+  if (value == null) {
+    if (codexRaw == null) {
+      throw new Error("Invalid config: executionBackends is required when codex is not provided");
+    }
+    return {
+      codex: {
+        type: "codex-cli"
+      }
+    };
+  }
+
+  const raw = assertObject(value, "executionBackends");
+  const entries = Object.entries(raw);
+  if (entries.length === 0) {
+    throw new Error("Invalid config: executionBackends must contain at least one backend");
+  }
+
+  const parsed: ExecutionBackendConfigMap = {};
+  for (const [name, definition] of entries) {
+    if (!name.trim()) {
+      throw new Error("Invalid config: executionBackends backend name must be non-empty");
+    }
+    const backend = assertObject(definition, `executionBackends.${name}`);
+    const type = assertExecutionBackendType(backend.type, `executionBackends.${name}.type`);
+    parsed[name] = { type };
+  }
+  return parsed;
+}
+
+function parseAgents(
+  value: unknown,
+  codexRaw: Record<string, unknown> | undefined,
+  executionBackends: ExecutionBackendConfigMap
+): AgentConfigMap {
+  if (value == null) {
+    if (codexRaw == null) {
+      throw new Error("Invalid config: agents is required when codex is not provided");
+    }
+    const codex = parseCodexConfig(codexRaw);
+    return {
+      planner: { backend: "codex", ...codex.planner },
+      builder: { backend: "codex", ...codex.builder },
+      reviewer: { backend: "codex", ...codex.reviewer }
+    };
+  }
+
+  const raw = assertObject(value, "agents");
+  return {
+    planner: parseAgentRole(raw.planner, "agents.planner", executionBackends),
+    builder: parseAgentRole(raw.builder, "agents.builder", executionBackends),
+    reviewer: parseAgentRole(raw.reviewer, "agents.reviewer", executionBackends)
+  };
+}
+
+function parseAgentRole(value: unknown, field: string, executionBackends: ExecutionBackendConfigMap): AgentRoleConfig {
+  const raw = assertObject(value, field);
+  const backend = assertString(raw.backend, `${field}.backend`);
+  if (!executionBackends[backend]) {
+    const configured = Object.keys(executionBackends).sort().join(", ") || "none";
+    throw new Error(`Invalid config: ${field}.backend references unknown execution backend "${backend}". Configured execution backends: ${configured}`);
+  }
+  return {
+    backend,
+    model: assertString(raw.model, `${field}.model`),
+    reasoningEffort: assertString(raw.reasoningEffort, `${field}.reasoningEffort`)
+  };
+}
+
+function codexFromAgents(agents: AgentConfigMap): OrchestratorConfig["codex"] {
+  return {
+    planner: {
+      model: agents.planner.model,
+      reasoningEffort: agents.planner.reasoningEffort
+    },
+    builder: {
+      model: agents.builder.model,
+      reasoningEffort: agents.builder.reasoningEffort
+    },
+    reviewer: {
+      model: agents.reviewer.model,
+      reasoningEffort: agents.reviewer.reasoningEffort
+    }
+  };
+}
+
+function assertExecutionBackendType(value: unknown, field: string): ExecutionBackendType {
+  const type = assertString(value, field);
+  if (type !== "codex-cli") {
+    throw new Error(`Invalid config: ${field} must be "codex-cli"`);
+  }
+  return type;
 }
 
 function assertOptionalBooleanWithDefault(value: unknown, field: string, defaultValue: boolean): boolean {
