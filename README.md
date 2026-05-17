@@ -189,6 +189,7 @@ For Stage Plans:
 - `docs/COMMANDS.md`
 - `docs/WORKFLOW.md`
 - `docs/ARCHITECTURE.md`
+- `docs/EXECUTION_BACKENDS.md`
 - `docs/PROMPTING.md`
 - `docs/OPERATIONS.md`
 - `docs/SAFETY.md`
