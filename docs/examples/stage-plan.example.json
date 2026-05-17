@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "id": "provider-switching-example",
+  "title": "Provider Switching Example",
+  "goal": "Introduce provider switching in small, reviewable stages while preserving the current default provider behaviour.",
+  "source": "manual",
+  "status": "ready",
+  "createdAt": "2026-05-17T00:00:00.000Z",
+  "updatedAt": "2026-05-17T00:00:00.000Z",
+  "stages": [
+    {
+      "id": "stage-01-provider-contract",
+      "index": 1,
+      "title": "Provider contract",
+      "goal": "Introduce a provider-neutral contract without changing current runtime behaviour.",
+      "status": "pending",
+      "dependsOn": [],
+      "assumptions": [
+        "The existing provider path remains the default until later stages opt in to new providers.",
+        "Provider request and response types should not leak vendor-specific SDK shapes."
+      ],
+      "scope": {
+        "include": ["src/**", "test/**"],
+        "exclude": ["docs/**", "dist/**"]
+      },
+      "acceptanceCriteria": [
+        "A provider-neutral interface exists.",
+        "The current provider path still works through the new interface.",
+        "Unit tests cover the default provider path."
+      ],
+      "checks": ["npm test", "npm run build"],
+      "expectedOutputs": [
+        "Provider contract types",
+        "Default provider adapter",
+        "Unit tests for the default adapter"
+      ],
+      "revision": 1
+    },
+    {
+      "id": "stage-02-openrouter-adapter",
+      "index": 2,
+      "title": "OpenRouter adapter",
+      "goal": "Add an OpenRouter adapter behind the provider-neutral contract.",
+      "status": "pending",
+      "dependsOn": ["stage-01-provider-contract"],
+      "assumptions": [
+        "Stage 1 exposes a provider-neutral request/response contract.",
+        "Provider configuration can supply API key, base URL, and model name."
+      ],
+      "scope": {
+        "include": ["src/**", "test/**"],
+        "exclude": ["docs/**", "dist/**"]
+      },
+      "acceptanceCriteria": [
+        "OpenRouter is implemented as a separate adapter.",
+        "Provider selection can choose the OpenRouter adapter without changing caller code.",
+        "Tests cover request mapping and response normalisation."
+      ],
+      "checks": ["npm test", "npm run build"],
+      "expectedOutputs": [
+        "OpenRouter adapter",
+        "Provider selection tests",
+        "Configuration validation updates"
+      ],
+      "revision": 1
+    },
+    {
+      "id": "stage-03-docs-and-safety",
+      "index": 3,
+      "title": "Docs and safety boundaries",
+      "goal": "Document provider switching behaviour, configuration, and safety boundaries.",
+      "status": "pending",
+      "dependsOn": ["stage-02-openrouter-adapter"],
+      "assumptions": [
+        "Provider selection behaviour is implemented and covered by tests.",
+        "The default provider remains backward compatible."
+      ],
+      "scope": {
+        "include": ["docs/**", "README.md"],
+        "exclude": ["dist/**"]
+      },
+      "acceptanceCriteria": [
+        "README or command docs describe provider configuration.",
+        "Safety documentation explains provider switching boundaries.",
+        "No runtime code is changed in this documentation stage."
+      ],
+      "checks": ["npm test", "npm run build"],
+      "expectedOutputs": [
+        "Updated README or command docs",
+        "Updated safety notes"
+      ],
+      "revision": 1
+    }
+  ]
+}
