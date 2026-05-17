@@ -10,36 +10,68 @@ interface Heading {
 interface DocNavItem {
   id: string;
   data: {
-    title: string;
-    order: number;
-    section: string;
+    title?: string;
+    order?: number;
+    section?: string;
+    description?: string;
+    status?: 'draft' | 'review' | 'stable';
   };
 }
 
 interface Props {
-  currentDoc: {
-    id: string;
-    data: {
-      title: string;
-      description: string;
-      section: string;
-      status: 'draft' | 'review' | 'stable';
-    };
-  };
+  currentDoc: DocNavItem;
   docs: DocNavItem[];
   headings: Heading[];
 }
 
+const sectionOrder: Record<string, number> = {
+  README: 0,
+  Product: 10,
+  Engineering: 20,
+  UX: 30,
+};
+
+function titleFromId(id: string): string {
+  const name = id.split('/').pop() ?? id;
+  return name
+    .replace(/^\d+-/, '')
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function sectionFromId(id: string): string {
+  const section = id.split('/')[0];
+  if (section === 'product') return 'Product';
+  if (section === 'engineering') return 'Engineering';
+  if (section === 'ux') return 'UX';
+  return 'README';
+}
+
+function orderFromId(id: string): number {
+  const section = sectionFromId(id);
+  const file = id.split('/').pop() ?? id;
+  const match = file.match(/^(\d+)/);
+  const localOrder = match ? Number(match[1]) : 0;
+  return (sectionOrder[section] ?? 99) + localOrder;
+}
+
 const { currentDoc, docs, headings } = Astro.props;
+const sortedDocs = [...docs].sort(
+  (a, b) => (a.data.order ?? orderFromId(a.id)) - (b.data.order ?? orderFromId(b.id)),
+);
 const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
+const currentTitle = currentDoc.data.title ?? titleFromId(currentDoc.id);
+const currentSection = currentDoc.data.section ?? sectionFromId(currentDoc.id);
+const currentDescription = currentDoc.data.description ?? `Planning document for ${currentTitle}.`;
+const currentStatus = currentDoc.data.status ?? 'draft';
 ---
 
 <html lang="en-AU">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{currentDoc.data.title} | Shepherds-Staff Docs</title>
-    <meta name="description" content={currentDoc.data.description} />
+    <title>{currentTitle} | Shepherds-Staff Docs</title>
+    <meta name="description" content={currentDescription} />
   </head>
   <body>
     <header class="topbar">
@@ -50,28 +82,33 @@ const toc = headings.filter((heading) => heading.depth === 2 || heading.depth ==
         <nav aria-label="Documentation navigation">
           <h2>Documentation</h2>
           <ul>
-            {docs.map((doc) => (
-              <li>
-                <a
-                  href={`/docs/${doc.id}`}
-                  class={doc.id === currentDoc.id ? 'active' : ''}
-                  aria-current={doc.id === currentDoc.id ? 'page' : undefined}
-                >
-                  <span class="section">{doc.data.section}</span>
-                  <span>{doc.data.title}</span>
-                </a>
-              </li>
-            ))}
+            {sortedDocs.map((doc) => {
+              const title = doc.data.title ?? titleFromId(doc.id);
+              const section = doc.data.section ?? sectionFromId(doc.id);
+
+              return (
+                <li>
+                  <a
+                    href={`/docs/${doc.id}`}
+                    class={doc.id === currentDoc.id ? 'active' : ''}
+                    aria-current={doc.id === currentDoc.id ? 'page' : undefined}
+                  >
+                    <span class="section">{section}</span>
+                    <span>{title}</span>
+                  </a>
+                </li>
+              );
+            })}
           </ul>
         </nav>
       </aside>
 
       <main class="doc-main">
         <header class="doc-header">
-          <p class="doc-section">{currentDoc.data.section}</p>
-          <h1>{currentDoc.data.title}</h1>
-          <p>{currentDoc.data.description}</p>
-          <p class="doc-status">Status: {currentDoc.data.status}</p>
+          <p class="doc-section">{currentSection}</p>
+          <h1>{currentTitle}</h1>
+          <p>{currentDescription}</p>
+          <p class="doc-status">Status: {currentStatus}</p>
         </header>
         <slot />
       </main>
