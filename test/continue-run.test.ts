@@ -685,6 +685,178 @@ test("multiple flags execute in order", async () => {
   assert.deepEqual(roles, ["builder", "reviewer"]);
 });
 
+test("continuation command artefacts and phases include backend metadata when executor provides it", async () => {
+  const fx = await makeFixture();
+
+  const backendByRole = {
+    builder: {
+      backendName: "codex-local",
+      backendType: "codex-cli" as const,
+      agentRole: "builder" as const,
+      model: "agent-builder-model",
+      reasoningEffort: "medium" as const
+    },
+    reviewer: {
+      backendName: "codex-local",
+      backendType: "codex-cli" as const,
+      agentRole: "reviewer" as const,
+      model: "agent-reviewer-model",
+      reasoningEffort: "high" as const
+    },
+    planner: {
+      backendName: "codex-local",
+      backendType: "codex-cli" as const,
+      agentRole: "planner" as const,
+      model: "agent-planner-model",
+      reasoningEffort: "high" as const
+    }
+  };
+
+  await continueRun({
+    runId: fx.runId,
+    configArg: fx.configArg,
+    executeBuilder: true,
+    dryRun: false,
+    verbose: false,
+    orchestratorRoot: fx.orchestratorRoot,
+    codexExecutor: async (request) => ({
+      command: "codex",
+      args: [],
+      cwd: fx.orchestratorRoot,
+      stdout: "",
+      stderr: "",
+      exitCode: 0,
+      signal: null,
+      durationMs: 1,
+      success: true,
+      outputLastMessagePath: request.outputLastMessagePath,
+      outputLastMessage:
+        request.role === "builder"
+          ? "builder output"
+          : request.role === "reviewer"
+            ? "review output"
+            : "## DECISION\nFIX_REQUIRED\n\n## RATIONALE\nneeds fixes\n\n## FINAL FIX PROMPT\nfix prompt",
+      skipped: false,
+      backend: backendByRole[request.role]
+    })
+  });
+  await continueRun({
+    runId: fx.runId,
+    configArg: fx.configArg,
+    executeReviewer: true,
+    dryRun: false,
+    verbose: false,
+    orchestratorRoot: fx.orchestratorRoot,
+    codexExecutor: async (request) => ({
+      command: "codex",
+      args: [],
+      cwd: fx.orchestratorRoot,
+      stdout: "",
+      stderr: "",
+      exitCode: 0,
+      signal: null,
+      durationMs: 1,
+      success: true,
+      outputLastMessagePath: request.outputLastMessagePath,
+      outputLastMessage: "review output",
+      skipped: false,
+      backend: backendByRole[request.role]
+    })
+  });
+  await continueRun({
+    runId: fx.runId,
+    configArg: fx.configArg,
+    planFix: true,
+    dryRun: false,
+    verbose: false,
+    orchestratorRoot: fx.orchestratorRoot,
+    codexExecutor: async (request) => ({
+      command: "codex",
+      args: [],
+      cwd: fx.orchestratorRoot,
+      stdout: "",
+      stderr: "",
+      exitCode: 0,
+      signal: null,
+      durationMs: 1,
+      success: true,
+      outputLastMessagePath: request.outputLastMessagePath,
+      outputLastMessage: "## DECISION\nFIX_REQUIRED\n\n## RATIONALE\nneeds fixes\n\n## FINAL FIX PROMPT\nfix prompt",
+      skipped: false,
+      backend: backendByRole[request.role]
+    })
+  });
+  await continueRun({
+    runId: fx.runId,
+    configArg: fx.configArg,
+    executeFix: true,
+    dryRun: false,
+    verbose: false,
+    orchestratorRoot: fx.orchestratorRoot,
+    codexExecutor: async (request) => ({
+      command: "codex",
+      args: [],
+      cwd: fx.orchestratorRoot,
+      stdout: "",
+      stderr: "",
+      exitCode: 0,
+      signal: null,
+      durationMs: 1,
+      success: true,
+      outputLastMessagePath: request.outputLastMessagePath,
+      outputLastMessage: "builder output",
+      skipped: false,
+      backend: backendByRole[request.role]
+    })
+  });
+
+  const builderCommand = JSON.parse(await readFile(path.join(fx.runDir, "builder-command.json"), "utf8")) as { backend?: unknown };
+  const reviewerCommand = JSON.parse(await readFile(path.join(fx.runDir, "reviewer-command.json"), "utf8")) as { backend?: unknown };
+  const reviewToFixCommand = JSON.parse(await readFile(path.join(fx.runDir, "review-to-fix-command.json"), "utf8")) as { backend?: unknown };
+  const fixCommand = JSON.parse(await readFile(path.join(fx.runDir, "fix-command.json"), "utf8")) as { backend?: unknown };
+  assert.deepEqual(builderCommand.backend, backendByRole.builder);
+  assert.deepEqual(reviewerCommand.backend, backendByRole.reviewer);
+  assert.deepEqual(reviewToFixCommand.backend, backendByRole.planner);
+  assert.deepEqual(fixCommand.backend, backendByRole.builder);
+
+  const runMetadata = JSON.parse(await readFile(path.join(fx.runDir, "run.json"), "utf8")) as RunMetadata;
+  assert.deepEqual(runMetadata.phases.builder.backend, backendByRole.builder);
+  assert.deepEqual(runMetadata.phases.reviewer.backend, backendByRole.reviewer);
+  assert.deepEqual(runMetadata.phases.fixPlanning.backend, backendByRole.planner);
+  assert.deepEqual(runMetadata.phases.fixExecution.backend, backendByRole.builder);
+});
+
+test("explicit codexExecutor override without backend metadata does not invent backend metadata", async () => {
+  const fx = await makeFixture();
+  await continueRun({
+    runId: fx.runId,
+    configArg: fx.configArg,
+    executeBuilder: true,
+    dryRun: false,
+    verbose: false,
+    orchestratorRoot: fx.orchestratorRoot,
+    codexExecutor: async (request) => ({
+      command: "codex",
+      args: [],
+      cwd: fx.orchestratorRoot,
+      stdout: "",
+      stderr: "",
+      exitCode: 0,
+      signal: null,
+      durationMs: 1,
+      success: true,
+      outputLastMessagePath: request.outputLastMessagePath,
+      outputLastMessage: "builder output",
+      skipped: false
+    })
+  });
+
+  const builderCommand = JSON.parse(await readFile(path.join(fx.runDir, "builder-command.json"), "utf8")) as { backend?: unknown };
+  assert.equal(builderCommand.backend, undefined);
+  const runMetadata = JSON.parse(await readFile(path.join(fx.runDir, "run.json"), "utf8")) as RunMetadata;
+  assert.equal(runMetadata.phases.builder.backend, undefined);
+});
+
 test("same-command write-enabled builder + reviewer continuation includes builder write-audit context", async () => {
   const fx = await makeFixture();
   await initGitRepoClean(fx.workspaceRoot);

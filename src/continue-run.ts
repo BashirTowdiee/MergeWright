@@ -1,8 +1,10 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { executeCheckCommand, resolveCheckCommandCwd } from "./commands.js";
-import { DEFAULT_CODEX_EXEC_CAPABILITIES, executeCodex, type CodexExecutor } from "./codex.js";
+import type { CodexExecutionBackendMetadata, CodexExecutor } from "./codex.js";
 import { loadAndValidateConfig, resolveConfigPath } from "./config.js";
+import { createCodexCompatibleExecutor } from "./execution-backends/codex-compatible-executor.js";
+import { serialiseBackendCommandArtefact } from "./execution-backends/backend-command-artefact.js";
 import { writePlanHtmlFromRun } from "./plan-html.js";
 import { loadPromptTemplates, renderTemplate, type TemplateVariables } from "./prompts.js";
 import { formatDurationMs, NOOP_PROGRESS_LOGGER, type ProgressLogger } from "./progress-logger.js";
@@ -98,9 +100,9 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
   const before = snapshotStatuses(metadata);
   const artefacts: string[] = [];
   const metadataWriter = options.metadataWriter ?? writeRunMetadata;
-  const codexExecutor: CodexExecutor =
-    options.codexExecutor ??
-    ((request, execOptions) => executeCodex(request, DEFAULT_CODEX_EXEC_CAPABILITIES, execOptions));
+  const codexExecutor: CodexExecutor = createCodexCompatibleExecutor(config, {
+    overrideCodexExecutor: options.codexExecutor
+  });
   const writeAuditPreCapture = options.writeAuditPreCapture ?? captureWriteAuditPreState;
   const writeAuditPostCapture = options.writeAuditPostCapture ?? captureWriteAuditPostStateAndWriteArtefacts;
   const checkCommandExecutor = options.checkCommandExecutor ?? executeCheckCommand;
@@ -117,13 +119,20 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
     }
   };
 
-  const updatePhase = async (phase: RunPhaseName, status: RunPhaseStatus, reason?: string, phaseArtefacts?: string[]) => {
+  const updatePhase = async (
+    phase: RunPhaseName,
+    status: RunPhaseStatus,
+    reason?: string,
+    phaseArtefacts?: string[],
+    backend?: CodexExecutionBackendMetadata
+  ) => {
     updateRunPhase(metadata, phase, {
       status,
       startedAt: metadata.phases[phase]?.startedAt ?? new Date().toISOString(),
       completedAt: status === "executed" || status === "skipped" || status === "failed" || status === "disabled" ? new Date().toISOString() : undefined,
       reason,
-      artefacts: phaseArtefacts
+      artefacts: phaseArtefacts,
+      ...(backend ? { backend } : {})
     });
     if (!options.dryRun) {
       await metadataWriter(runDir, metadata);
@@ -362,7 +371,21 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
           );
         });
 
-        await writeJson(runDir, "builder-command.json", { command: result.command, args: result.args, cwd: result.cwd, outputLastMessagePath: result.outputLastMessagePath, promptViaStdin: true, sandboxMode: allowWrites ? "workspace-write" : "read-only" }, artefacts, false);
+        await writeText(
+          runDir,
+          "builder-command.json",
+          `${serialiseBackendCommandArtefact({
+            command: result.command,
+            args: result.args,
+            cwd: result.cwd,
+            outputLastMessagePath: result.outputLastMessagePath,
+            promptViaStdin: true,
+            sandboxMode: allowWrites ? "workspace-write" : "read-only",
+            backend: result.backend
+          })}\n`,
+          artefacts,
+          false
+        );
         await writeText(runDir, "builder-prompt.executed.md", prompt, artefacts, false);
         await writeText(runDir, "builder-stdout.log", result.stdout, artefacts, false);
         await writeText(runDir, "builder-stderr.log", result.stderr, artefacts, false);
@@ -398,7 +421,13 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
           progressLogger.phaseFailed("builder", builderExecutionError);
           throw builderExecutionError;
         }
-        await updatePhase("builder", "executed", undefined, ["builder-command.json", "builder-prompt.executed.md", "builder-stdout.log", "builder-stderr.log", "builder-output-last-message.md", "builder-exit.json"]);
+        await updatePhase(
+          "builder",
+          "executed",
+          undefined,
+          ["builder-command.json", "builder-prompt.executed.md", "builder-stdout.log", "builder-stderr.log", "builder-output-last-message.md", "builder-exit.json"],
+          result.backend
+        );
         if (allowWrites) {
           await setPostWriteReviewPending(["builder"]);
         }
@@ -472,13 +501,32 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         }
 
         await writeText(runDir, "08-reviewer-prompt.preview.md", reviewerPrompt, artefacts, true);
-        await writeJson(runDir, "reviewer-command.json", { command: result.command, args: result.args, cwd: result.cwd, outputLastMessagePath: result.outputLastMessagePath, promptViaStdin: true }, artefacts, false);
+        await writeText(
+          runDir,
+          "reviewer-command.json",
+          `${serialiseBackendCommandArtefact({
+            command: result.command,
+            args: result.args,
+            cwd: result.cwd,
+            outputLastMessagePath: result.outputLastMessagePath,
+            promptViaStdin: true,
+            backend: result.backend
+          })}\n`,
+          artefacts,
+          false
+        );
         await writeText(runDir, "reviewer-stdout.log", result.stdout, artefacts, false);
         await writeText(runDir, "reviewer-stderr.log", result.stderr, artefacts, false);
         await writeText(runDir, "reviewer-output-last-message.md", result.outputLastMessage, artefacts, false);
         await writeJson(runDir, "reviewer-exit.json", { success: true, code: result.exitCode, signal: result.signal, durationMs: result.durationMs, skipped: false }, artefacts, false);
 
-        await updatePhase("reviewer", "executed", undefined, ["reviewer-command.json", "reviewer-stdout.log", "reviewer-stderr.log", "reviewer-output-last-message.md", "reviewer-exit.json"]);
+        await updatePhase(
+          "reviewer",
+          "executed",
+          undefined,
+          ["reviewer-command.json", "reviewer-stdout.log", "reviewer-stderr.log", "reviewer-output-last-message.md", "reviewer-exit.json"],
+          result.backend
+        );
         if (metadata.postWriteReview.required && metadata.postWriteReview.status === "pending") {
           await setPostWriteReviewCompleted();
           progressLogger.phaseComplete("post-write-review", "completed");
@@ -543,7 +591,20 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         }
 
         await writeText(runDir, "09-review-to-fix-prompt.preview.md", reviewToFixPrompt, artefacts, true);
-        await writeJson(runDir, "review-to-fix-command.json", { command: result.command, args: result.args, cwd: result.cwd, outputLastMessagePath: result.outputLastMessagePath, promptViaStdin: true }, artefacts, false);
+        await writeText(
+          runDir,
+          "review-to-fix-command.json",
+          `${serialiseBackendCommandArtefact({
+            command: result.command,
+            args: result.args,
+            cwd: result.cwd,
+            outputLastMessagePath: result.outputLastMessagePath,
+            promptViaStdin: true,
+            backend: result.backend
+          })}\n`,
+          artefacts,
+          false
+        );
         await writeText(runDir, "review-to-fix-stdout.log", result.stdout, artefacts, false);
         await writeText(runDir, "review-to-fix-stderr.log", result.stderr, artefacts, false);
         await writeText(runDir, "review-to-fix-output-last-message.md", result.outputLastMessage, artefacts, false);
@@ -558,7 +619,13 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
           await writeJson(runDir, "review-to-fix-decision.proceed.json", { proceed: true }, artefacts, false);
         }
 
-        await updatePhase("fixPlanning", "executed", undefined, ["review-to-fix-command.json", "review-to-fix-stdout.log", "review-to-fix-stderr.log", "review-to-fix-output-last-message.md", "review-to-fix-exit.json", "review-to-fix-decision.json"]);
+        await updatePhase(
+          "fixPlanning",
+          "executed",
+          undefined,
+          ["review-to-fix-command.json", "review-to-fix-stdout.log", "review-to-fix-stderr.log", "review-to-fix-output-last-message.md", "review-to-fix-exit.json", "review-to-fix-decision.json"],
+          result.backend
+        );
         progressLogger.phaseComplete("fix-planning", `completed in ${formatDurationMs(result.durationMs)}`);
         progressLogger.artefact("fix-planning output", path.resolve(runDir, "review-to-fix-output-last-message.md"));
         continue;
@@ -657,7 +724,21 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
           );
         });
 
-        await writeJson(runDir, "fix-command.json", { command: result.command, args: result.args, cwd: result.cwd, outputLastMessagePath: result.outputLastMessagePath, promptViaStdin: true, sandboxMode: allowWrites ? "workspace-write" : "read-only" }, artefacts, false);
+        await writeText(
+          runDir,
+          "fix-command.json",
+          `${serialiseBackendCommandArtefact({
+            command: result.command,
+            args: result.args,
+            cwd: result.cwd,
+            outputLastMessagePath: result.outputLastMessagePath,
+            promptViaStdin: true,
+            sandboxMode: allowWrites ? "workspace-write" : "read-only",
+            backend: result.backend
+          })}\n`,
+          artefacts,
+          false
+        );
         await writeText(runDir, "fix-prompt.executed.md", prompt, artefacts, false);
         await writeText(runDir, "fix-stdout.log", result.stdout, artefacts, false);
         await writeText(runDir, "fix-stderr.log", result.stderr, artefacts, false);
@@ -693,7 +774,13 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
           progressLogger.phaseFailed("fix", fixExecutionError);
           throw fixExecutionError;
         }
-        await updatePhase("fixExecution", "executed", undefined, ["fix-command.json", "fix-prompt.executed.md", "fix-stdout.log", "fix-stderr.log", "fix-output-last-message.md", "fix-exit.json"]);
+        await updatePhase(
+          "fixExecution",
+          "executed",
+          undefined,
+          ["fix-command.json", "fix-prompt.executed.md", "fix-stdout.log", "fix-stderr.log", "fix-output-last-message.md", "fix-exit.json"],
+          result.backend
+        );
         if (allowWrites) {
           await setPostWriteReviewPending(["fixExecution"]);
         }
