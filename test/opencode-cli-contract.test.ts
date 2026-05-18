@@ -4,9 +4,13 @@ import { mkdtemp, mkdir, readFile, writeFile, chmod } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import {
+  buildAndValidateOpenCodeReadOnlyCommand,
   probeOpenCodeCliContract,
+  type OpenCodeCliContract,
+  validateOpenCodeReadOnlyCommandAgainstContract,
   validateOpenCodeProbeCommand
 } from "../src/execution-backends/opencode-cli-contract.js";
+import type { OpenCodeBuiltCommand, OpenCodeExecutionRequest } from "../src/execution-backends/opencode-cli-backend.js";
 
 const TEST_PROBE_TIMEOUT_MS = 30_000;
 
@@ -153,4 +157,123 @@ test("probeOpenCodeCliContract only calls version/help/run-help and never execut
   const calls = (await readFile(fake.logPath, "utf8")).trim().split("\n").sort();
   assert.deepEqual(calls, ["--help", "--version", "run --help"].sort());
   assert.ok(calls.every((call) => call !== "run" && !call.includes("--output")));
+});
+
+function makeContract(overrides: Partial<OpenCodeCliContract> = {}): OpenCodeCliContract {
+  return {
+    command: "opencode",
+    versionCommand: ["--version"],
+    helpCommand: ["--help"],
+    runHelpCommand: ["run", "--help"],
+    supportsRunSubcommand: true,
+    supportsModelFlag: true,
+    supportsCwdFlag: true,
+    supportsOutputFlag: true,
+    supportsStdinPrompt: true,
+    verifiedAt: "2026-05-18T00:00:00.000Z",
+    ...overrides
+  };
+}
+
+function makeBuiltCommand(overrides: Partial<OpenCodeBuiltCommand> = {}): OpenCodeBuiltCommand {
+  return {
+    command: "opencode",
+    args: ["run", "--model", "anthropic/claude-sonnet-4.5", "--cwd", "/tmp/workspace", "--output", "/tmp/out.md", "-"],
+    cwd: "/tmp/orchestrator",
+    promptStdin: "review this change",
+    ...overrides
+  };
+}
+
+test("validateOpenCodeReadOnlyCommandAgainstContract passes for compatible contract and command", () => {
+  const result = validateOpenCodeReadOnlyCommandAgainstContract({
+    contract: makeContract(),
+    builtCommand: makeBuiltCommand()
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.warnings, []);
+});
+
+test("validateOpenCodeReadOnlyCommandAgainstContract fails when run subcommand support is missing", () => {
+  const result = validateOpenCodeReadOnlyCommandAgainstContract({
+    contract: makeContract({ supportsRunSubcommand: false }),
+    builtCommand: makeBuiltCommand()
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes("run")));
+});
+
+test("validateOpenCodeReadOnlyCommandAgainstContract fails when model flag support is missing", () => {
+  const result = validateOpenCodeReadOnlyCommandAgainstContract({
+    contract: makeContract({ supportsModelFlag: false }),
+    builtCommand: makeBuiltCommand()
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes("--model")));
+});
+
+test("validateOpenCodeReadOnlyCommandAgainstContract fails when cwd flag support is missing", () => {
+  const result = validateOpenCodeReadOnlyCommandAgainstContract({
+    contract: makeContract({ supportsCwdFlag: false }),
+    builtCommand: makeBuiltCommand()
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes("--cwd")));
+});
+
+test("validateOpenCodeReadOnlyCommandAgainstContract fails when output flag support is missing", () => {
+  const result = validateOpenCodeReadOnlyCommandAgainstContract({
+    contract: makeContract({ supportsOutputFlag: false }),
+    builtCommand: makeBuiltCommand()
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes("--output")));
+});
+
+test('validateOpenCodeReadOnlyCommandAgainstContract fails when stdin marker "-" support is missing', () => {
+  const result = validateOpenCodeReadOnlyCommandAgainstContract({
+    contract: makeContract({ supportsStdinPrompt: false }),
+    builtCommand: makeBuiltCommand()
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes("stdin")));
+});
+
+test("validateOpenCodeReadOnlyCommandAgainstContract fails when executable name does not match contract", () => {
+  const result = validateOpenCodeReadOnlyCommandAgainstContract({
+    contract: makeContract({ command: "opencode-stable" }),
+    builtCommand: makeBuiltCommand({ command: "opencode" })
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.includes("mismatch")));
+});
+
+test("buildAndValidateOpenCodeReadOnlyCommand returns both built command and validation", () => {
+  const request: OpenCodeExecutionRequest = {
+    prompt: "review this change",
+    role: "reviewer",
+    model: "anthropic/claude-sonnet-4.5",
+    workspaceRoot: "/tmp/workspace",
+    outputLastMessagePath: "/tmp/out.md",
+    orchestratorRoot: "/tmp/orchestrator",
+    dryRun: true
+  };
+
+  const result = buildAndValidateOpenCodeReadOnlyCommand({
+    request,
+    contract: makeContract()
+  });
+
+  assert.equal(result.command.command, "opencode");
+  assert.equal(result.command.args[0], "run");
+  assert.equal(result.validation.ok, true);
+  assert.deepEqual(result.validation.errors, []);
 });
