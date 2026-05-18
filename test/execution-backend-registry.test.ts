@@ -8,6 +8,7 @@ import {
   type ExecutionBackendDefinitions
 } from "../src/execution-backends/execution-backend-registry.js";
 import { CodexCliBackend } from "../src/execution-backends/codex-cli-backend.js";
+import { OpenCodeCliBackend } from "../src/execution-backends/opencode-cli-backend.js";
 import type { ExecutionBackend } from "../src/execution-backends/execution-backend-types.js";
 
 test("default registry exposes the codex backend", () => {
@@ -104,6 +105,18 @@ test("creates backend registry from validated config", () => {
 
   assert.deepEqual(registry.list(), [{ name: "codex-local", type: "codex-cli" }]);
   assert.ok(registry.get("codex-local") instanceof CodexCliBackend);
+});
+
+test("creates opencode backend registry from validated config", () => {
+  const registry = createExecutionBackendRegistryFromConfig({
+    "opencode-reviewer": {
+      type: "opencode-cli",
+      command: "opencode"
+    }
+  });
+
+  assert.deepEqual(registry.list(), [{ name: "opencode-reviewer", type: "opencode-cli" }]);
+  assert.ok(registry.get("opencode-reviewer") instanceof OpenCodeCliBackend);
 });
 
 test("config-backed registry rejects empty backend names defensively", () => {

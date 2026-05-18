@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { validateConfig, type ExecutionBackendConfig } from "../src/config.js";
 import { createExecutionBackendRegistryFromConfig } from "../src/execution-backends/execution-backend-registry.js";
+import { OpenCodeCliBackend } from "../src/execution-backends/opencode-cli-backend.js";
 import type { ExecutionBackendType } from "../src/execution-backends/execution-backend-types.js";
 
 function makeBaseConfig(): Record<string, unknown> {
@@ -135,17 +136,16 @@ test("config validation rejects API backend types", () => {
   }
 });
 
-test("registry fails clearly if opencode-cli execution is attempted", () => {
-  assert.throws(
-    () =>
-      createExecutionBackendRegistryFromConfig({
-        "opencode-reviewer": {
-          type: "opencode-cli",
-          command: "opencode"
-        }
-      }),
-    /Execution backend type "opencode-cli" is recognised in config but execution is not implemented yet\./
-  );
+test("registry can instantiate opencode-cli skeleton", () => {
+  const registry = createExecutionBackendRegistryFromConfig({
+    "opencode-reviewer": {
+      type: "opencode-cli",
+      command: "opencode"
+    }
+  });
+
+  assert.deepEqual(registry.list(), [{ name: "opencode-reviewer", type: "opencode-cli" }]);
+  assert.ok(registry.get("opencode-reviewer") instanceof OpenCodeCliBackend);
 });
 
 test("codex-cli config still validates unchanged", () => {

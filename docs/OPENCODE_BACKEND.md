@@ -1,8 +1,8 @@
 # OpenCode Backend
 
-Shepherds-Staff recognises `opencode-cli` as an execution backend type in configuration.
+Shepherds-Staff recognises `opencode-cli` as an execution backend type in configuration and can instantiate an `OpenCodeCliBackend` skeleton from the backend registry.
 
-This is a config-only stage. OpenCode execution is not implemented yet.
+OpenCode execution is not implemented yet. Calling `execute()` fails intentionally with a not-implemented error.
 
 ## Current support
 
@@ -10,7 +10,7 @@ Supported executable backend:
 
 - `codex-cli`
 
-Recognised but not executable yet:
+Recognised and instantiable, but not executable yet:
 
 - `opencode-cli`
 
@@ -20,6 +20,25 @@ Not supported:
 - `openrouter-api`
 - `anthropic-api`
 - `openai-api`
+
+## Current capabilities
+
+The OpenCode backend skeleton exposes conservative capabilities:
+
+```json
+{
+  "providesHarness": true,
+  "supportsLocalWorkspace": true,
+  "supportsFileEdits": false,
+  "supportsShellCommands": false,
+  "supportsSandboxMode": false,
+  "supportsStreaming": false,
+  "supportsReasoningEffort": false,
+  "supportsModelSelection": true
+}
+```
+
+Planner, reviewer, builder, and fixer roles are still blocked by capability validation until sandbox and execution semantics are implemented.
 
 ## Example config
 
@@ -51,7 +70,7 @@ Not supported:
 }
 ```
 
-The config validates, but attempting to execute an `opencode-cli` backend fails clearly because the backend implementation has not been added yet.
+The config validates and the registry can instantiate the backend, but execution fails clearly because command execution has not been added yet.
 
 ## Command validation
 
@@ -75,4 +94,4 @@ Rejected:
 
 ## Next implementation stage
 
-The next stage should add an `OpenCodeCliBackend` skeleton with honest capabilities and tests. It should not enable builder or fixer roles until file-edit and shell-command behaviour is explicitly implemented and safety-gated.
+The next stage should define the read-only OpenCode command contract for planner/reviewer style phases without executing it. Do not enable builder or fixer roles until file-edit and shell-command behaviour is explicitly implemented and safety-gated.
