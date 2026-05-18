@@ -97,7 +97,7 @@ test("opencode-cli command rejects empty string", () => {
     command: ""
   };
 
-  assert.throws(() => validateConfig(config), /executionBackends\.opencode-reviewer\.command must be a non-empty executable name/);
+  assert.throws(() => validateConfig(config), /executionBackends\.opencode-reviewer\.command must be a non-empty string/);
 });
 
 test("opencode-cli command rejects spaces", () => {
