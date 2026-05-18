@@ -87,5 +87,7 @@ function createExecutionBackend(definition: ExecutionBackendDefinition): Executi
   switch (definition.type) {
     case "codex-cli":
       return new CodexCliBackend();
+    case "opencode-cli":
+      throw new Error('Execution backend type "opencode-cli" is recognised in config but execution is not implemented yet.');
   }
 }

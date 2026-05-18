@@ -13,9 +13,16 @@ export interface CodexRoleConfig {
   reasoningEffort: string;
 }
 
-export interface ExecutionBackendConfig {
-  type: ExecutionBackendType;
+export interface CodexCliBackendConfig {
+  type: "codex-cli";
 }
+
+export interface OpenCodeCliBackendConfig {
+  type: "opencode-cli";
+  command?: string;
+}
+
+export type ExecutionBackendConfig = CodexCliBackendConfig | OpenCodeCliBackendConfig;
 
 export type ExecutionBackendConfigMap = Record<string, ExecutionBackendConfig>;
 
@@ -279,7 +286,7 @@ function parseExecutionBackends(value: unknown, codexRaw: Record<string, unknown
     }
     const backend = assertObject(definition, `executionBackends.${name}`);
     const type = assertExecutionBackendType(backend.type, `executionBackends.${name}.type`);
-    parsed[name] = { type };
+    parsed[name] = parseExecutionBackendDefinition(type, backend, `executionBackends.${name}`);
   }
   return parsed;
 }
@@ -342,10 +349,34 @@ function codexFromAgents(agents: AgentConfigMap): OrchestratorConfig["codex"] {
 
 function assertExecutionBackendType(value: unknown, field: string): ExecutionBackendType {
   const type = assertString(value, field);
-  if (type !== "codex-cli") {
-    throw new Error(`Invalid config: ${field} must be "codex-cli"`);
+  if (type !== "codex-cli" && type !== "opencode-cli") {
+    throw new Error(`Invalid config: ${field} must be "codex-cli" or "opencode-cli"`);
   }
   return type;
+}
+
+function parseExecutionBackendDefinition(
+  type: ExecutionBackendType,
+  raw: Record<string, unknown>,
+  field: string
+): ExecutionBackendConfig {
+  switch (type) {
+    case "codex-cli":
+      return { type };
+    case "opencode-cli": {
+      if (raw.command == null) {
+        return { type };
+      }
+      const command = assertString(raw.command, `${field}.command`);
+      if (!command.trim()) {
+        throw new Error(`Invalid config: ${field}.command must be a non-empty executable name`);
+      }
+      if (command.includes(" ")) {
+        throw new Error(`Invalid config: ${field}.command must be an executable name only`);
+      }
+      return { type, command };
+    }
+  }
 }
 
 function assertOptionalBooleanWithDefault(value: unknown, field: string, defaultValue: boolean): boolean {

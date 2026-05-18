@@ -8,7 +8,7 @@ export type AgentRole =
 
 export type SandboxMode = "read-only" | "workspace-write";
 
-export type ExecutionBackendType = "codex-cli";
+export type ExecutionBackendType = "codex-cli" | "opencode-cli";
 
 export interface AgentExecutionRequest {
   prompt: string;
