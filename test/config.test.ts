@@ -107,17 +107,17 @@ test("new execution backend config rejects unsupported backend type", () => {
   const config = makeBaseConfig();
   delete (config as { codex?: unknown }).codex;
   (config as { executionBackends?: unknown }).executionBackends = {
-    opencode: {
-      type: "opencode-cli"
+    claude: {
+      type: "claude-code-cli"
     }
   };
   (config as { agents?: unknown }).agents = {
-    planner: { backend: "opencode", model: "x", reasoningEffort: "high" },
-    builder: { backend: "opencode", model: "x", reasoningEffort: "medium" },
-    reviewer: { backend: "opencode", model: "x", reasoningEffort: "high" }
+    planner: { backend: "claude", model: "x", reasoningEffort: "high" },
+    builder: { backend: "claude", model: "x", reasoningEffort: "medium" },
+    reviewer: { backend: "claude", model: "x", reasoningEffort: "high" }
   };
 
-  assert.throws(() => validateConfig(config), /executionBackends\.opencode\.type must be "codex-cli"/);
+  assert.throws(() => validateConfig(config), /executionBackends\.claude\.type must be "codex-cli" or "opencode-cli"/);
 });
 
 test("new config requires executionBackends when codex is absent", () => {
