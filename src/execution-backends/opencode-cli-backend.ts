@@ -100,11 +100,45 @@ function isNonEmpty(value: string | undefined): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function toOpenCodeExecutionRequest(request: AgentExecutionRequest): OpenCodeExecutionRequest {
+  return {
+    prompt: request.prompt,
+    role: request.role,
+    model: request.model,
+    workspaceRoot: request.workspaceRoot,
+    outputLastMessagePath: request.outputLastMessagePath,
+    orchestratorRoot: request.orchestratorRoot,
+    dryRun: request.dryRun
+  };
+}
+
 export class OpenCodeCliBackend implements ExecutionBackend {
   readonly type = "opencode-cli" as const;
   readonly capabilities = OPENCODE_CLI_BACKEND_CAPABILITIES;
 
-  async execute(_request: AgentExecutionRequest, _options: AgentExecutionOptions = {}): Promise<AgentExecutionResult> {
-    throw new Error('Execution backend type "opencode-cli" is recognised but execution is not implemented yet.');
+  async execute(request: AgentExecutionRequest, _options: AgentExecutionOptions = {}): Promise<AgentExecutionResult> {
+    if (!request.dryRun) {
+      throw new Error('Execution backend type "opencode-cli" is recognised but execution is not implemented yet.');
+    }
+
+    const built = buildOpenCodeReadOnlyCommand(toOpenCodeExecutionRequest(request));
+
+    return {
+      backendName: request.backendName,
+      backendType: request.backendType,
+      model: request.model,
+      command: built.command,
+      args: built.args,
+      cwd: built.cwd,
+      stdout: "",
+      stderr: "OpenCode execution skipped because dryRun=true.",
+      exitCode: 0,
+      signal: null,
+      durationMs: 0,
+      success: true,
+      outputLastMessagePath: request.outputLastMessagePath,
+      outputLastMessage: "",
+      skipped: true
+    };
   }
 }
