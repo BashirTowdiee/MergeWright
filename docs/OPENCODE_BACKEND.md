@@ -97,6 +97,25 @@ opencode run \
 
 The prompt is represented as stdin in the command contract. This shape is deliberately provisional and must be verified before any real execution stage is enabled.
 
+## Stage 7 command validation
+
+Stage 7 adds a contract-aware validation layer for the provisional read-only command builder.
+
+`buildOpenCodeReadOnlyCommand()` remains provisional, and `validateOpenCodeReadOnlyCommandAgainstContract()` compares the built command with a verified `OpenCodeCliContract`.
+
+Validation is fail-closed:
+
+- command executable must match the verified contract command
+- args must start with `run`
+- `run` subcommand support must be confirmed
+- `--model`, `--cwd`, `--output`, and stdin `-` must each be explicitly confirmed when present
+
+This stage still does not execute OpenCode prompts or spawn a real OpenCode process.
+Real execution remains disabled, and `OpenCodeCliBackend.execute()` still throws for non-dry-run.
+
+Contract mismatch is intended to block future execution stages until the command contract is reconciled in the target environment.
+Dry-run routing remains the only runner integration.
+
 ## Example config
 
 ```json
@@ -151,4 +170,4 @@ Rejected:
 
 ## Next implementation stage
 
-The next stage should reconcile the provisional command builder with the verified CLI contract. Do not spawn OpenCode for agent execution until the contract is verified and an explicit real-execution stage is approved.
+The next stage should decide how validated contracts are consumed by execution wiring while keeping execution safety constraints explicit. Do not spawn OpenCode for agent execution until an explicit real-execution stage is approved.

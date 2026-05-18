@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { buildOpenCodeReadOnlyCommand, type OpenCodeBuiltCommand, type OpenCodeExecutionRequest } from "./opencode-cli-backend.js";
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_TIMEOUT_MS = 5_000;
@@ -29,6 +30,12 @@ export interface ProbeOpenCodeCliContractOptions {
   command?: string;
   timeoutMs?: number;
   env?: NodeJS.ProcessEnv;
+}
+
+export interface OpenCodeReadOnlyCommandContractValidationResult {
+  ok: boolean;
+  errors: string[];
+  warnings: string[];
 }
 
 interface ProbeCommandResult {
@@ -118,6 +125,62 @@ export function validateOpenCodeProbeCommand(command: string): string {
     throw new Error("Invalid OpenCode CLI command: command must be an executable name only.");
   }
   return command;
+}
+
+export function validateOpenCodeReadOnlyCommandAgainstContract(input: {
+  contract: OpenCodeCliContract;
+  builtCommand: OpenCodeBuiltCommand;
+}): OpenCodeReadOnlyCommandContractValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const { contract, builtCommand } = input;
+
+  if (builtCommand.command !== contract.command) {
+    errors.push(
+      `OpenCode command mismatch: built command "${builtCommand.command}" does not match verified contract command "${contract.command}".`
+    );
+  }
+
+  if (builtCommand.args[0] !== "run") {
+    errors.push('OpenCode command args must start with "run" for read-only execution.');
+  }
+
+  if (!contract.supportsRunSubcommand) {
+    errors.push('Verified OpenCode contract does not confirm support for the "run" subcommand.');
+  }
+  if (builtCommand.args.includes("--model") && !contract.supportsModelFlag) {
+    errors.push('Verified OpenCode contract does not confirm support for "--model".');
+  }
+  if (builtCommand.args.includes("--cwd") && !contract.supportsCwdFlag) {
+    errors.push('Verified OpenCode contract does not confirm support for "--cwd".');
+  }
+  if (builtCommand.args.includes("--output") && !contract.supportsOutputFlag) {
+    errors.push('Verified OpenCode contract does not confirm support for "--output".');
+  }
+  if (builtCommand.args.includes("-") && !contract.supportsStdinPrompt) {
+    errors.push('Verified OpenCode contract does not confirm support for stdin prompt marker "-".');
+  }
+
+  return {
+    ok: errors.length === 0,
+    errors,
+    warnings
+  };
+}
+
+export function buildAndValidateOpenCodeReadOnlyCommand(input: {
+  request: OpenCodeExecutionRequest;
+  contract: OpenCodeCliContract;
+}): {
+  command: OpenCodeBuiltCommand;
+  validation: OpenCodeReadOnlyCommandContractValidationResult;
+} {
+  const command = buildOpenCodeReadOnlyCommand(input.request);
+  const validation = validateOpenCodeReadOnlyCommandAgainstContract({
+    contract: input.contract,
+    builtCommand: command
+  });
+  return { command, validation };
 }
 
 async function runProbeCommand(
