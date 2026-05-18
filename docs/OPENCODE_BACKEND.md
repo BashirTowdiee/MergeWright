@@ -31,11 +31,11 @@ The OpenCode backend skeleton exposes conservative capabilities:
 }
 ```
 
-Planner, reviewer, builder, and fixer roles are still blocked by capability validation until sandbox and execution semantics are implemented.
+Real execution remains blocked by capability validation until sandbox and execution semantics are implemented.
 
-## Dry-run result construction
+## Dry-run routing
 
-`OpenCodeCliBackend.execute()` can return a deterministic `AgentExecutionResult` when `request.dryRun` is `true` and the role is read-only.
+The backend adapter can route OpenCode dry-run requests for read-only roles. This is for command/artefact/routing validation only and does not spawn OpenCode.
 
 Allowed dry-run roles:
 
@@ -48,6 +48,12 @@ Rejected dry-run roles:
 
 - `builder`
 - `fixer`
+
+Dry-run read-only validation requires only local workspace and model selection capabilities. Write roles keep the full write-role requirements even in dry-run.
+
+## Dry-run result construction
+
+`OpenCodeCliBackend.execute()` returns a deterministic `AgentExecutionResult` when `request.dryRun` is `true` and the role is read-only.
 
 Dry-run results include command metadata, args, cwd, backend name/type, model, `success: true`, `skipped: true`, and no output text.
 
@@ -121,4 +127,4 @@ Rejected:
 
 ## Next implementation stage
 
-The next stage should add capability-gated dry-run routing integration. Do not spawn OpenCode or enable real execution until the command contract is verified.
+The next stage should verify the real OpenCode CLI command contract against the installed CLI help/output. Do not spawn OpenCode for agent execution until the contract is verified.
