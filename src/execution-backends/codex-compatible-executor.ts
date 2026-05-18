@@ -1,5 +1,6 @@
 import type { OrchestratorConfig } from "../config.js";
 import type { CodexExecutionResult, CodexExecutor } from "../codex.js";
+import { validateBackendCapabilitiesForRoleExecution } from "./execution-backend-capabilities.js";
 import { createExecutionBackendRegistryFromConfig, type ExecutionBackendRegistry } from "./execution-backend-registry.js";
 import type { AgentExecutionResult, AgentRole } from "./execution-backend-types.js";
 
@@ -29,6 +30,13 @@ export function createCodexCompatibleExecutor(
     }
 
     const backend = registry.get(agentConfig.backend);
+    validateBackendCapabilitiesForRoleExecution({
+      backendName: agentConfig.backend,
+      backend,
+      role: request.role satisfies AgentRole,
+      dryRun: request.dryRun
+    });
+
     const result = await backend.execute(
       {
         prompt: request.prompt,
