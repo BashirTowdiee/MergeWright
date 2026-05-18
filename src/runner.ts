@@ -420,15 +420,69 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
       );
     }
   } else if (options.dryRun) {
-    await setPhaseSkipped("planner", "planner execution skipped because dryRun=true");
+    const plannerBackendName = config.agents.planner.backend;
+    const plannerBackendType = config.executionBackends[plannerBackendName]?.type;
+    const shouldRouteDryRunPlanner = plannerBackendType !== "codex-cli";
+    let plannerDryRunExecution: Awaited<ReturnType<typeof executor>> | undefined;
+    if (shouldRouteDryRunPlanner) {
+      const outputLastMessagePath = path.resolve(runDir, "06-planner-output-last-message.md");
+      plannerDryRunExecution = await executor({
+        prompt: renderedPlanner,
+        role: "planner",
+        model: config.codex.planner.model,
+        reasoningEffort: config.codex.planner.reasoningEffort,
+        workspaceRoot: targetWorkspaceRoot,
+        outputLastMessagePath,
+        dryRun: true,
+        requireGitRepo: config.safety.requireGitRepo,
+        orchestratorRoot,
+        sandboxMode: "read-only"
+      });
+      artefacts["03-planner-command.args.json"] = serialiseBackendCommandArtefact({
+        command: plannerDryRunExecution.command,
+        args: plannerDryRunExecution.args,
+        cwd: plannerDryRunExecution.cwd,
+        outputLastMessagePath: plannerDryRunExecution.outputLastMessagePath,
+        promptViaStdin: true,
+        sandboxMode: "read-only",
+        backend: plannerDryRunExecution.backend
+      });
+      artefacts["04-planner-stdout.log"] = plannerDryRunExecution.stdout;
+      artefacts["05-planner-stderr.log"] = plannerDryRunExecution.stderr;
+      artefacts["06-planner-output-last-message.md"] = plannerDryRunExecution.outputLastMessage;
+      artefacts["07-planner-exit.json"] = JSON.stringify(
+        {
+          success: plannerDryRunExecution.success,
+          code: plannerDryRunExecution.exitCode,
+          signal: plannerDryRunExecution.signal,
+          durationMs: plannerDryRunExecution.durationMs,
+          skipped: plannerDryRunExecution.skipped
+        },
+        null,
+        2
+      );
+    } else {
+      artefacts["03-planner-command.args.json"] = JSON.stringify({ skipped: true, reason: "dryRun=true" }, null, 2);
+      artefacts["04-planner-stdout.log"] = "";
+      artefacts["05-planner-stderr.log"] = "Planner execution skipped because dryRun=true.";
+      artefacts["06-planner-output-last-message.md"] = "";
+      artefacts["07-planner-exit.json"] = JSON.stringify(
+        { skipped: true, success: true, code: 0, signal: null, durationMs: 0 },
+        null,
+        2
+      );
+    }
+    await updatePhaseAndPersist("planner", {
+      status: "skipped",
+      reason: "planner execution skipped because dryRun=true",
+      startedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      ...(plannerDryRunExecution?.backend ? { backend: plannerDryRunExecution.backend } : {})
+    });
     progressLogger.phaseSkipped("planner", "skipped by dry-run");
     if (executeBuilder) {
       await setPhaseSkipped("builder", "builder execution skipped because dryRun=true");
       progressLogger.phaseSkipped("builder", "skipped by dry-run");
-    }
-    if (executeReviewer) {
-      await setPhaseSkipped("reviewer", "reviewer execution skipped because dryRun=true");
-      progressLogger.phaseSkipped("reviewer", "skipped by dry-run");
     }
     if (planFix) {
       await setPhaseSkipped("fixPlanning", "review-to-fix execution skipped because dryRun=true");
@@ -438,24 +492,69 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
       await setPhaseSkipped("fixExecution", "fix execution skipped because dryRun=true");
       progressLogger.phaseSkipped("fix", "skipped by dry-run");
     }
-    artefacts["03-planner-command.args.json"] = JSON.stringify({ skipped: true, reason: "dryRun=true" }, null, 2);
-    artefacts["04-planner-stdout.log"] = "";
-    artefacts["05-planner-stderr.log"] = "Planner execution skipped because dryRun=true.";
-    artefacts["06-planner-output-last-message.md"] = "";
-    artefacts["07-planner-exit.json"] = JSON.stringify(
-      { skipped: true, success: true, code: 0, signal: null, durationMs: 0 },
-      null,
-      2
-    );
     artefacts["builder-output.placeholder.md"] = "# Placeholder\n\nBuilder execution skipped because dryRun=true.";
     artefacts["test-output.placeholder.md"] = "# Placeholder\n\nTest execution remains disabled in current stage.";
     artefacts["diff.placeholder.patch"] = "# Placeholder\n# Git diff generation remains disabled in current stage.";
     artefacts["reviewer-output.placeholder.md"] = reviewerSkipDryRun;
-    artefacts["reviewer-skipped.json"] = JSON.stringify(
-      { skipped: true, reason: "Reviewer execution skipped because dryRun=true." },
-      null,
-      2
-    );
+    if (executeReviewer) {
+      const reviewerBackendName = config.agents.reviewer.backend;
+      const reviewerBackendType = config.executionBackends[reviewerBackendName]?.type;
+      const shouldRouteDryRunReviewer = reviewerBackendType !== "codex-cli";
+      if (shouldRouteDryRunReviewer) {
+        const reviewerPrompt = artefacts["08-reviewer-prompt.preview.md"];
+        const reviewerOutputLastMessagePath = path.resolve(runDir, "reviewer-output-last-message.md");
+        const reviewerDryRunExecution = await executor({
+          prompt: reviewerPrompt,
+          role: "reviewer",
+          model: config.codex.reviewer.model,
+          reasoningEffort: config.codex.reviewer.reasoningEffort,
+          workspaceRoot: targetWorkspaceRoot,
+          outputLastMessagePath: reviewerOutputLastMessagePath,
+          dryRun: true,
+          requireGitRepo: config.safety.requireGitRepo,
+          orchestratorRoot,
+          sandboxMode: "read-only"
+        });
+        artefacts["reviewer-command.json"] = serialiseBackendCommandArtefact({
+          command: reviewerDryRunExecution.command,
+          args: reviewerDryRunExecution.args,
+          cwd: reviewerDryRunExecution.cwd,
+          outputLastMessagePath: reviewerDryRunExecution.outputLastMessagePath,
+          promptViaStdin: true,
+          sandboxMode: "read-only",
+          backend: reviewerDryRunExecution.backend
+        });
+        artefacts["reviewer-stdout.log"] = reviewerDryRunExecution.stdout;
+        artefacts["reviewer-stderr.log"] = reviewerDryRunExecution.stderr;
+        artefacts["reviewer-output-last-message.md"] = reviewerDryRunExecution.outputLastMessage;
+        artefacts["reviewer-exit.json"] = JSON.stringify(
+          {
+            success: reviewerDryRunExecution.success,
+            code: reviewerDryRunExecution.exitCode,
+            signal: reviewerDryRunExecution.signal,
+            durationMs: reviewerDryRunExecution.durationMs,
+            skipped: reviewerDryRunExecution.skipped
+          },
+          null,
+          2
+        );
+        await updatePhaseAndPersist("reviewer", {
+          status: "skipped",
+          reason: "reviewer execution skipped because dryRun=true",
+          startedAt: new Date().toISOString(),
+          completedAt: new Date().toISOString(),
+          backend: reviewerDryRunExecution.backend
+        });
+      } else {
+        await setPhaseSkipped("reviewer", "reviewer execution skipped because dryRun=true");
+        artefacts["reviewer-skipped.json"] = JSON.stringify(
+          { skipped: true, reason: "Reviewer execution skipped because dryRun=true." },
+          null,
+          2
+        );
+      }
+      progressLogger.phaseSkipped("reviewer", "skipped by dry-run");
+    }
     artefacts["09-review-to-fix-prompt.preview.md"] = renderReviewToFixPrompt();
     if (planFix) {
       artefacts["review-to-fix-skipped.json"] = JSON.stringify(

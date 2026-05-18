@@ -728,6 +728,247 @@ test("run dry-run with --stream-codex does not execute codex", async () => {
   assert.equal(called, 0);
 });
 
+test("openCode planner dry-run routes via backend executor and writes backend command artefact", async () => {
+  const { orchestratorRoot, configPath, workspaceRoot } = await makeFixture();
+  await writeFile(
+    configPath,
+    JSON.stringify(
+      {
+        version: 1,
+        projectName: "acme",
+        workspaceRoot,
+        paths: {
+          stagesDir: "stages/acme",
+          promptsDir: "prompts",
+          runsDir: "runs/acme"
+        },
+        executionBackends: {
+          opencode: { type: "opencode-cli" },
+          codex: { type: "codex-cli" }
+        },
+        agents: {
+          planner: { backend: "opencode", model: "open-planner-model", reasoningEffort: "high" },
+          builder: { backend: "codex", model: "builder-model", reasoningEffort: "medium" },
+          reviewer: { backend: "codex", model: "reviewer-model", reasoningEffort: "high" }
+        },
+        pipeline: { finalReview: true, maxFixLoops: 1 },
+        commands: { checks: [] },
+        safety: {
+          requireGitRepo: true,
+          requireCleanStart: true,
+          manualCommit: true,
+          forbidAutoCommit: true,
+          forbidAutoPush: true
+        }
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+
+  const result = await runStage({
+    stageName: "example-stage",
+    configArg: path.relative(orchestratorRoot, configPath),
+    dryRun: true,
+    executePlanner: true,
+    executeBuilder: false,
+    verbose: false,
+    orchestratorRoot
+  });
+
+  const plannerCommand = JSON.parse(await readFile(path.join(result.runDir, "03-planner-command.args.json"), "utf8")) as {
+    command: string;
+    args: string[];
+    backend?: { backendName: string; backendType: string; agentRole: string; model: string };
+  };
+  assert.equal(plannerCommand.command, "opencode");
+  assert.ok(plannerCommand.args.includes("run"));
+  assert.ok(plannerCommand.args.includes("--model"));
+  assert.ok(plannerCommand.args.includes("open-planner-model"));
+  assert.ok(plannerCommand.args.includes("--cwd"));
+  assert.ok(plannerCommand.args.includes(workspaceRoot));
+  assert.ok(plannerCommand.args.includes("--output"));
+  assert.ok(plannerCommand.args.includes(path.join(result.runDir, "06-planner-output-last-message.md")));
+  assert.ok(plannerCommand.args.includes("-"));
+  assert.deepEqual(plannerCommand.backend, {
+    backendName: "opencode",
+    backendType: "opencode-cli",
+    agentRole: "planner",
+    model: "open-planner-model",
+    reasoningEffort: "high"
+  });
+});
+
+test("openCode planner dry-run stores planner backend metadata in run.json", async () => {
+  const { orchestratorRoot, configPath, workspaceRoot } = await makeFixture();
+  await writeFile(
+    configPath,
+    JSON.stringify(
+      {
+        version: 1,
+        projectName: "acme",
+        workspaceRoot,
+        paths: {
+          stagesDir: "stages/acme",
+          promptsDir: "prompts",
+          runsDir: "runs/acme"
+        },
+        executionBackends: {
+          opencode: { type: "opencode-cli" },
+          codex: { type: "codex-cli" }
+        },
+        agents: {
+          planner: { backend: "opencode", model: "open-planner-model", reasoningEffort: "high" },
+          builder: { backend: "codex", model: "builder-model", reasoningEffort: "medium" },
+          reviewer: { backend: "codex", model: "reviewer-model", reasoningEffort: "high" }
+        },
+        pipeline: { finalReview: true, maxFixLoops: 1 },
+        commands: { checks: [] },
+        safety: {
+          requireGitRepo: true,
+          requireCleanStart: true,
+          manualCommit: true,
+          forbidAutoCommit: true,
+          forbidAutoPush: true
+        }
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+
+  const result = await runStage({
+    stageName: "example-stage",
+    configArg: path.relative(orchestratorRoot, configPath),
+    dryRun: true,
+    executePlanner: true,
+    executeBuilder: false,
+    verbose: false,
+    orchestratorRoot
+  });
+
+  const metadata = JSON.parse(await readFile(path.join(result.runDir, "run.json"), "utf8")) as {
+    phases: { planner: { status: string; backend?: { backendType: string } } };
+  };
+  assert.equal(metadata.phases.planner.status, "skipped");
+  assert.equal(metadata.phases.planner.backend?.backendType, "opencode-cli");
+});
+
+test("openCode reviewer dry-run routes via backend executor and writes reviewer command artefact", async () => {
+  const { orchestratorRoot, configPath, workspaceRoot } = await makeFixture();
+  await writeFile(
+    configPath,
+    JSON.stringify(
+      {
+        version: 1,
+        projectName: "acme",
+        workspaceRoot,
+        paths: {
+          stagesDir: "stages/acme",
+          promptsDir: "prompts",
+          runsDir: "runs/acme"
+        },
+        executionBackends: {
+          opencode: { type: "opencode-cli" }
+        },
+        agents: {
+          planner: { backend: "opencode", model: "open-planner-model", reasoningEffort: "high" },
+          builder: { backend: "opencode", model: "open-builder-model", reasoningEffort: "medium" },
+          reviewer: { backend: "opencode", model: "open-reviewer-model", reasoningEffort: "high" }
+        },
+        pipeline: { finalReview: true, maxFixLoops: 1 },
+        commands: { checks: [] },
+        safety: {
+          requireGitRepo: true,
+          requireCleanStart: true,
+          manualCommit: true,
+          forbidAutoCommit: true,
+          forbidAutoPush: true
+        }
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+
+  const result = await runStage({
+    stageName: "example-stage",
+    configArg: path.relative(orchestratorRoot, configPath),
+    dryRun: true,
+    executePlanner: true,
+    executeReviewer: true,
+    verbose: false,
+    orchestratorRoot
+  });
+
+  const reviewerCommand = JSON.parse(await readFile(path.join(result.runDir, "reviewer-command.json"), "utf8")) as {
+    command: string;
+    backend?: { backendName: string; backendType: string; agentRole: string; model: string };
+  };
+  assert.equal(reviewerCommand.command, "opencode");
+  assert.deepEqual(reviewerCommand.backend, {
+    backendName: "opencode",
+    backendType: "opencode-cli",
+    agentRole: "reviewer",
+    model: "open-reviewer-model",
+    reasoningEffort: "high"
+  });
+});
+
+test("openCode builder dry-run is not routed and remains synthetic skipped", async () => {
+  const { orchestratorRoot, configPath, workspaceRoot } = await makeFixture();
+  await writeFile(
+    configPath,
+    JSON.stringify(
+      {
+        version: 1,
+        projectName: "acme",
+        workspaceRoot,
+        paths: {
+          stagesDir: "stages/acme",
+          promptsDir: "prompts",
+          runsDir: "runs/acme"
+        },
+        executionBackends: {
+          opencode: { type: "opencode-cli" }
+        },
+        agents: {
+          planner: { backend: "opencode", model: "open-planner-model", reasoningEffort: "high" },
+          builder: { backend: "opencode", model: "open-builder-model", reasoningEffort: "medium" },
+          reviewer: { backend: "opencode", model: "open-reviewer-model", reasoningEffort: "high" }
+        },
+        pipeline: { finalReview: true, maxFixLoops: 1 },
+        commands: { checks: [] },
+        safety: {
+          requireGitRepo: true,
+          requireCleanStart: true,
+          manualCommit: true,
+          forbidAutoCommit: true,
+          forbidAutoPush: true
+        }
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+
+  const result = await runStage({
+    stageName: "example-stage",
+    configArg: path.relative(orchestratorRoot, configPath),
+    dryRun: true,
+    executePlanner: true,
+    executeBuilder: true,
+    verbose: false,
+    orchestratorRoot
+  });
+  const builderPlaceholder = await readFile(path.join(result.runDir, "builder-output.placeholder.md"), "utf8");
+  assert.match(builderPlaceholder, /skipped because dryRun=true/);
+});
+
 test("executePlanner + executeBuilder + executeReviewer + dry-run skips all executions and writes reviewer skipped artefact", async () => {
   const { orchestratorRoot, configPath, workspaceRoot } = await makeFixture();
   const sentinel = path.join(workspaceRoot, "unchanged.txt");
