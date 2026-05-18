@@ -9,7 +9,7 @@ An execution backend is the runtime adapter that executes an agent request (plan
 Current executable backend support is intentionally Codex-only.
 
 - Executable backend type: `"codex-cli"`
-- Recognised in config, but execution is not implemented yet: `"opencode-cli"`
+- Recognised and instantiable, but execution is not implemented yet: `"opencode-cli"`
 - Unsupported in current scope: Claude Code, OpenRouter, Anthropic API, OpenAI API
 
 ## Execution backend vs model provider
@@ -92,7 +92,7 @@ OpenCode config is recognised but not executable yet:
 }
 ```
 
-Attempting to execute an `opencode-cli` backend currently fails with a not-implemented error.
+The registry can instantiate an `opencode-cli` backend skeleton. Calling its `execute()` method currently fails with a not-implemented error.
 
 When legacy `codex` is used, config normalisation still builds Codex-only backend/agent mappings internally.
 
