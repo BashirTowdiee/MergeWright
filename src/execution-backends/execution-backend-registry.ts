@@ -1,5 +1,6 @@
 import type { ExecutionBackendConfigMap } from "../config.js";
 import { CodexCliBackend } from "./codex-cli-backend.js";
+import { OpenCodeCliBackend } from "./opencode-cli-backend.js";
 import type { ExecutionBackend, ExecutionBackendType } from "./execution-backend-types.js";
 
 export interface ExecutionBackendRegistry {
@@ -88,6 +89,6 @@ function createExecutionBackend(definition: ExecutionBackendDefinition): Executi
     case "codex-cli":
       return new CodexCliBackend();
     case "opencode-cli":
-      throw new Error('Execution backend type "opencode-cli" is recognised in config but execution is not implemented yet.');
+      return new OpenCodeCliBackend();
   }
 }
