@@ -9,7 +9,7 @@ An execution backend is the runtime adapter that executes an agent request (plan
 Current executable backend support is intentionally Codex-only.
 
 - Executable backend type: `"codex-cli"`
-- Recognised and instantiable, but execution is not implemented yet: `"opencode-cli"`
+- Recognised and instantiable, with dry-run routing for read-only artefact validation only: `"opencode-cli"`
 - Unsupported in current scope: Claude Code, OpenRouter, Anthropic API, OpenAI API
 
 ## Execution backend vs model selection
@@ -62,7 +62,7 @@ Codex backend config:
 }
 ```
 
-OpenCode config is recognised but not executable yet:
+OpenCode config is recognised but real execution is not enabled:
 
 ```json
 {
@@ -92,7 +92,14 @@ OpenCode config is recognised but not executable yet:
 }
 ```
 
-The registry can instantiate an `opencode-cli` backend skeleton. Calling its `execute()` method currently fails with a not-implemented error.
+The registry can instantiate an `opencode-cli` backend skeleton. Real execution remains disabled. Dry-run routing is supported only for read-only roles so command artefacts and run metadata can validate backend routing without spawning OpenCode.
+
+OpenCode dry-run scope:
+
+- Supported for read-only routing validation: `planner`, `reviewer`, `fix-planner`, `reassessor`
+- Unsupported for write roles: `builder`, `fixer`
+- Real execution is still blocked
+- This support is for artefact and routing validation only
 
 When legacy `codex` is used, config normalisation still builds Codex-only backend/agent mappings internally.
 
@@ -107,7 +114,7 @@ When legacy `codex` is used, config normalisation still builds Codex-only backen
 
 Backend metadata may appear in:
 
-- Command artefacts (for executed phases), for example:
+- Command artefacts (for executed or dry-run routed phases), for example:
   - `03-planner-command.args.json`
   - `builder-command.json`
   - `reviewer-command.json`
