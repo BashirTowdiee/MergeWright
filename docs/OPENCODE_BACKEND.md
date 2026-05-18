@@ -40,6 +40,34 @@ The OpenCode backend skeleton exposes conservative capabilities:
 
 Planner, reviewer, builder, and fixer roles are still blocked by capability validation until sandbox and execution semantics are implemented.
 
+## Provisional read-only command contract
+
+Stage 3 defines a tested command builder only. It does not execute OpenCode.
+
+Allowed command-construction roles:
+
+- `planner`
+- `reviewer`
+- `fix-planner`
+- `reassessor`
+
+Rejected command-construction roles:
+
+- `builder`
+- `fixer`
+
+Provisional command shape:
+
+```bash
+opencode run \
+  --model <model> \
+  --cwd <workspaceRoot> \
+  --output <outputLastMessagePath> \
+  -
+```
+
+The prompt is represented as stdin in the command contract. This shape is deliberately provisional and must be verified before any execution stage is enabled.
+
 ## Example config
 
 ```json
@@ -94,4 +122,4 @@ Rejected:
 
 ## Next implementation stage
 
-The next stage should define the read-only OpenCode command contract for planner/reviewer style phases without executing it. Do not enable builder or fixer roles until file-edit and shell-command behaviour is explicitly implemented and safety-gated.
+The next stage should add dry-run-only OpenCode execution results. Do not spawn OpenCode or enable real execution until the command contract is verified.
