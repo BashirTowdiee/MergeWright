@@ -37,6 +37,14 @@ function makeBaseConfig(): Record<string, unknown> {
   };
 }
 
+function executionBackends(config: Record<string, unknown>): Record<string, unknown> {
+  return config.executionBackends as Record<string, unknown>;
+}
+
+function agents(config: Record<string, unknown>): Record<string, unknown> {
+  return config.agents as Record<string, unknown>;
+}
+
 test("ExecutionBackendType accepts opencode-cli", () => {
   const type: ExecutionBackendType = "opencode-cli";
   assert.equal(type, "opencode-cli");
@@ -69,7 +77,7 @@ test("config validation accepts opencode-cli backend references", () => {
 
 test("opencode-cli command is optional", () => {
   const config = makeBaseConfig();
-  (config.executionBackends as Record<string, unknown>)["opencode-reviewer"] = {
+  executionBackends(config)["opencode-reviewer"] = {
     type: "opencode-cli"
   };
 
@@ -84,7 +92,7 @@ test("opencode-cli command is optional", () => {
 
 test("opencode-cli command rejects empty string", () => {
   const config = makeBaseConfig();
-  (config.executionBackends as Record<string, unknown>)["opencode-reviewer"] = {
+  executionBackends(config)["opencode-reviewer"] = {
     type: "opencode-cli",
     command: ""
   };
@@ -94,7 +102,7 @@ test("opencode-cli command rejects empty string", () => {
 
 test("opencode-cli command rejects spaces", () => {
   const config = makeBaseConfig();
-  (config.executionBackends as Record<string, unknown>)["opencode-reviewer"] = {
+  executionBackends(config)["opencode-reviewer"] = {
     type: "opencode-cli",
     command: "npx opencode"
   };
@@ -104,10 +112,10 @@ test("opencode-cli command rejects spaces", () => {
 
 test("config validation rejects claude-code-cli", () => {
   const config = makeBaseConfig();
-  (config.executionBackends as Record<string, unknown>)["claude-reviewer"] = {
+  executionBackends(config)["claude-reviewer"] = {
     type: "claude-code-cli"
   };
-  (config.agents as Record<string, unknown>).planner = {
+  agents(config).planner = {
     backend: "claude-reviewer",
     model: "claude-sonnet",
     reasoningEffort: "high"
@@ -119,7 +127,7 @@ test("config validation rejects claude-code-cli", () => {
 test("config validation rejects API backend types", () => {
   for (const backendType of ["openrouter-api", "anthropic-api", "openai-api"]) {
     const config = makeBaseConfig();
-    (config.executionBackends as Record<string, unknown>)["api-backend"] = {
+    executionBackends(config)["api-backend"] = {
       type: backendType
     };
 
@@ -142,12 +150,12 @@ test("registry fails clearly if opencode-cli execution is attempted", () => {
 
 test("codex-cli config still validates unchanged", () => {
   const config = makeBaseConfig();
-  (config.executionBackends as Record<string, unknown>) = {
+  config.executionBackends = {
     codex: {
       type: "codex-cli"
     }
   };
-  (config.agents as Record<string, unknown>) = {
+  config.agents = {
     planner: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" },
     builder: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "medium" },
     reviewer: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" }
