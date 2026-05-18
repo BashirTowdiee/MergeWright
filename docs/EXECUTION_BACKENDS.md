@@ -6,17 +6,18 @@ This document describes how Shepherds-Staff selects and records agent execution 
 
 An execution backend is the runtime adapter that executes an agent request (planner, builder, reviewer) and returns process results plus optional backend metadata.
 
-Current backend support is intentionally Codex-only.
+Current executable backend support is intentionally Codex-only.
 
-- Supported backend type: `"codex-cli"`
-- Unsupported in current scope: OpenCode, Claude Code, OpenRouter, Anthropic API, OpenAI API
+- Executable backend type: `"codex-cli"`
+- Recognised in config, but execution is not implemented yet: `"opencode-cli"`
+- Unsupported in current scope: Claude Code, OpenRouter, Anthropic API, OpenAI API
 
 ## Execution backend vs model provider
 
 - Execution backend: how a command is executed (for example, the Codex CLI adapter).
 - Model/provider selection: which model/reasoning profile is requested for an agent role.
 
-In current scope, both are Codex-oriented, but they are configured separately so backend routing and model selection stay explicit.
+In current executable scope, runtime execution remains Codex-oriented. Backend routing and model selection are configured separately so additional harness backends can be added explicitly later.
 
 ## Config models
 
@@ -32,7 +33,7 @@ Legacy `codex` config remains supported:
 }
 ```
 
-New Codex-only backend config:
+Codex backend config:
 
 ```json
 {
@@ -61,7 +62,39 @@ New Codex-only backend config:
 }
 ```
 
-When legacy `codex` is used, config normalization still builds Codex-only backend/agent mappings internally.
+OpenCode config is recognised but not executable yet:
+
+```json
+{
+  "executionBackends": {
+    "opencode-reviewer": {
+      "type": "opencode-cli",
+      "command": "opencode"
+    }
+  },
+  "agents": {
+    "planner": {
+      "backend": "opencode-reviewer",
+      "model": "anthropic/claude-sonnet-4.5",
+      "reasoningEffort": "high"
+    },
+    "builder": {
+      "backend": "opencode-reviewer",
+      "model": "anthropic/claude-sonnet-4.5",
+      "reasoningEffort": "high"
+    },
+    "reviewer": {
+      "backend": "opencode-reviewer",
+      "model": "anthropic/claude-sonnet-4.5",
+      "reasoningEffort": "high"
+    }
+  }
+}
+```
+
+Attempting to execute an `opencode-cli` backend currently fails with a not-implemented error.
+
+When legacy `codex` is used, config normalisation still builds Codex-only backend/agent mappings internally.
 
 ## Role selection
 
