@@ -7,6 +7,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createProgressLogger } from "../src/progress-logger.js";
 import { runStage } from "../src/runner.js";
+import type { RunMetadata } from "../src/run-metadata.js";
 import type { CodexExecutionResult } from "../src/codex.js";
 
 const execFileAsync = promisify(execFile);
@@ -910,6 +911,15 @@ test("openCode reviewer dry-run routes via backend executor and writes reviewer 
   };
   assert.equal(reviewerCommand.command, "opencode");
   assert.deepEqual(reviewerCommand.backend, {
+    backendName: "opencode",
+    backendType: "opencode-cli",
+    agentRole: "reviewer",
+    model: "open-reviewer-model",
+    reasoningEffort: "high"
+  });
+
+  const metadata = JSON.parse(await readFile(path.join(result.runDir, "run.json"), "utf8")) as RunMetadata;
+  assert.deepEqual(metadata.phases.reviewer?.backend, {
     backendName: "opencode",
     backendType: "opencode-cli",
     agentRole: "reviewer",
