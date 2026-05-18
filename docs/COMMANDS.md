@@ -103,6 +103,29 @@ Notes:
 - does not mutate workspace files
 - exits non-zero when readiness fails
 
+### `probe-opencode`
+
+Run OpenCode CLI help/version contract probe without executing any agent prompt.
+
+```bash
+npm run agent -- probe-opencode [--config <config-path>] [--backend <name>] [--command <command>] [--json] [--validate-readonly-contract]
+```
+
+Examples:
+
+```bash
+npm run agent -- probe-opencode --command opencode
+npm run agent -- probe-opencode --config configs/example.json --backend opencode-reviewer --json
+npm run agent -- probe-opencode --command opencode --validate-readonly-contract
+```
+
+Notes:
+
+- probe runs only help/version commands and `run --help`
+- does not execute prompts
+- does not run real OpenCode agent execution
+- `--validate-readonly-contract` is optional and non-executing
+
 ## Stage Plan commands
 
 Stage Plan commands operate on a canonical `stage-plan.json` path. They are designed for one-stage-at-a-time, human-gated delivery.
