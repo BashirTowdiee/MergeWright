@@ -57,9 +57,33 @@ Dry-run read-only validation requires only local workspace and model selection c
 
 Dry-run results include command metadata, args, cwd, backend name/type, model, `success: true`, `skipped: true`, and no output text.
 
+## CLI contract probe
+
+Stage 6 adds a help/version-only contract probe for the installed OpenCode CLI.
+
+The probe checks only:
+
+```bash
+opencode --version
+opencode --help
+opencode run --help
+```
+
+It does not execute agent prompts, pass prompt stdin, write output files, parse agent output, or enable real OpenCode execution.
+
+The probe reports whether help output confirms:
+
+- a `run` subcommand
+- a model flag such as `--model`
+- a workspace flag such as `--cwd`
+- an output flag such as `--output`
+- stdin prompt support
+
+If support is unclear, the probe reports the capability as false and records an error. The command builder remains provisional until the contract is verified in the target environment.
+
 ## Provisional read-only command contract
 
-The command contract is still provisional and no OpenCode process is spawned.
+The command contract is still provisional and no OpenCode process is spawned for agent execution.
 
 Provisional command shape:
 
@@ -127,4 +151,4 @@ Rejected:
 
 ## Next implementation stage
 
-The next stage should verify the real OpenCode CLI command contract against the installed CLI help/output. Do not spawn OpenCode for agent execution until the contract is verified.
+The next stage should reconcile the provisional command builder with the verified CLI contract. Do not spawn OpenCode for agent execution until the contract is verified and an explicit real-execution stage is approved.
