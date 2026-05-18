@@ -2,7 +2,7 @@
 
 Shepherds-Staff recognises `opencode-cli` as an execution backend type in configuration and can instantiate an `OpenCodeCliBackend` skeleton from the backend registry.
 
-OpenCode execution is not implemented yet. Calling `execute()` fails intentionally with a not-implemented error.
+Real OpenCode execution is not implemented yet. Calling `execute()` with `dryRun: false` fails intentionally with a not-implemented error.
 
 ## Current support
 
@@ -10,16 +10,9 @@ Supported executable backend:
 
 - `codex-cli`
 
-Recognised and instantiable, but not executable yet:
+Recognised and instantiable, with dry-run result construction only:
 
 - `opencode-cli`
-
-Not supported:
-
-- `claude-code-cli`
-- `openrouter-api`
-- `anthropic-api`
-- `openai-api`
 
 ## Current capabilities
 
@@ -40,21 +33,27 @@ The OpenCode backend skeleton exposes conservative capabilities:
 
 Planner, reviewer, builder, and fixer roles are still blocked by capability validation until sandbox and execution semantics are implemented.
 
-## Provisional read-only command contract
+## Dry-run result construction
 
-Stage 3 defines a tested command builder only. It does not execute OpenCode.
+`OpenCodeCliBackend.execute()` can return a deterministic `AgentExecutionResult` when `request.dryRun` is `true` and the role is read-only.
 
-Allowed command-construction roles:
+Allowed dry-run roles:
 
 - `planner`
 - `reviewer`
 - `fix-planner`
 - `reassessor`
 
-Rejected command-construction roles:
+Rejected dry-run roles:
 
 - `builder`
 - `fixer`
+
+Dry-run results include command metadata, args, cwd, backend name/type, model, `success: true`, `skipped: true`, and no output text.
+
+## Provisional read-only command contract
+
+The command contract is still provisional and no OpenCode process is spawned.
 
 Provisional command shape:
 
@@ -66,7 +65,7 @@ opencode run \
   -
 ```
 
-The prompt is represented as stdin in the command contract. This shape is deliberately provisional and must be verified before any execution stage is enabled.
+The prompt is represented as stdin in the command contract. This shape is deliberately provisional and must be verified before any real execution stage is enabled.
 
 ## Example config
 
@@ -98,7 +97,7 @@ The prompt is represented as stdin in the command contract. This shape is delibe
 }
 ```
 
-The config validates and the registry can instantiate the backend, but execution fails clearly because command execution has not been added yet.
+The config validates and the registry can instantiate the backend, but real execution fails clearly because command execution has not been added yet.
 
 ## Command validation
 
@@ -122,4 +121,4 @@ Rejected:
 
 ## Next implementation stage
 
-The next stage should add dry-run-only OpenCode execution results. Do not spawn OpenCode or enable real execution until the command contract is verified.
+The next stage should add capability-gated dry-run routing integration. Do not spawn OpenCode or enable real execution until the command contract is verified.

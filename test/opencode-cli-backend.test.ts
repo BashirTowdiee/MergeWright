@@ -34,6 +34,14 @@ const openCodeRequest: OpenCodeExecutionRequest = {
   dryRun: true
 };
 
+function dryRunRequest(role: AgentExecutionRequest["role"]): AgentExecutionRequest {
+  return {
+    ...request,
+    role,
+    dryRun: true
+  };
+}
+
 test("OpenCodeCliBackend implements ExecutionBackend", () => {
   const backend: ExecutionBackend = new OpenCodeCliBackend();
 
@@ -54,13 +62,70 @@ test("OpenCodeCliBackend exposes conservative capabilities", () => {
   });
 });
 
-test("OpenCodeCliBackend execute fails clearly", async () => {
+test("OpenCodeCliBackend execute fails clearly when dryRun is false", async () => {
   const backend = new OpenCodeCliBackend();
 
   await assert.rejects(
     () => backend.execute(request),
     /Execution backend type "opencode-cli" is recognised but execution is not implemented yet\./
   );
+});
+
+test("OpenCodeCliBackend dry-run execute returns deterministic command result for reviewer", async () => {
+  const backend = new OpenCodeCliBackend();
+
+  const result = await backend.execute(dryRunRequest("reviewer"));
+
+  assert.deepEqual(result, {
+    backendName: "opencode-reviewer",
+    backendType: "opencode-cli",
+    model: "anthropic/claude-sonnet-4.5",
+    command: "opencode",
+    args: [
+      "run",
+      "--model",
+      "anthropic/claude-sonnet-4.5",
+      "--cwd",
+      "/tmp/workspace",
+      "--output",
+      "/tmp/run/opencode-output.md",
+      "-"
+    ],
+    cwd: "/tmp/orchestrator",
+    stdout: "",
+    stderr: "OpenCode execution skipped because dryRun=true.",
+    exitCode: 0,
+    signal: null,
+    durationMs: 0,
+    success: true,
+    outputLastMessagePath: "/tmp/run/opencode-output.md",
+    outputLastMessage: "",
+    skipped: true
+  });
+});
+
+test("OpenCodeCliBackend dry-run execute returns command results for read-only roles", async () => {
+  const backend = new OpenCodeCliBackend();
+
+  for (const role of ["planner", "reviewer", "fix-planner", "reassessor"] as const) {
+    const result = await backend.execute(dryRunRequest(role));
+    assert.equal(result.success, true);
+    assert.equal(result.skipped, true);
+    assert.equal(result.command, "opencode");
+    assert.equal(result.backendName, "opencode-reviewer");
+    assert.equal(result.backendType, "opencode-cli");
+  }
+});
+
+test("OpenCodeCliBackend dry-run execute rejects builder and fixer roles", async () => {
+  const backend = new OpenCodeCliBackend();
+
+  for (const role of ["builder", "fixer"] as const) {
+    await assert.rejects(
+      () => backend.execute(dryRunRequest(role)),
+      /role must be one of planner\|reviewer\|fix-planner\|reassessor/
+    );
+  }
 });
 
 test("OpenCode read-only command defaults to opencode", () => {
