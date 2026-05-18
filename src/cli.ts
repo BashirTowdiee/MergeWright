@@ -5,6 +5,11 @@ import path from "node:path";
 import { access, mkdir, writeFile } from "node:fs/promises";
 import { loadAndValidateConfig, resolveConfigPath } from "./config.js";
 import {
+  buildAndValidateOpenCodeReadOnlyCommand,
+  probeOpenCodeCliContract,
+  validateOpenCodeProbeCommand
+} from "./execution-backends/opencode-cli-contract.js";
+import {
   formatChangeReportJson,
   formatChangeReportMarkdown,
   formatPrSummaryMarkdown,
@@ -45,6 +50,9 @@ interface ParsedArgs {
   preset?: PipelinePreset;
   force: boolean;
   jsonOutput?: boolean;
+  backendName?: string;
+  opencodeCommand?: string;
+  validateReadonlyContract?: boolean;
   stdoutOnly?: boolean;
   prSummary?: boolean;
   dryRun: boolean;
@@ -157,6 +165,7 @@ export async function runCommand(
     "report-run",
     "init-project",
     "check-write-safety",
+    "probe-opencode",
     "import-stage-plan",
     "run-stage",
     "accept-stage",
@@ -474,6 +483,30 @@ export async function runCommand(
       writeLine(`Reassessment Artefacts: ${result.reassessmentDir}`);
     }
     writeLine(`Stage Plan: ${result.stagePlanPath}`);
+    return;
+  }
+
+  if (args.command === "probe-opencode") {
+    const result = await runProbeOpenCodeCommand(args, orchestratorRoot);
+    if (args.jsonOutput) {
+      writeLine(JSON.stringify(result, null, 2));
+    } else {
+      writeLine(`OpenCode CLI probe: ${result.ok ? "PASS" : "FAIL"}`);
+      writeLine(`Command: ${result.command}`);
+      writeLine(`Run subcommand: ${result.probe.contract.supportsRunSubcommand ? "yes" : "no"}`);
+      writeLine(`Model flag: ${result.probe.contract.supportsModelFlag ? "yes" : "no"}`);
+      writeLine(`Workspace flag: ${result.probe.contract.supportsCwdFlag ? "yes" : "no"}`);
+      writeLine(`Output flag: ${result.probe.contract.supportsOutputFlag ? "yes" : "no"}`);
+      writeLine(`Stdin prompt: ${result.probe.contract.supportsStdinPrompt ? "yes" : "no"}`);
+      if (args.validateReadonlyContract) {
+        writeLine(
+          `Read-only command contract: ${result.readOnlyCommandValidation?.ok === true ? "PASS" : "FAIL"}`
+        );
+      }
+    }
+    if (!result.ok) {
+      throw new Error("probe-opencode failed");
+    }
     return;
   }
 
@@ -945,6 +978,28 @@ export function parseArgs(argv: string[]): ParsedArgs {
       parsed.jsonOutput = true;
       continue;
     }
+    if (token === "--backend") {
+      const value = rest[i + 1];
+      if (!value) {
+        throw new Error("Missing value for --backend");
+      }
+      parsed.backendName = value;
+      i += 1;
+      continue;
+    }
+    if (token === "--command") {
+      const value = rest[i + 1];
+      if (!value) {
+        throw new Error("Missing value for --command");
+      }
+      parsed.opencodeCommand = value;
+      i += 1;
+      continue;
+    }
+    if (token === "--validate-readonly-contract") {
+      parsed.validateReadonlyContract = true;
+      continue;
+    }
     if (token === "--stdout-only") {
       parsed.stdoutOnly = true;
       continue;
@@ -1103,13 +1158,16 @@ export function parseArgs(argv: string[]): ParsedArgs {
   if (parsed.maxFixAttempts != null && !parsed.autoChain) {
     throw new Error("--max-fix-attempts is only supported with --auto-chain.");
   }
-  if ((parsed.jsonOutput || parsed.stdoutOnly || parsed.prSummary) && parsed.command !== "report-run") {
-    throw new Error("--json, --pr-summary, and --stdout-only are only supported for report-run");
+  if ((parsed.jsonOutput || parsed.stdoutOnly || parsed.prSummary) && parsed.command !== "report-run" && parsed.command !== "probe-opencode") {
+    throw new Error("--json is supported for report-run and probe-opencode. --pr-summary and --stdout-only are only supported for report-run");
   }
   if (parsed.command === "report-run" && parsed.jsonOutput && parsed.prSummary && parsed.stdoutOnly) {
     throw new Error(
       "--json cannot be combined with --pr-summary and --stdout-only because stdout can contain only one machine-readable format."
     );
+  }
+  if (parsed.command !== "probe-opencode" && (parsed.backendName || parsed.opencodeCommand || parsed.validateReadonlyContract)) {
+    throw new Error("--backend, --command, and --validate-readonly-contract are only supported for probe-opencode.");
   }
 
   if (parsed.command === "run") {
@@ -1210,6 +1268,14 @@ export function parseArgs(argv: string[]): ParsedArgs {
     }
     if (parsed.repoOverride) {
       throw new Error("--repo is not supported for report-run.");
+    }
+  }
+  if (parsed.command === "probe-opencode") {
+    if (parsed.help) {
+      return parsed;
+    }
+    if (parsed.stdoutOnly || parsed.prSummary) {
+      throw new Error("--pr-summary and --stdout-only are not supported for probe-opencode.");
     }
   }
   if (parsed.command === "import-stage-plan") {
@@ -1540,6 +1606,24 @@ function renderHelpText(command?: string): string {
     ].join("\n");
   }
 
+  if (command === "probe-opencode") {
+    return [
+      "Usage: agent-stage probe-opencode [--config <config-path>] [--backend <name>] [--command <command>] [--json] [--validate-readonly-contract]",
+      "",
+      "Runs OpenCode CLI contract probing using version/help/run-help only.",
+      "  --config <config-path>              Optional. Resolve backend command from executionBackends.",
+      "  --backend <name>                    Optional. Select a named execution backend from config.",
+      "  --command <command>                 Optional. Override command executable name.",
+      "  --json                              Print full probe result JSON.",
+      "  --validate-readonly-contract        Build and validate a sample read-only command without executing it.",
+      "",
+      "Safety:",
+      "  - Does not execute agent prompts.",
+      "  - Does not call OpenCodeCliBackend.execute().",
+      "  - Does not write output files."
+    ].join("\n");
+  }
+
   if (command === "import-stage-plan") {
     return [
       "Usage: agent-stage import-stage-plan --from <path> --out <path> [--force]",
@@ -1683,6 +1767,7 @@ function renderHelpText(command?: string): string {
     "  report-run <run-id> --config <config-path> [--json] [--pr-summary] [--stdout-only] [--force] [--verbose]",
     "  init-project <name> --workspace <path> [--force] [--verbose]",
     "  check-write-safety --config <config-path>",
+    "  probe-opencode [--config <config-path>] [--backend <name>] [--command <command>] [--json] [--validate-readonly-contract]",
     "  import-stage-plan --from <path> --out <path> [--force]",
     "  run-stage <stage-id> --stage-plan <path> --config <config-path> [--allow-writes] [--dry-run] [--verbose] [--stream-codex]",
     "  run-stages --stage-plan <path> --config <config-path> --stop-after-each-stage [--allow-writes] [--dry-run] [--verbose] [--stream-codex]",
@@ -1698,6 +1783,71 @@ function renderHelpText(command?: string): string {
     "  - No auto-commit or auto-push.",
     "  - Write-enabled execution requires explicit --allow-writes and write-safety pass."
   ].join("\n");
+}
+
+async function runProbeOpenCodeCommand(
+  args: ParsedArgs,
+  orchestratorRoot: string
+): Promise<{
+  ok: boolean;
+  command: string;
+  probe: Awaited<ReturnType<typeof probeOpenCodeCliContract>>;
+  readOnlyCommandValidation?: { ok: boolean; errors: string[]; warnings: string[] };
+}> {
+  const commandFromArgs = args.opencodeCommand;
+  if (commandFromArgs) {
+    validateOpenCodeProbeCommand(commandFromArgs);
+  }
+
+  let resolvedCommand: string | undefined;
+  if (args.configArg) {
+    const configPath = resolveConfigPath(orchestratorRoot, args.configArg);
+    const config = await loadAndValidateConfig(configPath);
+    if (args.backendName) {
+      const backend = config.executionBackends[args.backendName];
+      if (!backend) {
+        throw new Error(`Configured backend "${args.backendName}" was not found in executionBackends.`);
+      }
+      if (backend.type !== "opencode-cli") {
+        throw new Error(`Configured backend "${args.backendName}" is type "${backend.type}", expected "opencode-cli".`);
+      }
+      resolvedCommand = backend.command ?? "opencode";
+    } else {
+      const firstOpenCodeBackend = Object.values(config.executionBackends).find((backend) => backend.type === "opencode-cli");
+      resolvedCommand = firstOpenCodeBackend?.command ?? undefined;
+    }
+  } else if (args.backendName) {
+    throw new Error("--backend requires --config because backends are loaded from config.");
+  }
+
+  const command = commandFromArgs ?? resolvedCommand ?? "opencode";
+  validateOpenCodeProbeCommand(command);
+  const probe = await probeOpenCodeCliContract({ command, timeoutMs: 15_000 });
+
+  let readOnlyCommandValidation: { ok: boolean; errors: string[]; warnings: string[] } | undefined;
+  if (args.validateReadonlyContract) {
+    const validation = buildAndValidateOpenCodeReadOnlyCommand({
+      request: {
+        prompt: "probe",
+        role: "planner",
+        model: "probe-model",
+        workspaceRoot: process.cwd(),
+        outputLastMessagePath: path.resolve(process.cwd(), ".shepherds-staff-opencode-probe-output.md"),
+        orchestratorRoot: process.cwd(),
+        dryRun: true,
+        command
+      },
+      contract: probe.contract
+    });
+    readOnlyCommandValidation = validation.validation;
+  }
+
+  return {
+    ok: probe.ok && (readOnlyCommandValidation?.ok ?? true),
+    command,
+    probe,
+    readOnlyCommandValidation
+  };
 }
 
 export async function runCheckWriteSafety(

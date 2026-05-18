@@ -81,6 +81,30 @@ The probe reports whether help output confirms:
 
 If support is unclear, the probe reports the capability as false and records an error. The command builder remains provisional until the contract is verified in the target environment.
 
+## Manual CLI probe command
+
+Stage 8 adds a manual CLI command:
+
+```bash
+npm run agent -- probe-opencode [--config <config-path>] [--backend <name>] [--command <command>] [--json] [--validate-readonly-contract]
+```
+
+Examples:
+
+```bash
+npm run agent -- probe-opencode --command opencode
+npm run agent -- probe-opencode --config configs/example.json --backend opencode-reviewer --json
+npm run agent -- probe-opencode --command opencode --validate-readonly-contract
+```
+
+Behavior:
+
+- runs only `--version`, `--help`, and `run --help` probes
+- never executes agent prompts
+- never calls `OpenCodeCliBackend.execute()`
+- never enables real OpenCode execution
+- optional `--validate-readonly-contract` builds and validates a sample read-only command contract without executing it
+
 ## Provisional read-only command contract
 
 The command contract is still provisional and no OpenCode process is spawned for agent execution.

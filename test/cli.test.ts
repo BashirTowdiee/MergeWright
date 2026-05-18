@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { access, mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, chmod, mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { formatSummaryLines, parseArgs, runCommand } from "../src/cli.js";
@@ -977,11 +977,11 @@ test("report-run rejects missing config", () => {
 test("non-report commands reject report flags", () => {
   assert.throws(
     () => parseArgs(["list-runs", "--config", "configs/acme.json", "--json"]),
-    /--json, --pr-summary, and --stdout-only are only supported for report-run/
+    /--json is supported for report-run and probe-opencode/
   );
   assert.throws(
     () => parseArgs(["show-run", "run-1", "--config", "configs/acme.json", "--stdout-only"]),
-    /--json, --pr-summary, and --stdout-only are only supported for report-run/
+    /--pr-summary and --stdout-only are only supported for report-run/
   );
 });
 
@@ -2516,4 +2516,264 @@ test("check-write-safety prints working tree unknown when inspection unavailable
     }
   );
   assert.ok(output.some((line) => line.includes("working tree: unknown")));
+});
+
+async function makeFakeOpenCodeBin(scriptBody: string, command = "opencode"): Promise<{
+  binDir: string;
+  command: string;
+  commandPath: string;
+  logPath: string;
+}> {
+  const root = await mkdtemp(path.join(os.tmpdir(), "probe-opencode-cli-"));
+  const binDir = path.join(root, "bin");
+  await mkdir(binDir, { recursive: true });
+  const logPath = path.join(root, "calls.log");
+  const scriptPath = path.join(binDir, command);
+  await writeFile(scriptPath, scriptBody.replaceAll("__LOG_PATH__", logPath), "utf8");
+  await chmod(scriptPath, 0o755);
+  return { binDir, command, commandPath: scriptPath, logPath };
+}
+
+async function writeProbeConfig(
+  root: string,
+  executionBackends: Record<string, unknown>,
+  agents: { planner: string; builder: string; reviewer: string } = {
+    planner: "codex-local",
+    builder: "codex-local",
+    reviewer: "codex-local"
+  }
+): Promise<string> {
+  const configPath = path.join(root, "probe.config.json");
+  await writeFile(
+    configPath,
+    JSON.stringify(
+      {
+        version: 1,
+        projectName: "probe",
+        workspaceRoot: root,
+        paths: { stagesDir: "docs", promptsDir: "prompts", runsDir: "runs" },
+        executionBackends,
+        agents: {
+          planner: { backend: agents.planner, model: "gpt-5", reasoningEffort: "medium" },
+          builder: { backend: agents.builder, model: "gpt-5", reasoningEffort: "medium" },
+          reviewer: { backend: agents.reviewer, model: "gpt-5", reasoningEffort: "medium" }
+        },
+        pipeline: { finalReview: true, maxFixLoops: 1 },
+        commands: { checks: [] },
+        safety: { requireGitRepo: false, requireCleanStart: false, manualCommit: true, forbidAutoCommit: true, forbidAutoPush: true },
+        writeSafety: { enabled: false, autoCommit: false, autoPush: false }
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+  return configPath;
+}
+
+const probeCliWithOutputFlag = `#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\\n' "$*" >> "__LOG_PATH__"
+if [ "$#" -eq 1 ] && [ "$1" = "--version" ]; then
+  printf 'opencode 1.2.3\\n'
+  exit 0
+fi
+if [ "$#" -eq 1 ] && [ "$1" = "--help" ]; then
+  cat <<'HELP'
+Usage: opencode <command>
+Commands:
+  run
+HELP
+  exit 0
+fi
+if [ "$#" -eq 2 ] && [ "$1" = "run" ] && [ "$2" = "--help" ]; then
+  cat <<'HELP'
+Usage: opencode run [options] -
+Options:
+  --model <model>
+  --cwd <path>
+  --output <path>
+Prompt is read from stdin when '-' is used.
+HELP
+  exit 0
+fi
+exit 42
+`;
+
+const probeCliWithoutOutputFlag = `#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\\n' "$*" >> "__LOG_PATH__"
+if [ "$#" -eq 1 ] && [ "$1" = "--version" ]; then
+  printf 'opencode 1.2.3\\n'
+  exit 0
+fi
+if [ "$#" -eq 1 ] && [ "$1" = "--help" ]; then
+  printf 'Commands:\\n  run\\n'
+  exit 0
+fi
+if [ "$#" -eq 2 ] && [ "$1" = "run" ] && [ "$2" = "--help" ]; then
+  printf 'Options:\\n  --model <model>\\n  --cwd <path>\\nPrompt from stdin using -\\n'
+  exit 0
+fi
+exit 42
+`;
+
+test("probe-opencode --command opencode --json outputs JSON and exits 0", async () => {
+  const fake = await makeFakeOpenCodeBin(probeCliWithOutputFlag);
+  const output: string[] = [];
+  await runCommand(
+    parseArgs(["probe-opencode", "--command", fake.commandPath, "--json"]),
+    process.cwd(),
+    "linux",
+    async () => {},
+    (line) => output.push(line)
+  );
+  const payload = JSON.parse(output.join("\n")) as { ok: boolean; command: string; probe: { contract: { command: string } } };
+  assert.equal(payload.ok, true);
+  assert.equal(payload.command, fake.commandPath);
+  assert.equal(payload.probe.contract.command, fake.commandPath);
+  const calls = (await readFile(fake.logPath, "utf8")).trim().split("\n").sort();
+  assert.deepEqual(calls, ["--help", "--version", "run --help"].sort());
+});
+
+test("probe-opencode text output includes PASS and capabilities", async () => {
+  const fake = await makeFakeOpenCodeBin(probeCliWithOutputFlag);
+  const output: string[] = [];
+  await runCommand(
+    parseArgs(["probe-opencode", "--command", fake.commandPath]),
+    process.cwd(),
+    "linux",
+    async () => {},
+    (line) => output.push(line)
+  );
+  const text = output.join("\n");
+  assert.match(text, /OpenCode CLI probe: PASS/);
+  assert.match(text, /Run subcommand: yes/);
+  assert.match(text, /Model flag: yes/);
+  assert.match(text, /Workspace flag: yes/);
+  assert.match(text, /Output flag: yes/);
+  assert.match(text, /Stdin prompt: yes/);
+});
+
+test("probe-opencode missing command exits 1 via failure", async () => {
+  await assert.rejects(
+    () => runCommand(parseArgs(["probe-opencode", "--command", "missing-opencode-command-for-test"]), process.cwd(), "linux", async () => {}),
+    /probe-opencode failed/
+  );
+});
+
+test("probe-opencode rejects invalid command with spaces", async () => {
+  await assert.rejects(
+    () => runCommand(parseArgs(["probe-opencode", "--command", "npx opencode"]), process.cwd(), "linux", async () => {}),
+    /executable name only/
+  );
+});
+
+test("probe-opencode selects command from named opencode backend in config", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "probe-opencode-config-"));
+  const fake = await makeFakeOpenCodeBin(probeCliWithOutputFlag, "opencode-backend");
+  const configPath = await writeProbeConfig(root, {
+    "codex-local": { type: "codex-cli" },
+    "opencode-reviewer": { type: "opencode-cli", command: fake.commandPath }
+  });
+  const output: string[] = [];
+  await runCommand(
+    parseArgs(["probe-opencode", "--config", configPath, "--backend", "opencode-reviewer", "--json"]),
+    process.cwd(),
+    "linux",
+    async () => {},
+    (line) => output.push(line)
+  );
+  const payload = JSON.parse(output.join("\n")) as { command: string };
+  assert.equal(payload.command, fake.commandPath);
+});
+
+test("probe-opencode --command overrides config backend command", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "probe-opencode-command-override-"));
+  const fake = await makeFakeOpenCodeBin(probeCliWithOutputFlag, "custom-opencode");
+  const configPath = await writeProbeConfig(root, {
+    "codex-local": { type: "codex-cli" },
+    opencode: { type: "opencode-cli", command: "configured-opencode" }
+  });
+  const output: string[] = [];
+  await runCommand(
+    parseArgs([
+      "probe-opencode",
+      "--config",
+      configPath,
+      "--backend",
+      "opencode",
+      "--command",
+      fake.commandPath,
+      "--json"
+    ]),
+    process.cwd(),
+    "linux",
+    async () => {},
+    (line) => output.push(line)
+  );
+  const payload = JSON.parse(output.join("\n")) as {
+    command: string;
+    probe: { contract: { command: string } };
+  };
+  assert.equal(payload.command, fake.commandPath);
+  assert.equal(payload.probe.contract.command, fake.commandPath);
+  const calls = (await readFile(fake.logPath, "utf8")).trim().split("\n").sort();
+  assert.deepEqual(calls, ["--help", "--version", "run --help"].sort());
+});
+
+test("probe-opencode fails when backend is not found", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "probe-opencode-backend-missing-"));
+  const configPath = await writeProbeConfig(root, { "codex-local": { type: "codex-cli" } });
+  await assert.rejects(
+    () => runCommand(parseArgs(["probe-opencode", "--config", configPath, "--backend", "does-not-exist"]), process.cwd(), "linux", async () => {}),
+    /was not found/
+  );
+});
+
+test("probe-opencode fails when backend is not opencode-cli", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "probe-opencode-backend-type-"));
+  const configPath = await writeProbeConfig(root, { "codex-local": { type: "codex-cli" } });
+  await assert.rejects(
+    () => runCommand(parseArgs(["probe-opencode", "--config", configPath, "--backend", "codex-local"]), process.cwd(), "linux", async () => {}),
+    /expected "opencode-cli"/
+  );
+});
+
+test("probe-opencode --validate-readonly-contract includes validation and does not create output file", async () => {
+  const fake = await makeFakeOpenCodeBin(probeCliWithOutputFlag);
+  const output: string[] = [];
+  const outputPath = path.resolve(process.cwd(), ".shepherds-staff-opencode-probe-output.md");
+  await runCommand(
+    parseArgs(["probe-opencode", "--command", fake.commandPath, "--validate-readonly-contract", "--json"]),
+    process.cwd(),
+    "linux",
+    async () => {},
+    (line) => output.push(line)
+  );
+  const payload = JSON.parse(output.join("\n")) as { ok: boolean; readOnlyCommandValidation?: { ok: boolean } };
+  assert.equal(payload.ok, true);
+  assert.equal(payload.readOnlyCommandValidation?.ok, true);
+  await assert.rejects(() => access(outputPath));
+});
+
+test("probe-opencode validation fails when output flag is not supported", async () => {
+  const fake = await makeFakeOpenCodeBin(probeCliWithoutOutputFlag);
+  await assert.rejects(
+    () =>
+      runCommand(
+        parseArgs(["probe-opencode", "--command", fake.commandPath, "--validate-readonly-contract", "--json"]),
+        process.cwd(),
+        "linux",
+        async () => {}
+      ),
+    /probe-opencode failed/
+  );
+});
+
+test("probe-opencode --backend without --config fails clearly", async () => {
+  await assert.rejects(
+    () => runCommand(parseArgs(["probe-opencode", "--backend", "opencode", "--json"]), process.cwd(), "linux", async () => {}),
+    /--backend requires --config/
+  );
 });
