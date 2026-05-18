@@ -5,6 +5,7 @@ import type { OrchestratorConfig } from "../src/config.js";
 import type { CodexExecutor } from "../src/codex.js";
 import type { ExecutionBackend, AgentExecutionRequest } from "../src/execution-backends/execution-backend-types.js";
 import type { ExecutionBackendRegistry } from "../src/execution-backends/execution-backend-registry.js";
+import { OpenCodeCliBackend } from "../src/execution-backends/opencode-cli-backend.js";
 
 function makeConfig(): OrchestratorConfig {
   return {
@@ -48,6 +49,20 @@ function makeConfig(): OrchestratorConfig {
   };
 }
 
+function makeOpenCodeConfig(): OrchestratorConfig {
+  return {
+    ...makeConfig(),
+    executionBackends: {
+      "opencode-reviewer": { type: "opencode-cli", command: "opencode" }
+    },
+    agents: {
+      planner: { backend: "opencode-reviewer", model: "agent-opencode-planner", reasoningEffort: "high" },
+      builder: { backend: "opencode-reviewer", model: "agent-opencode-builder", reasoningEffort: "medium" },
+      reviewer: { backend: "opencode-reviewer", model: "agent-opencode-reviewer", reasoningEffort: "high" }
+    }
+  };
+}
+
 function makeRegistry(backend: ExecutionBackend): ExecutionBackendRegistry {
   return {
     get(name: string) {
@@ -56,6 +71,18 @@ function makeRegistry(backend: ExecutionBackend): ExecutionBackendRegistry {
     },
     list() {
       return [{ name: "codex-local", type: "codex-cli" as const }];
+    }
+  };
+}
+
+function makeOpenCodeRegistry(): ExecutionBackendRegistry {
+  return {
+    get(name: string) {
+      assert.equal(name, "opencode-reviewer");
+      return new OpenCodeCliBackend();
+    },
+    list() {
+      return [{ name: "opencode-reviewer", type: "opencode-cli" as const }];
     }
   };
 }
@@ -148,6 +175,109 @@ test("codex-compatible executor delegates to configured backend and agent model"
       reasoningEffort: "medium"
     }
   });
+});
+
+test("codex-compatible executor routes OpenCode planner dry-run through backend adapter", async () => {
+  const executor = createCodexCompatibleExecutor(makeOpenCodeConfig(), { registry: makeOpenCodeRegistry() });
+
+  const result = await executor({
+    prompt: "prompt",
+    role: "planner",
+    model: "legacy-request-model",
+    reasoningEffort: "legacy-request-reasoning",
+    workspaceRoot: "/tmp/workspace",
+    outputLastMessagePath: "/tmp/run/out.md",
+    dryRun: true,
+    requireGitRepo: true,
+    orchestratorRoot: "/tmp/orchestrator",
+    sandboxMode: "read-only"
+  });
+
+  assert.deepEqual(result, {
+    command: "opencode",
+    args: ["run", "--model", "agent-opencode-planner", "--cwd", "/tmp/workspace", "--output", "/tmp/run/out.md", "-"],
+    cwd: "/tmp/orchestrator",
+    stdout: "",
+    stderr: "OpenCode execution skipped because dryRun=true.",
+    exitCode: 0,
+    signal: null,
+    durationMs: 0,
+    success: true,
+    outputLastMessagePath: "/tmp/run/out.md",
+    outputLastMessage: "",
+    skipped: true,
+    backend: {
+      backendName: "opencode-reviewer",
+      backendType: "opencode-cli",
+      agentRole: "planner",
+      model: "agent-opencode-planner",
+      reasoningEffort: "high"
+    }
+  });
+});
+
+test("codex-compatible executor routes OpenCode reviewer dry-run through backend adapter", async () => {
+  const executor = createCodexCompatibleExecutor(makeOpenCodeConfig(), { registry: makeOpenCodeRegistry() });
+
+  const result = await executor({
+    prompt: "prompt",
+    role: "reviewer",
+    model: "legacy-request-model",
+    reasoningEffort: "legacy-request-reasoning",
+    workspaceRoot: "/tmp/workspace",
+    outputLastMessagePath: "/tmp/run/out.md",
+    dryRun: true,
+    requireGitRepo: true,
+    orchestratorRoot: "/tmp/orchestrator",
+    sandboxMode: "read-only"
+  });
+
+  assert.equal(result.command, "opencode");
+  assert.equal(result.backend?.backendType, "opencode-cli");
+  assert.equal(result.backend?.agentRole, "reviewer");
+  assert.equal(result.backend?.model, "agent-opencode-reviewer");
+});
+
+test("codex-compatible executor rejects OpenCode builder dry-run via capability validation", async () => {
+  const executor = createCodexCompatibleExecutor(makeOpenCodeConfig(), { registry: makeOpenCodeRegistry() });
+
+  await assert.rejects(
+    () =>
+      executor({
+        prompt: "prompt",
+        role: "builder",
+        model: "legacy-request-model",
+        reasoningEffort: "legacy-request-reasoning",
+        workspaceRoot: "/tmp/workspace",
+        outputLastMessagePath: "/tmp/run/out.md",
+        dryRun: true,
+        requireGitRepo: true,
+        orchestratorRoot: "/tmp/orchestrator",
+        sandboxMode: "workspace-write"
+      }),
+    /Execution backend "opencode-reviewer" of type "opencode-cli" cannot run role "builder"\. Missing capabilities: supportsFileEdits, supportsShellCommands, supportsSandboxMode\./
+  );
+});
+
+test("codex-compatible executor rejects OpenCode non-dry-run via strict capability validation", async () => {
+  const executor = createCodexCompatibleExecutor(makeOpenCodeConfig(), { registry: makeOpenCodeRegistry() });
+
+  await assert.rejects(
+    () =>
+      executor({
+        prompt: "prompt",
+        role: "planner",
+        model: "legacy-request-model",
+        reasoningEffort: "legacy-request-reasoning",
+        workspaceRoot: "/tmp/workspace",
+        outputLastMessagePath: "/tmp/run/out.md",
+        dryRun: false,
+        requireGitRepo: true,
+        orchestratorRoot: "/tmp/orchestrator",
+        sandboxMode: "read-only"
+      }),
+    /Execution backend "opencode-reviewer" of type "opencode-cli" cannot run role "planner"\. Missing capabilities: supportsSandboxMode\./
+  );
 });
 
 test("codex-compatible executor preserves explicit codexExecutor override", async () => {
