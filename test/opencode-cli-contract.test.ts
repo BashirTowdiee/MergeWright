@@ -8,6 +8,8 @@ import {
   validateOpenCodeProbeCommand
 } from "../src/execution-backends/opencode-cli-contract.js";
 
+const TEST_PROBE_TIMEOUT_MS = 30_000;
+
 async function makeFakeOpenCodeBin(scriptBody: string): Promise<{ binDir: string; command: string; logPath: string }> {
   const root = await mkdtemp(path.join(os.tmpdir(), "opencode-contract-"));
   const binDir = path.join(root, "bin");
@@ -60,7 +62,11 @@ exit 42
 test("probeOpenCodeCliContract detects supported OpenCode contract from help output", async () => {
   const fake = await makeFakeOpenCodeBin(happyFakeCli);
 
-  const result = await probeOpenCodeCliContract({ command: fake.command, env: envWithPath(fake.binDir) });
+  const result = await probeOpenCodeCliContract({
+    command: fake.command,
+    env: envWithPath(fake.binDir),
+    timeoutMs: TEST_PROBE_TIMEOUT_MS
+  });
 
   assert.equal(result.ok, true);
   assert.deepEqual(result.errors, []);
@@ -119,7 +125,11 @@ fi
 exit 42
 `);
 
-  const result = await probeOpenCodeCliContract({ command: fake.command, env: envWithPath(fake.binDir) });
+  const result = await probeOpenCodeCliContract({
+    command: fake.command,
+    env: envWithPath(fake.binDir),
+    timeoutMs: TEST_PROBE_TIMEOUT_MS
+  });
 
   assert.equal(result.ok, false);
   assert.equal(result.contract.supportsRunSubcommand, true);
@@ -133,7 +143,11 @@ exit 42
 test("probeOpenCodeCliContract only calls version/help/run-help and never executes a prompt", async () => {
   const fake = await makeFakeOpenCodeBin(happyFakeCli);
 
-  const result = await probeOpenCodeCliContract({ command: fake.command, env: envWithPath(fake.binDir) });
+  const result = await probeOpenCodeCliContract({
+    command: fake.command,
+    env: envWithPath(fake.binDir),
+    timeoutMs: TEST_PROBE_TIMEOUT_MS
+  });
 
   assert.equal(result.ok, true);
   const calls = (await readFile(fake.logPath, "utf8")).trim().split("\n").sort();
