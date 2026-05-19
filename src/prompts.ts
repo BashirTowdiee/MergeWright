@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -16,6 +16,7 @@ export type TemplateVariables = Record<string, string>;
 export const DEFAULT_REVIEWER_PROMPT_MAX_CHARS = 900_000;
 
 const REVIEWER_TEMPLATE_MARKERS = ["You are reviewing a Shepherd-Staff stage implementation", "json reviewer-verdict"];
+const PLACEHOLDER_PREFIX = "[placeholder:";
 
 const REVIEWER_VARIABLE_BUDGETS: Record<string, number> = {
   stage_instruction: 80_000,
@@ -62,13 +63,14 @@ export async function loadPromptTemplates(promptsDir: string): Promise<Record<Pr
 
 export function renderTemplate(template: string, variables: TemplateVariables): string {
   const isReviewerTemplate = REVIEWER_TEMPLATE_MARKERS.every((marker) => template.includes(marker));
+  const reviewerVariables = isReviewerTemplate ? enrichReviewerEvidenceVariables(variables) : variables;
   const sections: ReviewerPromptBudgetSection[] = [];
 
   const rendered = template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key: string) => {
-    if (!(key in variables)) {
+    if (!(key in reviewerVariables)) {
       throw new Error(`Template rendering failed: missing variable "${key}"`);
     }
-    const value = variables[key];
+    const value = reviewerVariables[key];
     const budget = isReviewerTemplate ? REVIEWER_VARIABLE_BUDGETS[key] : undefined;
     if (typeof budget !== "number") {
       return value;
@@ -95,7 +97,7 @@ export function renderTemplate(template: string, variables: TemplateVariables): 
     exceedsBudget: rendered.length > DEFAULT_REVIEWER_PROMPT_MAX_CHARS,
     sections
   };
-  writeReviewerPromptBudgetArtefact(variables.run_dir, metadata);
+  writeReviewerPromptBudgetArtefact(reviewerVariables.run_dir, metadata);
 
   if (metadata.exceedsBudget) {
     throw new Error(
@@ -130,6 +132,61 @@ function truncateMiddleWithMetadata(value: string, maxChars: number): { value: s
     value: `${value.slice(0, head)}${marker}${tail > 0 ? value.slice(-tail) : ""}`,
     truncated: true
   };
+}
+
+function enrichReviewerEvidenceVariables(variables: TemplateVariables): TemplateVariables {
+  const runDir = variables.run_dir;
+  if (!runDir) {
+    return variables;
+  }
+
+  return {
+    ...variables,
+    git_diff: shouldReplacePlaceholder(variables.git_diff) ? collectRunEvidence(runDir, [".patch", "diff-stat.txt"]) : variables.git_diff,
+    test_output: shouldReplacePlaceholder(variables.test_output) ? collectRunEvidence(runDir, ["-stdout.log", "-stderr.log", "checks-status.json"]) : variables.test_output,
+    git_status: shouldReplacePlaceholder(variables.git_status) ? collectRunEvidence(runDir, ["summary.json"]) : variables.git_status
+  };
+}
+
+function shouldReplacePlaceholder(value: string | undefined): boolean {
+  return !value || value.startsWith(PLACEHOLDER_PREFIX);
+}
+
+function collectRunEvidence(runDir: string, suffixes: string[]): string {
+  if (!existsSync(runDir)) {
+    return `[not available: run directory does not exist: ${runDir}]`;
+  }
+
+  const files = listFiles(runDir)
+    .map((filePath) => path.relative(runDir, filePath))
+    .filter((relativePath) => suffixes.some((suffix) => relativePath.endsWith(suffix)))
+    .filter((relativePath) => !relativePath.endsWith("reviewer-stdout.log") && !relativePath.endsWith("reviewer-stderr.log"))
+    .sort((a, b) => a.localeCompare(b));
+
+  if (files.length === 0) {
+    return `[not available: no matching run artefacts found for ${suffixes.join(", ")}]`;
+  }
+
+  return files
+    .map((relativePath) => {
+      const fullPath = path.resolve(runDir, relativePath);
+      return [`## ${relativePath}`, readFileSync(fullPath, "utf8")].join("\n\n");
+    })
+    .join("\n\n---\n\n");
+}
+
+function listFiles(root: string): string[] {
+  const entries = readdirSync(root, { withFileTypes: true });
+  const result: string[] = [];
+  for (const entry of entries) {
+    const fullPath = path.resolve(root, entry.name);
+    if (entry.isDirectory()) {
+      result.push(...listFiles(fullPath));
+    } else if (entry.isFile() && statSync(fullPath).size > 0) {
+      result.push(fullPath);
+    }
+  }
+  return result;
 }
 
 function writeReviewerPromptBudgetArtefact(runDir: string | undefined, metadata: ReviewerPromptBudgetMetadata): void {
