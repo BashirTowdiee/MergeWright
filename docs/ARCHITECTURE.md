@@ -95,6 +95,10 @@ Core templates:
 
 The runner renders templates using stage/context variables and writes rendered previews into run artefacts.
 
+Reviewer prompts are evidence-focused review packets. The reviewer template prioritises the stage contract, planner summary, builder instructions summary, builder result summary, write-safety/change evidence, test results, git diff/status evidence, and a strict verdict contract. It intentionally does not replay the full rendered planner prompt or raw builder stdout/stderr by default.
+
+Reviewer template rendering also applies deterministic per-section truncation for large evidence sections. Truncated sections include a marker with the original and retained character counts. This bounds reviewer input before execution and reduces the risk of backend input-limit failures while keeping the most relevant head/tail context.
+
 ## Stage Files
 
 Module:
