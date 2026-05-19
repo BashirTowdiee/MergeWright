@@ -1,19 +1,16 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { loadAndValidateConfig, resolveConfigPath, validateWorkspaceSafety } from "./config.js";
 import { executeCheckCommand, resolveCheckCommandCwd } from "./commands.js";
 import type { CodexExecutor } from "./codex.js";
-import { createCodexCompatibleExecutor } from "./execution-backends/codex-compatible-executor.js";
 import { serialiseBackendCommandArtefact } from "./execution-backends/backend-command-artefact.js";
 import { parsePlannerOutput } from "./planner-output.js";
 import { writePlanHtmlFromRun } from "./plan-html.js";
-import { loadPromptTemplates, renderTemplate, type TemplateVariables } from "./prompts.js";
+import { renderTemplate, type TemplateVariables } from "./prompts.js";
 import { formatDurationMs, NOOP_PROGRESS_LOGGER, type ProgressLogger } from "./progress-logger.js";
 import { parseReviewToFixOutput } from "./review-to-fix-output.js";
 import { captureWriteAuditPostStateAndWriteArtefacts, captureWriteAuditPreState } from "./write-audit.js";
 import {
   addRunArtefact,
-  createInitialRunMetadata,
   markRunFailure,
   markRunSuccess,
   toRunRelativePath,
@@ -24,6 +21,10 @@ import {
 } from "./run-metadata.js";
 import { validateStageName } from "./stage.js";
 import { checkWriteSafety, type WriteSafetyResult } from "./write-safety.js";
+import { createInitialClassicRunArtefacts } from "./workflows/classic-run/run-artefacts.js";
+import { resolveClassicRunExecutionOptions } from "./workflows/classic-run/run-context.js";
+import { validateRunOptions } from "./workflows/classic-run/run-options-validation.js";
+import { createInitialClassicRunMetadata, prepareClassicRunContext } from "./workflows/classic-run/run-setup.js";
 
 export interface RunOptions {
   stageName: string;
@@ -66,98 +67,32 @@ export interface RunResult {
 
 export async function runStage(options: RunOptions): Promise<RunResult> {
   const progressLogger = options.progressLogger ?? NOOP_PROGRESS_LOGGER;
-  if ((options.executeBuilder ?? false) && !(options.executePlanner ?? false)) {
-    throw new Error("--execute-builder requires --execute-planner");
-  }
-  if ((options.executeReviewer ?? false) && !(options.executePlanner ?? false)) {
-    throw new Error("--execute-reviewer requires --execute-planner");
-  }
-  if ((options.planFix ?? false) && !(options.executeReviewer ?? false)) {
-    throw new Error("--plan-fix requires --execute-reviewer");
-  }
-  if ((options.executeFix ?? false) && !(options.planFix ?? false)) {
-    throw new Error("--execute-fix requires --plan-fix");
-  }
-  if ((options.allowWrites ?? false) && !(options.executeBuilder ?? false) && !(options.executeFix ?? false)) {
-    throw new Error("--allow-writes requires --execute-builder or --execute-fix.");
-  }
-  if ((options.allowWrites ?? false) && ((options.executeBuilder ?? false) || (options.executeFix ?? false)) && !(options.executeReviewer ?? false) && !options.dryRun) {
-    throw new Error("--allow-writes requires --execute-reviewer for post-write review");
-  }
+  validateRunOptions(options);
 
   validateStageName(options.stageName);
   progressLogger.info(`Running stage: ${options.stageName}`);
 
-  const orchestratorRoot = path.resolve(options.orchestratorRoot);
-  progressLogger.phaseStart("setup", "loading config");
-  const configPath = resolveConfigPath(orchestratorRoot, options.configArg);
-  const config = await loadAndValidateConfig(configPath);
-  const executor: CodexExecutor = createCodexCompatibleExecutor(config, {
-    overrideCodexExecutor: options.codexExecutor
-  });
-  progressLogger.verbose(`Config: ${configPath}`);
-
-  const targetWorkspaceRoot = path.resolve(options.repoOverride ?? config.workspaceRoot);
-  progressLogger.info(`Target: ${targetWorkspaceRoot}`);
-  progressLogger.phaseStart("setup", "validating workspace");
-  await validateWorkspaceSafety(targetWorkspaceRoot, config.safety.requireGitRepo);
-
-  const stagesDir = path.resolve(orchestratorRoot, config.paths.stagesDir);
-  const promptsDir = path.resolve(orchestratorRoot, config.paths.promptsDir);
-  const runsBaseDir = resolveAndValidateRunsBaseDir(
+  const context = await prepareClassicRunContext(options, progressLogger);
+  const {
     orchestratorRoot,
+    configPath,
+    config,
+    executor,
     targetWorkspaceRoot,
-    config.paths.runsDir,
-    config.projectName
-  );
-
-  const stagePath = path.resolve(stagesDir, `${options.stageName}.md`);
-  progressLogger.phaseStart("setup", "loading stage file");
-  const stageInstruction = await readRequired(stagePath, "stage file");
-  progressLogger.phaseStart("setup", "rendering prompts");
-  const templates = await loadPromptTemplates(promptsDir);
-  progressLogger.verbose(`Stage file: ${stagePath}`);
-  progressLogger.verbose(`Prompts dir: ${promptsDir}`);
-
-  const timestamp = makeTimestamp();
-  const runId = `${timestamp}-${options.stageName}`;
-  const runDir = path.resolve(runsBaseDir, runId);
-  progressLogger.phaseStart("setup", "creating run directory");
-  await mkdir(runDir, { recursive: true });
-  progressLogger.phaseComplete("setup", `run directory: ${runDir}`);
-
-  const executePlanner = options.executePlanner ?? false;
-  const executeBuilder = options.executeBuilder ?? false;
-  const executeReviewer = options.executeReviewer ?? false;
-  const planFix = options.planFix ?? false;
-  const executeFix = options.executeFix ?? false;
-  const runChecks = options.runChecks ?? false;
-  const allowWrites = options.allowWrites ?? false;
-  const writeEnabledPhases: Array<"builder" | "fix"> = [
-    ...(executeBuilder ? (["builder"] as const) : []),
-    ...(executeFix ? (["fix"] as const) : [])
-  ];
+    stageInstruction,
+    templates,
+    runDir,
+    variables
+  } = context;
+  const { executePlanner, executeBuilder, executeReviewer, planFix, executeFix, runChecks, allowWrites, writeEnabledPhases } =
+    resolveClassicRunExecutionOptions(options);
   let writeSafetyState: RunResult["writeSafetyState"] = allowWrites && options.dryRun ? "skipped by dry-run" : "not checked";
   let writeSafetyResult: WriteSafetyResult | undefined;
 
-  const metadata = createInitialRunMetadata({
-    runId,
-    projectName: config.projectName,
-    stageName: options.stageName,
-    preset: options.preset,
-    workspaceRoot: targetWorkspaceRoot,
-    orchestratorRoot,
-    configPath,
-    resolvedOptions: {
-      dryRun: options.dryRun,
-      allowWrites,
-      executePlanner,
-      executeBuilder,
-      executeReviewer,
-      planFix,
-      executeFix,
-      runChecks
-    }
+  const metadata = createInitialClassicRunMetadata({
+    options,
+    context,
+    executionOptions: { executePlanner, executeBuilder, executeReviewer, planFix, executeFix, runChecks, allowWrites, writeEnabledPhases }
   });
   const metadataWriter = options.metadataWriter ?? writeRunMetadata;
   const writeAuditPreCapture = options.writeAuditPreCapture ?? captureWriteAuditPreState;
@@ -174,62 +109,21 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
       progressLogger.codexStreamEnd(phase);
     }
   };
-  metadata.writeSafety = { state: options.dryRun && allowWrites ? "skipped by dry-run" : "not checked", allowWrites };
-  metadata.writeAudit = metadata.writeAudit ?? { builder: { status: "not-applicable" }, fix: { status: "not-applicable" } };
-  metadata.postWriteReview = metadata.postWriteReview ?? {
-    required: false,
-    status: "not-required",
-    reason: "no write-enabled builder/fix executed",
-    requiredByPhases: [],
-    artefacts: []
-  };
-  if (allowWrites && writeEnabledPhases.length > 0) {
-    metadata.postWriteReview = {
-      required: true,
-      status: options.dryRun ? "not-required" : "pending",
-      reason: "write-enabled builder/fix executed",
-      requiredByPhases: writeEnabledPhases.map((phase) => (phase === "builder" ? "builder" : "fixExecution")),
-      artefacts: options.dryRun ? [] : ["post-write-review-required.json", "post-write-review-status.json"]
-    };
-  }
   await metadataWriter(runDir, metadata);
-
-  const variables = buildTemplateVariables({
-    stageName: options.stageName,
-    stageInstruction,
-    timestamp,
-    workspaceRoot: targetWorkspaceRoot,
-    runDir
-  });
 
   const renderedPlanner = renderTemplate(templates["planner-stage.md"], variables);
   const finalReviewPreview = renderTemplate(templates["final-review.md"], variables);
 
-  const artefacts: Record<string, string> = {
-    "01-stage-input.md": stageInstruction,
-    "02-rendered-planner-prompt.md": renderedPlanner,
-    "10-final-review-prompt.preview.md": finalReviewPreview
-  };
-  if (allowWrites && writeEnabledPhases.length > 0) {
-    if (!options.dryRun) {
-      artefacts["post-write-review-required.json"] = JSON.stringify(
-        {
-          required: true,
-          reason: metadata.postWriteReview.reason,
-          requiredByPhases: metadata.postWriteReview.requiredByPhases
-        },
-        null,
-        2
-      );
-      artefacts["post-write-review-status.json"] = JSON.stringify({ status: "pending", reason: "awaiting reviewer execution" }, null, 2);
-    } else {
-      artefacts["post-write-review-status.json"] = JSON.stringify(
-        { status: "not-required", reason: "dryRun=true; post-write review would be required when writes execute" },
-        null,
-        2
-      );
-    }
-  }
+  const artefacts: Record<string, string> = createInitialClassicRunArtefacts({
+    stageInstruction,
+    renderedPlannerPrompt: renderedPlanner,
+    finalReviewPromptPreview: finalReviewPreview,
+    allowWrites,
+    writeEnabledPhases,
+    dryRun: options.dryRun,
+    postWriteReviewReason: metadata.postWriteReview.reason,
+    postWriteReviewRequiredByPhases: metadata.postWriteReview.requiredByPhases
+  });
 
   const reviewerSkipBase = "# Placeholder\n\nReviewer execution was not requested. Pass --execute-reviewer (with --execute-planner) to execute once.";
   const reviewerSkipDryRun = "# Placeholder\n\nReviewer execution skipped because dryRun=true.";
@@ -1425,81 +1319,6 @@ async function writeArtefacts(runDir: string, artefacts: Record<string, string>)
     }
   }
   return written;
-}
-
-function resolveAndValidateRunsBaseDir(
-  orchestratorRoot: string,
-  targetWorkspaceRoot: string,
-  configuredRunsDir: string,
-  projectName: string
-): string {
-  const resolved = path.resolve(orchestratorRoot, configuredRunsDir);
-  const relToOrchestrator = path.relative(orchestratorRoot, resolved);
-  if (relToOrchestrator.startsWith("..") || path.isAbsolute(relToOrchestrator)) {
-    throw new Error(
-      `Invalid config: paths.runsDir must resolve inside orchestrator root ${orchestratorRoot}. Resolved: ${resolved}`
-    );
-  }
-
-  const relToTarget = path.relative(targetWorkspaceRoot, resolved);
-  if (!(relToTarget.startsWith("..") || path.isAbsolute(relToTarget))) {
-    throw new Error(
-      `Invalid config: paths.runsDir must not resolve inside target workspace ${targetWorkspaceRoot}. Resolved: ${resolved}`
-    );
-  }
-
-  const expected = path.resolve(orchestratorRoot, "runs", normalizeProjectNameForRunPath(projectName));
-  if (resolved !== expected) {
-    throw new Error(
-      `Invalid config: paths.runsDir must resolve to runs/<projectName>. Expected: ${expected}. Resolved: ${resolved}`
-    );
-  }
-
-  return resolved;
-}
-
-function normalizeProjectNameForRunPath(projectName: string): string {
-  return projectName.trim().toLowerCase();
-}
-
-async function readRequired(filePath: string, kind: string): Promise<string> {
-  try {
-    return await readFile(filePath, "utf8");
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    throw new Error(`Missing ${kind}: ${filePath}. ${msg}`);
-  }
-}
-
-function makeTimestamp(date = new Date()): string {
-  const yyyy = String(date.getUTCFullYear());
-  const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(date.getUTCDate()).padStart(2, "0");
-  const hh = String(date.getUTCHours()).padStart(2, "0");
-  const mi = String(date.getUTCMinutes()).padStart(2, "0");
-  const ss = String(date.getUTCSeconds()).padStart(2, "0");
-  return `${yyyy}${mm}${dd}-${hh}${mi}${ss}`;
-}
-
-function buildTemplateVariables(input: {
-  stageName: string;
-  stageInstruction: string;
-  timestamp: string;
-  workspaceRoot: string;
-  runDir: string;
-}): TemplateVariables {
-  return {
-    stage_name: input.stageName,
-    stage_instruction: input.stageInstruction,
-    timestamp: input.timestamp,
-    workspace_root: input.workspaceRoot,
-    run_dir: input.runDir,
-    git_status: "[placeholder: git status skipped in current stage]",
-    builder_output: "[placeholder: builder output skipped in current stage]",
-    test_output: "[placeholder: test output skipped in current stage]",
-    git_diff: "[placeholder: git diff skipped in current stage]",
-    review_output: "[placeholder: review output skipped in current stage]"
-  };
 }
 
 function renderReviewerPrompt(input: {
