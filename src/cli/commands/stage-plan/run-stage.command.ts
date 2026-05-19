@@ -1,5 +1,6 @@
 import { runSingleStageFromPlan } from "../../../stage-runner.js";
 import type { CommandHandler } from "../../command-context.js";
+import { formatRunStageCompletedSummaryLines, formatRunStageDryRunSummaryLines } from "../../output/stage-plan-summary.js";
 
 export const handleRunStageCommand: CommandHandler = async ({ args, orchestratorRoot, writeLine, progressLogger }) => {
   if (!args.stageId) {
@@ -23,16 +24,12 @@ export const handleRunStageCommand: CommandHandler = async ({ args, orchestrator
     progressLogger
   });
   if (result.dryRun) {
-    writeLine("Dry run succeeded.");
-    writeLine(`Stage: ${result.stageId}`);
-    writeLine(`Would run using stage plan: ${result.stagePlanPath}`);
-    writeLine(`Would write artefacts: ${result.stageArtefactsDir}`);
+    for (const line of formatRunStageDryRunSummaryLines(result.stageId, result.stagePlanPath, result.stageArtefactsDir)) {
+      writeLine(line);
+    }
     return;
   }
-  writeLine("Stage completed and requires review.");
-  writeLine("");
-  writeLine(`Stage: ${result.stageId}`);
-  writeLine(`Status: ${result.status}`);
-  writeLine(`Artefacts: ${result.stageArtefactsDir}`);
-  writeLine(`Stage Plan: ${result.stagePlanPath}`);
+  for (const line of formatRunStageCompletedSummaryLines(result.stageId, result.status, result.stageArtefactsDir, result.stagePlanPath)) {
+    writeLine(line);
+  }
 };

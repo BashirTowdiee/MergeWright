@@ -4,8 +4,8 @@ import { continueRun } from "../../continue-run.js";
 import { executeAutoChainSinglePass, formatAutoChainDryRunSummaryLines, formatAutoChainExecutionSummaryLines, projectAutoChainDryRun } from "../../auto-chain.js";
 import { openFileInBrowser } from "../../open-file.js";
 import type { CommandHandler } from "../command-context.js";
-import { formatSummaryLines } from "../summary-lines.js";
 import { generateReportSummaryLines, loadAndValidateConfig, resolveConfigPath } from "../command-helpers.js";
+import { formatSummaryLines } from "../output/run-summary.js";
 
 export const handleRunCommand: CommandHandler = async ({ args, orchestratorRoot, writeLine, deps, progressLogger }) => {
   if (!args.configArg) {
