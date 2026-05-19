@@ -1,0 +1,18 @@
+export const knownCommands = new Set([
+  "run",
+  "continue-run",
+  "list-runs",
+  "show-run",
+  "open-run",
+  "report-run",
+  "init-project",
+  "check-write-safety",
+  "probe-opencode",
+  "import-stage-plan",
+  "run-stage",
+  "accept-stage",
+  "fix-stage",
+  "run-stages",
+  "continue-stages",
+  "reassess-stage-plan"
+]);
