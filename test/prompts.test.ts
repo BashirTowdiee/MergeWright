@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { renderTemplate } from "../src/prompts.js";
+import { renderTemplate, truncateMiddle } from "../src/prompts.js";
 
 test("template rendering replaces variables", () => {
   const output = renderTemplate("Hello {{name}}", { name: "world" });
@@ -13,6 +13,44 @@ test("missing variable fails clearly", () => {
   assert.throws(() => renderTemplate("Hello {{name}} {{missing}}", { name: "world" }), {
     message: /missing variable "missing"/
   });
+});
+
+test("truncateMiddle preserves small values unchanged", () => {
+  assert.equal(truncateMiddle("small", 10), "small");
+});
+
+test("truncateMiddle bounds large values with explicit metadata marker", () => {
+  const input = `${"a".repeat(100)}${"b".repeat(100)}`;
+  const output = truncateMiddle(input, 120);
+  assert.equal(output.length, 120);
+  assert.match(output, /\[truncated: original length 200 chars, retained 120 chars\]/);
+  assert.ok(output.startsWith("a"));
+  assert.ok(output.endsWith("b"));
+});
+
+test("reviewer template rendering bounds large evidence sections", () => {
+  const templatePath = path.resolve(process.cwd(), "prompts/reviewer.md");
+  const template = readFileSync(templatePath, "utf8");
+  const output = renderTemplate(template, {
+    stage_name: "example-stage",
+    workspace_root: "/tmp/workspace",
+    run_dir: "/tmp/run",
+    stage_e_execution_scope: "scope",
+    builder_execution_state: "state",
+    stage_instruction: "stage",
+    planner_output: "planner",
+    extracted_builder_prompt: "builder prompt",
+    builder_output: "builder output",
+    builder_exit: "exit",
+    write_audit_context: "audit",
+    test_output: "tests",
+    git_diff: "x".repeat(260_000),
+    git_status: "status"
+  });
+
+  assert.match(output, /## Git diff and status evidence/);
+  assert.match(output, /\[truncated: original length 260000 chars, retained 200000 chars\]/);
+  assert.ok(output.length < 260_000);
 });
 
 test("planner template includes Stage C output contract guidance", () => {
