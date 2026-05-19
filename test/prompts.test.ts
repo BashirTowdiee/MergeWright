@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { DEFAULT_REVIEWER_PROMPT_MAX_CHARS, renderTemplate, truncateMiddle } from "../src/prompts.js";
@@ -73,6 +73,33 @@ test("reviewer template rendering bounds large evidence sections and writes budg
   assert.equal(gitDiffSection.originalChars, 260_000);
   assert.equal(gitDiffSection.retainedChars, 200_000);
   assert.equal(gitDiffSection.truncated, true);
+});
+
+test("reviewer template rendering enriches placeholder evidence from run artefacts", () => {
+  const templatePath = path.resolve(process.cwd(), "prompts/reviewer.md");
+  const template = readFileSync(templatePath, "utf8");
+  const runDir = mkdtempSync(path.join(os.tmpdir(), "reviewer-evidence-"));
+  mkdirSync(path.join(runDir, "write-audit/builder"), { recursive: true });
+  mkdirSync(path.join(runDir, "checks"), { recursive: true });
+  writeFileSync(path.join(runDir, "write-audit/builder/post-diff.patch"), "diff --git a/src/app.ts b/src/app.ts\n", "utf8");
+  writeFileSync(path.join(runDir, "write-audit/builder/summary.json"), "{\"changedFiles\":[\"src/app.ts\"]}\n", "utf8");
+  writeFileSync(path.join(runDir, "checks/01-build-stdout.log"), "build ok\n", "utf8");
+  writeFileSync(path.join(runDir, "reviewer-stdout.log"), "must not be included\n", "utf8");
+
+  const output = renderTemplate(template, reviewerVariables({
+    run_dir: runDir,
+    git_diff: "[placeholder: git diff skipped in Stage E]",
+    test_output: "[placeholder: test output skipped in Stage E]",
+    git_status: "[placeholder: git status skipped in Stage E]"
+  }));
+
+  assert.match(output, /## write-audit\/builder\/post-diff\.patch/);
+  assert.match(output, /diff --git a\/src\/app\.ts b\/src\/app\.ts/);
+  assert.match(output, /## checks\/01-build-stdout\.log/);
+  assert.match(output, /build ok/);
+  assert.match(output, /## write-audit\/builder\/summary\.json/);
+  assert.match(output, /changedFiles/);
+  assert.doesNotMatch(output, /must not be included/);
 });
 
 test("reviewer template rendering fails before execution when final prompt exceeds hard budget", () => {
