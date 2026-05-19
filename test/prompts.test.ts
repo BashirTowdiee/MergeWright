@@ -102,6 +102,30 @@ test("reviewer template rendering enriches placeholder evidence from run artefac
   assert.doesNotMatch(output, /must not be included/);
 });
 
+test("reviewer template extracts stage-specific checklist from planner output", () => {
+  const templatePath = path.resolve(process.cwd(), "prompts/reviewer.md");
+  const template = readFileSync(templatePath, "utf8");
+  const output = renderTemplate(template, reviewerVariables({
+    planner_output: [
+      "Planner context",
+      "## Review Checklist",
+      "1. Verify the experimental gate.",
+      "2. Verify dry-run behaviour.",
+      "## FINAL BUILDER PROMPT",
+      "Builder instructions"
+    ].join("\n")
+  }));
+
+  assert.match(output, /## Stage-specific review checklist/);
+  assert.match(output, /1\. Verify the experimental gate\./);
+  assert.match(output, /2\. Verify dry-run behaviour\./);
+  const checklistIndex = output.indexOf("## Stage-specific review checklist");
+  const evidenceIndex = output.indexOf("## Write-safety and change evidence");
+  const plannerIndex = output.indexOf("## Planner summary");
+  assert.ok(checklistIndex < evidenceIndex);
+  assert.ok(evidenceIndex < plannerIndex);
+});
+
 test("reviewer template rendering fails before execution when final prompt exceeds hard budget", () => {
   const template = [
     "You are reviewing a Shepherd-Staff stage implementation.",
@@ -145,6 +169,7 @@ test("reviewer template is evidence-focused and preserves verdict contract", () 
   assert.match(template, /Review the evidence in this packet/);
   assert.match(template, /Do not PASS based only on planner or builder summaries/);
   assert.match(template, /## Stage contract/);
+  assert.match(template, /## Stage-specific review checklist/);
   assert.match(template, /## Planner summary/);
   assert.match(template, /## Builder instructions summary/);
   assert.match(template, /## Builder result summary/);
@@ -152,12 +177,17 @@ test("reviewer template is evidence-focused and preserves verdict contract", () 
   assert.match(template, /## Test results/);
   assert.match(template, /## Git diff and status evidence/);
   assert.match(template, /Review actual change evidence first/);
+  assert.match(template, /Apply the stage-specific review checklist above when available/);
   assert.match(template, /Pass\/fail summary/);
   assert.match(template, /Issues found with severity/);
   assert.match(template, /Safe to commit: yes\/no/);
   assert.match(template, /Safe to proceed: yes\/no/);
   assert.match(template, /Machine-readable verdict block required/);
   assert.match(template, /json reviewer-verdict/);
+
+  assert.ok(template.indexOf("## Write-safety and change evidence") < template.indexOf("## Builder result summary"));
+  assert.ok(template.indexOf("## Test results") < template.indexOf("## Builder result summary"));
+  assert.ok(template.indexOf("## Git diff and status evidence") < template.indexOf("## Planner summary"));
 });
 
 test("reviewer template avoids transcript-style replay variables", () => {
