@@ -1,6 +1,6 @@
 import { initProject } from "../../init-project.js";
 import type { CommandHandler } from "../command-context.js";
-import { formatInitProjectSummaryLines } from "../command-helpers.js";
+import { formatInitProjectSummaryLines } from "../output/init-project-summary.js";
 
 export const handleInitProjectCommand: CommandHandler = async ({ args, orchestratorRoot, writeLine }) => {
   if (!args.projectName || !args.workspaceArg) {

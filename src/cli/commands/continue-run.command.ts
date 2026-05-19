@@ -2,7 +2,8 @@ import path from "node:path";
 import { continueRun } from "../../continue-run.js";
 import { openFileInBrowser } from "../../open-file.js";
 import type { CommandHandler } from "../command-context.js";
-import { formatContinueSummaryLines, generateReportSummaryLines, loadAndValidateConfig, resolveConfigPath } from "../command-helpers.js";
+import { generateReportSummaryLines, loadAndValidateConfig, resolveConfigPath } from "../command-helpers.js";
+import { formatContinueSummaryLines } from "../output/continue-run-summary.js";
 
 export const handleContinueRunCommand: CommandHandler = async ({ args, orchestratorRoot, writeLine, deps, progressLogger }) => {
   if (!args.configArg) {

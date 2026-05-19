@@ -1,5 +1,5 @@
 import type { CommandHandler } from "../command-context.js";
-import { formatWriteSafetySummaryLines } from "../command-helpers.js";
+import { formatWriteSafetySummaryLines } from "../output/write-safety-summary.js";
 import { runCheckWriteSafety } from "../run-check-write-safety.js";
 
 export const handleCheckWriteSafetyCommand: CommandHandler = async ({ args, orchestratorRoot, writeLine, deps, progressLogger }) => {

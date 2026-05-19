@@ -1,6 +1,7 @@
 import { readRunDetails } from "../../runs.js";
 import type { CommandHandler } from "../command-context.js";
-import { formatRunDetailsLines, loadConfigAndRunsRoot } from "../command-helpers.js";
+import { loadConfigAndRunsRoot } from "../command-helpers.js";
+import { formatRunDetailsLines } from "../output/run-details-summary.js";
 
 export const handleShowRunCommand: CommandHandler = async ({ args, orchestratorRoot, writeLine }) => {
   if (!args.configArg) {

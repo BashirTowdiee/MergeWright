@@ -7,12 +7,12 @@ import {
   formatChangeReportJson,
   formatChangeReportMarkdown,
   formatPrSummaryMarkdown,
-  formatReportSummaryLines,
   generateChangeReport,
   loadConfigAndRunsRoot,
   pathExists,
   writeChangeReport
 } from "../command-helpers.js";
+import { formatReportSummaryLines } from "../output/report-summary.js";
 
 export const handleReportRunCommand: CommandHandler = async ({ args, orchestratorRoot, writeLine, progressLogger }) => {
   if (!args.configArg) {

@@ -1,5 +1,10 @@
 import { runStagesFromPlan } from "../../../stage-runner.js";
 import type { CommandHandler } from "../../command-context.js";
+import {
+  formatDryRunStageSummaryLines,
+  formatNoPendingStagesSummaryLines,
+  formatStageCompletedSummaryLines
+} from "../../output/stage-plan-summary.js";
 
 export const handleRunStagesCommand: CommandHandler = async ({ args, orchestratorRoot, writeLine, progressLogger }) => {
   if (!args.stagePlanArg) {
@@ -23,24 +28,18 @@ export const handleRunStagesCommand: CommandHandler = async ({ args, orchestrato
     progressLogger
   });
   if (result.noPendingStages) {
-    writeLine("No pending stages.");
-    writeLine("");
-    writeLine("All stages are accepted or committed.");
+    for (const line of formatNoPendingStagesSummaryLines()) {
+      writeLine(line);
+    }
     return;
   }
   if (result.dryRun) {
-    writeLine(`Dry run: would run stage ${result.stageId}.`);
-    writeLine(`Stage Plan: ${result.stagePlanPath}`);
+    for (const line of formatDryRunStageSummaryLines(result.stageId, result.stagePlanPath)) {
+      writeLine(line);
+    }
     return;
   }
-  writeLine("Stage completed and requires review.");
-  writeLine("");
-  writeLine(`Stage: ${result.stageId}`);
-  writeLine(`Status: ${result.status}`);
-  writeLine(`Stage Plan Status: ${result.stagePlanStatus}`);
-  writeLine(`Artefacts: ${result.stageArtefactsDir}`);
-  writeLine("");
-  writeLine("Next:");
-  writeLine(`  accept-stage ${result.stageId}`);
-  writeLine(`  fix-stage ${result.stageId} --feedback "..."`);
+  for (const line of formatStageCompletedSummaryLines(result.stageId, result.status, result.stagePlanStatus, result.stageArtefactsDir)) {
+    writeLine(line);
+  }
 };

@@ -1,5 +1,6 @@
 import { fixStageFromPlan } from "../../../stage-runner.js";
 import type { CommandHandler } from "../../command-context.js";
+import { formatFixStageCompletedSummaryLines } from "../../output/stage-plan-summary.js";
 
 export const handleFixStageCommand: CommandHandler = async ({ args, orchestratorRoot, writeLine, progressLogger }) => {
   if (!args.stageId) {
@@ -26,17 +27,14 @@ export const handleFixStageCommand: CommandHandler = async ({ args, orchestrator
     progressLogger,
     reassessDownstream: args.reassessDownstream
   });
-  writeLine("Stage fix completed and requires review.");
-  writeLine("");
-  writeLine(`Stage: ${result.stageId}`);
-  writeLine(`Status: ${result.status}`);
-  writeLine(`Revision: ${result.revision}`);
-  writeLine(`Feedback: ${result.feedbackPath}`);
-  writeLine(`Stage Plan: ${result.stagePlanPath}`);
-  if (result.reassessment) {
-    writeLine(`Reassessed downstream stages: ${result.reassessment.downstreamStageIds.length}`);
-    if (result.reassessment.reassessmentDir) {
-      writeLine(`Reassessment Artefacts: ${result.reassessment.reassessmentDir}`);
-    }
+  for (const line of formatFixStageCompletedSummaryLines(
+    result.stageId,
+    result.status,
+    result.revision,
+    result.feedbackPath,
+    result.stagePlanPath,
+    result.reassessment
+  )) {
+    writeLine(line);
   }
 };
