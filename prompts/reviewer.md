@@ -1,94 +1,91 @@
-# Reviewer Prompt (Stage E)
+# Reviewer Prompt
 
 Do not modify files.
 
-You are reviewing Stage E orchestration behaviour only.
+You are reviewing a Shepherd-Staff stage implementation. Review the evidence in this packet. Do not PASS based only on planner or builder summaries.
 
 Stage: {{stage_name}}
 Workspace: {{workspace_root}}
 Run Dir: {{run_dir}}
 
-Scope guardrails:
+## Scope guardrails
+
 - {{stage_e_execution_scope}}
 - {{builder_execution_state}}
 
-Stage instruction:
+## Stage contract
+
 {{stage_instruction}}
 
-Rendered planner prompt:
-{{planner_prompt}}
+## Planner summary
 
-Planner output (raw/final):
+Use this as planning context only. Do not treat it as proof that implementation happened.
+
 {{planner_output}}
 
-Extracted builder prompt:
+## Builder instructions summary
+
+Use this as context for what the builder was asked to do. Judge the actual implementation from changed files, write-audit artefacts, and test/check evidence.
+
 {{extracted_builder_prompt}}
 
-Builder final output:
+## Builder result summary
+
 {{builder_output}}
 
-Builder stdout:
-{{builder_stdout}}
+## Builder exit metadata
 
-Builder stderr:
-{{builder_stderr}}
-
-Builder exit metadata:
 {{builder_exit}}
 
-Write-audit context (when write-enabled phases ran):
+## Write-safety and change evidence
+
 {{write_audit_context}}
 
-Test output placeholder:
+## Test results
+
 {{test_output}}
 
-Git diff placeholder:
+## Git diff and status evidence
+
+Git diff:
 {{git_diff}}
 
-Git status placeholder:
+Git status:
 {{git_status}}
 
-Required checks:
-1. Confirm Stage E scope is respected.
-2. Confirm planner output contract and extracted builder prompt quality.
-3. If builder ran, review builder output and safety signals.
-4. If write-audit context is present, inspect changed files and write-audit summary/diff artefacts.
-5. If builder did not run, explicitly state review limitations.
-6. Confirm no review-to-fix/git/test/build execution occurred.
+## Required review checks
 
-Return format:
+1. Check the implementation against the stage contract and acceptance criteria.
+2. Review actual change evidence first: changed files, write-audit summaries, diff-stat, patches, git diff, git status, and test/check results.
+3. Treat planner and builder summaries as context only, not proof.
+4. Confirm write-safety semantics are not weakened.
+5. Confirm read-only phases remain read-only unless the stage explicitly changes that behaviour.
+6. Confirm builder/fix write paths remain gated by explicit write mode.
+7. Confirm dry-run behaviour is preserved.
+8. Confirm tests were added or updated for new behaviour.
+9. Confirm generated run artefacts are not part of the target change.
+10. Confirm failures are explicit and not hidden by broad catch blocks or swallowed errors.
+11. If builder did not run, explicitly state review limitations.
+12. Confirm no review-to-fix/git/test/build execution occurred unless requested by the selected phase flags.
+
+## Reject if
+
+- The change weakens write-safety, branch safety, blocked path checks, or post-write review requirements.
+- The change broadens provider/backend support outside the stage scope.
+- The change disables, skips, or weakens tests to pass.
+- The reviewer cannot verify important requirements from evidence.
+- The implementation relies only on builder claims without corresponding code, docs, or test evidence.
+
+## Return format
+
 - Pass/fail summary
 - Issues found with severity
 - Recommended minimal fixes
+- Test results observed
 - Safe to commit: yes/no
 - Safe to proceed: yes/no
 
-Machine-readable verdict block (required):
-- Include exactly one fenced JSON block using this exact marker: `json reviewer-verdict`
-- The JSON must be valid and match this schema.
-
-For pass:
-
-```json reviewer-verdict
-{
-  "verdict": "PASS",
-  "blockingIssues": [],
-  "nonBlockingIssues": []
-}
-```
-
-For failure:
-
-```json reviewer-verdict
-{
-  "verdict": "FAIL",
-  "blockingIssues": [
-    {
-      "severity": "high",
-      "summary": "Request logging includes request bodies by default",
-      "files": ["src/app.ts"]
-    }
-  ],
-  "nonBlockingIssues": []
-}
-```
+Machine-readable verdict block required:
+- Include exactly one fenced JSON block marked `json reviewer-verdict`.
+- For PASS, set verdict to PASS and leave blockingIssues empty.
+- For FAIL, set verdict to FAIL and include blockingIssues.
