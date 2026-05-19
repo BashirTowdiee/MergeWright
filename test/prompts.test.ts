@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { renderTemplate, truncateMiddle } from "../src/prompts.js";
+import { DEFAULT_REVIEWER_PROMPT_MAX_CHARS, renderTemplate, truncateMiddle } from "../src/prompts.js";
 
 test("template rendering replaces variables", () => {
   const output = renderTemplate("Hello {{name}}", { name: "world" });
@@ -28,13 +29,11 @@ test("truncateMiddle bounds large values with explicit metadata marker", () => {
   assert.ok(output.endsWith("b"));
 });
 
-test("reviewer template rendering bounds large evidence sections", () => {
-  const templatePath = path.resolve(process.cwd(), "prompts/reviewer.md");
-  const template = readFileSync(templatePath, "utf8");
-  const output = renderTemplate(template, {
+function reviewerVariables(overrides: Record<string, string> = {}): Record<string, string> {
+  return {
     stage_name: "example-stage",
     workspace_root: "/tmp/workspace",
-    run_dir: "/tmp/run",
+    run_dir: mkdtempSync(path.join(os.tmpdir(), "reviewer-budget-")),
     stage_e_execution_scope: "scope",
     builder_execution_state: "state",
     stage_instruction: "stage",
@@ -44,13 +43,61 @@ test("reviewer template rendering bounds large evidence sections", () => {
     builder_exit: "exit",
     write_audit_context: "audit",
     test_output: "tests",
-    git_diff: "x".repeat(260_000),
-    git_status: "status"
-  });
+    git_diff: "diff",
+    git_status: "status",
+    ...overrides
+  };
+}
+
+test("reviewer template rendering bounds large evidence sections and writes budget metadata", () => {
+  const templatePath = path.resolve(process.cwd(), "prompts/reviewer.md");
+  const template = readFileSync(templatePath, "utf8");
+  const variables = reviewerVariables({ git_diff: "x".repeat(260_000) });
+  const output = renderTemplate(template, variables);
 
   assert.match(output, /## Git diff and status evidence/);
   assert.match(output, /\[truncated: original length 260000 chars, retained 200000 chars\]/);
   assert.ok(output.length < 260_000);
+
+  const metadata = JSON.parse(readFileSync(path.join(variables.run_dir, "reviewer-prompt-budget.json"), "utf8")) as {
+    maxChars: number;
+    finalChars: number;
+    exceedsBudget: boolean;
+    sections: Array<{ name: string; originalChars: number; retainedChars: number; truncated: boolean }>;
+  };
+  assert.equal(metadata.maxChars, DEFAULT_REVIEWER_PROMPT_MAX_CHARS);
+  assert.equal(metadata.finalChars, output.length);
+  assert.equal(metadata.exceedsBudget, false);
+  const gitDiffSection = metadata.sections.find((section) => section.name === "git_diff");
+  assert.ok(gitDiffSection);
+  assert.equal(gitDiffSection.originalChars, 260_000);
+  assert.equal(gitDiffSection.retainedChars, 200_000);
+  assert.equal(gitDiffSection.truncated, true);
+});
+
+test("reviewer template rendering fails before execution when final prompt exceeds hard budget", () => {
+  const template = [
+    "You are reviewing a Shepherd-Staff stage implementation.",
+    "json reviewer-verdict",
+    "{{unbudgeted_payload}}"
+  ].join("\n");
+  const runDir = mkdtempSync(path.join(os.tmpdir(), "reviewer-budget-fail-"));
+
+  assert.throws(
+    () =>
+      renderTemplate(template, {
+        run_dir: runDir,
+        unbudgeted_payload: "x".repeat(DEFAULT_REVIEWER_PROMPT_MAX_CHARS + 1)
+      }),
+    /Reviewer prompt exceeds configured budget after truncation\. Final length: \d+ chars\. Budget: 900000 chars\./
+  );
+
+  const metadata = JSON.parse(readFileSync(path.join(runDir, "reviewer-prompt-budget.json"), "utf8")) as {
+    exceedsBudget: boolean;
+    finalChars: number;
+  };
+  assert.equal(metadata.exceedsBudget, true);
+  assert.ok(metadata.finalChars > DEFAULT_REVIEWER_PROMPT_MAX_CHARS);
 });
 
 test("planner template includes Stage C output contract guidance", () => {
