@@ -17,9 +17,11 @@ export const DEFAULT_REVIEWER_PROMPT_MAX_CHARS = 900_000;
 
 const REVIEWER_TEMPLATE_MARKERS = ["You are reviewing a Shepherd-Staff stage implementation", "json reviewer-verdict"];
 const PLACEHOLDER_PREFIX = "[placeholder:";
+const REVIEW_CHECKLIST_HEADING = /^#{1,6}\s*(?:stage-specific\s+)?(?:review\s+)?checklist\b.*$/im;
 
 const REVIEWER_VARIABLE_BUDGETS: Record<string, number> = {
   stage_instruction: 80_000,
+  stage_specific_review_checklist: 80_000,
   planner_output: 60_000,
   extracted_builder_prompt: 60_000,
   builder_output: 90_000,
@@ -142,10 +144,36 @@ function enrichReviewerEvidenceVariables(variables: TemplateVariables): Template
 
   return {
     ...variables,
+    stage_specific_review_checklist:
+      variables.stage_specific_review_checklist ?? extractStageSpecificReviewChecklist(variables.planner_output),
     git_diff: shouldReplacePlaceholder(variables.git_diff) ? collectRunEvidence(runDir, [".patch", "diff-stat.txt"]) : variables.git_diff,
     test_output: shouldReplacePlaceholder(variables.test_output) ? collectRunEvidence(runDir, ["-stdout.log", "-stderr.log", "checks-status.json"]) : variables.test_output,
     git_status: shouldReplacePlaceholder(variables.git_status) ? collectRunEvidence(runDir, ["summary.json"]) : variables.git_status
   };
+}
+
+function extractStageSpecificReviewChecklist(plannerOutput: string | undefined): string {
+  if (!plannerOutput) {
+    return "[not available: planner output did not include a stage-specific review checklist]";
+  }
+
+  const lines = plannerOutput.split(/\r?\n/);
+  const headingIndex = lines.findIndex((line) => REVIEW_CHECKLIST_HEADING.test(line));
+  if (headingIndex === -1) {
+    return "[not available: planner output did not include a stage-specific review checklist]";
+  }
+
+  const collected: string[] = [];
+  for (let index = headingIndex + 1; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (/^#{1,6}\s+\S/.test(line) && collected.some((item) => item.trim().length > 0)) {
+      break;
+    }
+    collected.push(line);
+  }
+
+  const checklist = collected.join("\n").trim();
+  return checklist || "[not available: planner review checklist section was empty]";
 }
 
 function shouldReplacePlaceholder(value: string | undefined): boolean {
