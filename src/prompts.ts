@@ -1,3 +1,4 @@
+import { mkdirSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -12,6 +13,8 @@ export type PromptFileName = (typeof REQUIRED_PROMPT_FILES)[number];
 
 export type TemplateVariables = Record<string, string>;
 
+export const DEFAULT_REVIEWER_PROMPT_MAX_CHARS = 900_000;
+
 const REVIEWER_TEMPLATE_MARKERS = ["You are reviewing a Shepherd-Staff stage implementation", "json reviewer-verdict"];
 
 const REVIEWER_VARIABLE_BUDGETS: Record<string, number> = {
@@ -25,6 +28,21 @@ const REVIEWER_VARIABLE_BUDGETS: Record<string, number> = {
   git_diff: 200_000,
   git_status: 20_000
 };
+
+export interface ReviewerPromptBudgetSection {
+  name: string;
+  originalChars: number;
+  retainedChars: number;
+  truncated: boolean;
+  budgetChars?: number;
+}
+
+export interface ReviewerPromptBudgetMetadata {
+  maxChars: number;
+  finalChars: number;
+  exceedsBudget: boolean;
+  sections: ReviewerPromptBudgetSection[];
+}
 
 export async function loadPromptTemplates(promptsDir: string): Promise<Record<PromptFileName, string>> {
   const result: Partial<Record<PromptFileName, string>> = {};
@@ -44,32 +62,82 @@ export async function loadPromptTemplates(promptsDir: string): Promise<Record<Pr
 
 export function renderTemplate(template: string, variables: TemplateVariables): string {
   const isReviewerTemplate = REVIEWER_TEMPLATE_MARKERS.every((marker) => template.includes(marker));
+  const sections: ReviewerPromptBudgetSection[] = [];
 
-  return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key: string) => {
+  const rendered = template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key: string) => {
     if (!(key in variables)) {
       throw new Error(`Template rendering failed: missing variable "${key}"`);
     }
     const value = variables[key];
     const budget = isReviewerTemplate ? REVIEWER_VARIABLE_BUDGETS[key] : undefined;
-    return typeof budget === "number" ? truncateMiddle(value, budget) : value;
+    if (typeof budget !== "number") {
+      return value;
+    }
+
+    const truncated = truncateMiddleWithMetadata(value, budget);
+    sections.push({
+      name: key,
+      originalChars: value.length,
+      retainedChars: truncated.value.length,
+      truncated: truncated.truncated,
+      budgetChars: budget
+    });
+    return truncated.value;
   });
+
+  if (!isReviewerTemplate) {
+    return rendered;
+  }
+
+  const metadata: ReviewerPromptBudgetMetadata = {
+    maxChars: DEFAULT_REVIEWER_PROMPT_MAX_CHARS,
+    finalChars: rendered.length,
+    exceedsBudget: rendered.length > DEFAULT_REVIEWER_PROMPT_MAX_CHARS,
+    sections
+  };
+  writeReviewerPromptBudgetArtefact(variables.run_dir, metadata);
+
+  if (metadata.exceedsBudget) {
+    throw new Error(
+      `Reviewer prompt exceeds configured budget after truncation. Final length: ${metadata.finalChars} chars. Budget: ${metadata.maxChars} chars. Try splitting the stage or reducing diff/test output.`
+    );
+  }
+
+  return rendered;
 }
 
 export function truncateMiddle(value: string, maxChars: number): string {
+  return truncateMiddleWithMetadata(value, maxChars).value;
+}
+
+function truncateMiddleWithMetadata(value: string, maxChars: number): { value: string; truncated: boolean } {
   if (maxChars < 1) {
     throw new Error("truncateMiddle maxChars must be greater than 0");
   }
   if (value.length <= maxChars) {
-    return value;
+    return { value, truncated: false };
   }
 
   const marker = `\n\n[truncated: original length ${value.length} chars, retained ${maxChars} chars]\n\n`;
   if (marker.length >= maxChars) {
-    return marker.slice(0, maxChars);
+    return { value: marker.slice(0, maxChars), truncated: true };
   }
 
   const remaining = maxChars - marker.length;
   const head = Math.ceil(remaining * 0.6);
   const tail = remaining - head;
-  return `${value.slice(0, head)}${marker}${tail > 0 ? value.slice(-tail) : ""}`;
+  return {
+    value: `${value.slice(0, head)}${marker}${tail > 0 ? value.slice(-tail) : ""}`,
+    truncated: true
+  };
+}
+
+function writeReviewerPromptBudgetArtefact(runDir: string | undefined, metadata: ReviewerPromptBudgetMetadata): void {
+  if (!runDir) {
+    return;
+  }
+
+  const filePath = path.resolve(runDir, "reviewer-prompt-budget.json");
+  mkdirSync(path.dirname(filePath), { recursive: true });
+  writeFileSync(filePath, `${JSON.stringify(metadata, null, 2)}\n`, "utf8");
 }
