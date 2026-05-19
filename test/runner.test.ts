@@ -706,6 +706,8 @@ test("executePlanner + executeBuilder + dry-run skips both executions", async ()
   assert.match(builderPlaceholder, /skipped because dryRun=true/);
   const reviewerPlaceholder = await readFile(path.join(result.runDir, "reviewer-output.placeholder.md"), "utf8");
   assert.match(reviewerPlaceholder, /skipped because dryRun=true/);
+  const reviewerPreview = await readFile(path.join(result.runDir, "08-reviewer-prompt.preview.md"), "utf8");
+  assert.match(reviewerPreview, /STATE=Builder was not executed in Stage E/);
   await assert.rejects(access(path.join(result.runDir, "builder-exit.json")));
 });
 
@@ -2436,6 +2438,7 @@ test("builder failure writes diagnostics before throwing", async () => {
   assert.equal(exit.code, 9);
   const reviewerPreview = await readFile(path.join(runDir, "08-reviewer-prompt.preview.md"), "utf8");
   assert.match(reviewerPreview, /EXTRACTED=Implement Stage D builder/);
+  assert.match(reviewerPreview, /STATE=Builder executed/);
   const reviewerSkipped = JSON.parse(await readFile(path.join(runDir, "reviewer-skipped.json"), "utf8")) as {
     skipped: boolean;
     reason: string;
