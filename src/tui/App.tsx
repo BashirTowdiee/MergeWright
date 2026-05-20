@@ -1,14 +1,31 @@
-import React from "react";
-import { Box, Text } from "ink";
+import React, { useMemo, useState } from "react";
+import { Box, Text, useInput } from "ink";
 import type { TuiSpikeFixture } from "./spike-fixture.js";
 import { getStatusLabel, getStatusSymbol } from "./components/status.js";
+import { moveSelection } from "./navigation.js";
 
 export interface TuiAppProps {
   fixture: TuiSpikeFixture;
 }
 
 export function TuiApp({ fixture }: TuiAppProps) {
-  const { selectedRun } = fixture;
+  const [selectedRunIndex, setSelectedRunIndex] = useState(0);
+  const selectedRun = useMemo(() => {
+    const selected = fixture.runs[selectedRunIndex];
+    if (!selected) {
+      return fixture.selectedRun;
+    }
+    return selected.id === fixture.selectedRun.id ? fixture.selectedRun : fixture.selectedRun;
+  }, [fixture, selectedRunIndex]);
+
+  useInput((input, key) => {
+    if (key.upArrow || input === "k") {
+      setSelectedRunIndex((currentIndex) => moveSelection({ currentIndex, itemCount: fixture.runs.length, direction: "up" }));
+    }
+    if (key.downArrow || input === "j") {
+      setSelectedRunIndex((currentIndex) => moveSelection({ currentIndex, itemCount: fixture.runs.length, direction: "down" }));
+    }
+  });
 
   return (
     <Box flexDirection="column" paddingX={1}>
@@ -16,10 +33,10 @@ export function TuiApp({ fixture }: TuiAppProps) {
       <Box flexDirection="row" marginTop={1}>
         <Box marginRight={1}>
           <Pane title="Runs" width={30}>
-            {fixture.runs.map((run) => (
+            {fixture.runs.map((run, index) => (
               <Box key={run.id} flexDirection="column" marginBottom={1}>
-                <Text>{getStatusSymbol(run.status)} {run.title}</Text>
-                <Text dimColor>  {run.subtitle}</Text>
+                <Text inverse={index === selectedRunIndex}>{index === selectedRunIndex ? ">" : " "} {getStatusSymbol(run.status)} {run.title}</Text>
+                <Text dimColor>   {run.subtitle}</Text>
               </Box>
             ))}
           </Pane>
@@ -100,7 +117,7 @@ function Pane({ title, width, children }: PaneProps) {
 function FooterBar() {
   return (
     <Box marginTop={1}>
-      <Text dimColor>read-only Ink preview - actions disabled - Ctrl+C to exit</Text>
+      <Text dimColor>j/k or arrows select run - read-only Ink preview - actions disabled - Ctrl+C to exit</Text>
     </Box>
   );
 }
