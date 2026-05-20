@@ -5,15 +5,21 @@ import type { RunDetailViewModel } from "./view-models.js";
 export async function createTuiFixtureFromRuns(input: { runsRoot: string }): Promise<TuiSpikeFixture> {
   const runs = await listRunsForTui({ runsRoot: input.runsRoot });
   if (runs.length === 0) {
+    const selectedRun = createEmptyRunDetail(input.runsRoot);
     return {
       runs: [],
-      selectedRun: createEmptyRunDetail(input.runsRoot)
+      selectedRun,
+      runDetailsById: { [selectedRun.id]: selectedRun }
     };
   }
 
+  const details = await Promise.all(runs.map((run) => inspectRunForTui({ runsRoot: input.runsRoot, runId: run.id })));
+  const runDetailsById = Object.fromEntries(details.map((detail) => [detail.id, detail]));
+
   return {
     runs,
-    selectedRun: await inspectRunForTui({ runsRoot: input.runsRoot, runId: runs[0].id })
+    selectedRun: details[0] ?? createEmptyRunDetail(input.runsRoot),
+    runDetailsById
   };
 }
 
