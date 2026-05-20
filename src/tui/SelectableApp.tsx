@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { describeSafeActionIntent } from "./action-intent.js";
-import { getStatusLabel, getStatusSymbol } from "./components/status.js";
+import { formatStatusLegend, getStatusSymbol } from "./components/status.js";
 import { buildEvidencePreview } from "./evidence-preview.js";
 import { getEmptyStateMessage } from "./empty-state.js";
 import { getFocusedPaneTitle, moveFocus, type FocusedPane } from "./focus.js";
@@ -151,6 +151,9 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
         <Text>{formatNotice(notice)}</Text>
       </Box>
       <Box>
+        <Text dimColor>Status: {formatStatusLegend()}</Text>
+      </Box>
+      <Box>
         <Text dimColor>? help - tab focus pane - j/k select item - enter previews selected action - read-only - Ctrl+C to exit</Text>
       </Box>
     </Box>
@@ -166,6 +169,10 @@ function HelpOverlay() {
         {TUI_KEY_BINDINGS.map((binding) => (
           <Text key={`${binding.scope}-${binding.key}`}>{formatKeyBinding(binding)}</Text>
         ))}
+      </Box>
+      <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
+        <Text bold>Status legend</Text>
+        <Text>{formatStatusLegend()}</Text>
       </Box>
     </Box>
   );
