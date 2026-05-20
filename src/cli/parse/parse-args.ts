@@ -68,6 +68,7 @@ function renderTopLevelHelpText(): string {
     "  show-run <run-id> --config <config-path>",
     "  open-run <run-id> --config <config-path>",
     "  report-run <run-id> --config <config-path> [--json] [--pr-summary] [--stdout-only] [--force] [--verbose]",
+    "  tui-spike",
     "  init-project <name> --workspace <path> [--force] [--verbose]",
     "  check-write-safety --config <config-path>",
     "  probe-opencode [--config <config-path>] [--backend <name>] [--command <command>] [--json] [--validate-readonly-contract]",
