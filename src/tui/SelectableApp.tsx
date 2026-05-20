@@ -2,10 +2,12 @@ import React, { useMemo, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { getStatusLabel, getStatusSymbol } from "./components/status.js";
 import { buildEvidencePreview } from "./evidence-preview.js";
+import { getFocusedPaneTitle, moveFocus, type FocusedPane } from "./focus.js";
 import { moveSelection } from "./navigation.js";
 import type { TuiSpikeFixture } from "./spike-fixture.js";
 
 export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
+  const [focusedPane, setFocusedPane] = useState<FocusedPane>("runs");
   const [selectedRunIndex, setSelectedRunIndex] = useState(0);
   const [selectedArtefactIndex, setSelectedArtefactIndex] = useState(0);
   const selectedRun = useMemo(() => {
@@ -16,18 +18,23 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const evidenceLines = buildEvidencePreview({ artefact: selectedArtefact, findings: selectedRun.reviewerFindings });
 
   useInput((input, key) => {
-    if (input === "k" || key.upArrow) {
+    if (input === "\t" || key.tab) {
+      setFocusedPane((current) => moveFocus({ current, direction: key.shift ? "previous" : "next" }));
+      return;
+    }
+
+    if (focusedPane === "runs" && (input === "k" || key.upArrow)) {
       setSelectedRunIndex((currentIndex) => moveSelection({ currentIndex, itemCount: fixture.runs.length, direction: "up" }));
       setSelectedArtefactIndex(0);
     }
-    if (input === "j" || key.downArrow) {
+    if (focusedPane === "runs" && (input === "j" || key.downArrow)) {
       setSelectedRunIndex((currentIndex) => moveSelection({ currentIndex, itemCount: fixture.runs.length, direction: "down" }));
       setSelectedArtefactIndex(0);
     }
-    if (input === "h" || key.leftArrow) {
+    if (focusedPane === "artefacts" && (input === "k" || key.upArrow)) {
       setSelectedArtefactIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.artefacts.length, direction: "up" }));
     }
-    if (input === "l" || key.rightArrow) {
+    if (focusedPane === "artefacts" && (input === "j" || key.downArrow)) {
       setSelectedArtefactIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.artefacts.length, direction: "down" }));
     }
   });
@@ -41,10 +48,10 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       </Box>
       <Box flexDirection="row" marginTop={1}>
         <Box flexDirection="column" width={30} borderStyle="round" paddingX={1} marginRight={1}>
-          <Text bold>Runs</Text>
+          <Text bold>{getFocusedPaneTitle("Runs", focusedPane === "runs")}</Text>
           {fixture.runs.map((run, index) => (
             <Box key={run.id} flexDirection="column" marginBottom={1}>
-              <Text inverse={index === selectedRunIndex}>
+              <Text inverse={focusedPane === "runs" && index === selectedRunIndex}>
                 {index === selectedRunIndex ? ">" : " "} {getStatusSymbol(run.status)} {run.title}
               </Text>
               <Text dimColor>   {run.subtitle}</Text>
@@ -73,9 +80,9 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       </Box>
       <Box flexDirection="row" marginTop={1}>
         <Box flexDirection="column" width={46} borderStyle="round" paddingX={1} marginRight={1}>
-          <Text bold>Artefacts</Text>
+          <Text bold>{getFocusedPaneTitle("Artefacts", focusedPane === "artefacts")}</Text>
           {selectedRun.artefacts.length === 0 ? <Text dimColor>No artefacts recorded.</Text> : selectedRun.artefacts.map((artefact, index) => (
-            <Text key={artefact.id} inverse={index === selectedArtefactIndex}>{index === selectedArtefactIndex ? ">" : " "} {artefact.kind.padEnd(8)} {artefact.title}</Text>
+            <Text key={artefact.id} inverse={focusedPane === "artefacts" && index === selectedArtefactIndex}>{index === selectedArtefactIndex ? ">" : " "} {artefact.kind.padEnd(8)} {artefact.title}</Text>
           ))}
         </Box>
         <Box flexDirection="column" width={80} borderStyle="round" paddingX={1}>
@@ -92,7 +99,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
         </Box>
       </Box>
       <Box marginTop={1}>
-        <Text dimColor>j/k select run - h/l select artefact - read-only - actions disabled - Ctrl+C to exit</Text>
+        <Text dimColor>tab focus pane - j/k select item - read-only - actions disabled - Ctrl+C to exit</Text>
       </Box>
     </Box>
   );
