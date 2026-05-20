@@ -197,6 +197,66 @@ test("reassess-stage-plan writes artefacts and marks downstream statuses", async
   assert.equal(after.stages.find((s) => s.id === "stage-01-provider-contract")?.status, "accepted");
   assert.equal(after.stages.find((s) => s.id === "stage-02-provider-impl")?.status, "needs_revision");
   assert.equal(after.stages.find((s) => s.id === "stage-03-docs")?.status, "pending");
+  const stagePlanMarkdown = await readFile(path.join(path.dirname(stagePlanPath), "stage-plan.md"), "utf8");
+  assert.match(stagePlanMarkdown, /stage-02-provider-impl/);
+  assert.match(stagePlanMarkdown, /needs_revision/);
+});
+
+test("reassess-stage-plan fails when model output is not valid JSON", async () => {
+  const { orchestratorRoot, stagePlanPath, cfgPath } = await setupPlan();
+
+  await assert.rejects(
+    () =>
+      reassessStagePlan({
+        stagePlanArg: stagePlanPath,
+        sourceStageId: "stage-01-provider-contract",
+        configArg: cfgPath,
+        orchestratorRoot,
+        dryRun: false,
+        codexExecutor: async () =>
+          ({
+            command: "codex",
+            args: [],
+            cwd: orchestratorRoot,
+            stdout: "",
+            stderr: "",
+            exitCode: 0,
+            signal: null,
+            durationMs: 10,
+            success: true,
+            outputLastMessagePath: path.join(orchestratorRoot, "mock-invalid-json.md"),
+            outputLastMessage: "```json\nnot valid json\n```",
+            skipped: false
+          })
+      }),
+    /Reassessment output parse error: invalid JSON\./
+  );
+});
+
+test("reassess-stage-plan returns no downstream stages without model execution or mutation", async () => {
+  const { orchestratorRoot, stagePlanPath, cfgPath } = await setupPlan();
+  const before = await readFile(stagePlanPath, "utf8");
+  let modelCalled = false;
+
+  const result = await reassessStagePlan({
+    stagePlanArg: stagePlanPath,
+    sourceStageId: "stage-03-docs",
+    configArg: cfgPath,
+    orchestratorRoot,
+    dryRun: false,
+    codexExecutor: async () => {
+      modelCalled = true;
+      throw new Error("should not execute model when there are no downstream stages");
+    }
+  });
+
+  assert.equal(result.dryRun, false);
+  assert.deepEqual(result.downstreamStageIds, []);
+  assert.equal(result.reassessmentDir, undefined);
+  assert.equal(modelCalled, false);
+  const after = await readFile(stagePlanPath, "utf8");
+  assert.equal(after, before);
+  await assert.rejects(() => access(path.join(path.dirname(stagePlanPath), "reassessments")));
 });
 
 test("reassessment prompt includes source-stage context and classification-only guardrails", async () => {
