@@ -7,13 +7,13 @@ import {
   buildCodexExecArgs,
   executeCodex,
   parseCodexExecHelp,
-  validateCodexExecutionRequest,
+  validateAgentExecutionRequest,
   DEFAULT_CODEX_EXEC_CAPABILITIES,
-  type CodexExecutionRequest,
+  type AgentExecutionRequest,
   type CodexExecCapabilities
 } from "../src/codex.js";
 
-const requestBase: CodexExecutionRequest = {
+const requestBase: AgentExecutionRequest = {
   prompt: "plan this stage",
   role: "planner",
   model: "gpt-5.3-codex",
@@ -71,7 +71,7 @@ test("workspace-write sandbox appears only when requested", () => {
 
 test("invalid sandbox mode fails", () => {
   assert.throws(
-    () => validateCodexExecutionRequest({ ...requestBase, sandboxMode: "bad-mode" as "read-only" }, fullCaps),
+    () => validateAgentExecutionRequest({ ...requestBase, sandboxMode: "bad-mode" as "read-only" }, fullCaps),
     /sandboxMode must be read-only or workspace-write/
   );
 });
@@ -84,42 +84,42 @@ test("output-last-message flag is always present when capability exists", () => 
 
 test("missing sandbox capability fails closed", () => {
   assert.throws(
-    () => validateCodexExecutionRequest(requestBase, { ...fullCaps, hasSandboxFlag: false }),
+    () => validateAgentExecutionRequest(requestBase, { ...fullCaps, hasSandboxFlag: false }),
     /sandbox flag/,
   );
 });
 
 test("missing output-last-message capability fails closed", () => {
   assert.throws(
-    () => validateCodexExecutionRequest(requestBase, { ...fullCaps, hasOutputLastMessageFlag: false }),
+    () => validateAgentExecutionRequest(requestBase, { ...fullCaps, hasOutputLastMessageFlag: false }),
     /output-last-message flag/,
   );
 });
 
 test("invalid empty prompt fails", () => {
   assert.throws(
-    () => validateCodexExecutionRequest({ ...requestBase, prompt: "   " }, fullCaps),
+    () => validateAgentExecutionRequest({ ...requestBase, prompt: "   " }, fullCaps),
     /prompt must be non-empty/,
   );
 });
 
 test("invalid empty model fails", () => {
   assert.throws(
-    () => validateCodexExecutionRequest({ ...requestBase, model: "" }, fullCaps),
+    () => validateAgentExecutionRequest({ ...requestBase, model: "" }, fullCaps),
     /model must be non-empty/,
   );
 });
 
 test("invalid empty reasoning effort fails", () => {
   assert.throws(
-    () => validateCodexExecutionRequest({ ...requestBase, reasoningEffort: "" }, fullCaps),
+    () => validateAgentExecutionRequest({ ...requestBase, reasoningEffort: "" }, fullCaps),
     /reasoningEffort must be non-empty/,
   );
 });
 
 test("non-absolute output-last-message path fails", () => {
   assert.throws(
-    () => validateCodexExecutionRequest({ ...requestBase, outputLastMessagePath: "runs/out.md" }, fullCaps),
+    () => validateAgentExecutionRequest({ ...requestBase, outputLastMessagePath: "runs/out.md" }, fullCaps),
     /must be an absolute path/,
   );
 });

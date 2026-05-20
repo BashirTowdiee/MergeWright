@@ -122,11 +122,14 @@ async function makeAutoChainFixture(): Promise<{ orchestratorRoot: string; confi
         projectName: "Acme",
         workspaceRoot,
         paths: { stagesDir: "stages", promptsDir: "prompts", runsDir: "runs" },
-        codex: {
-          planner: { model: "gpt-5.3-codex", reasoningEffort: "high" },
-          builder: { model: "gpt-5.3-codex", reasoningEffort: "medium" },
-          reviewer: { model: "gpt-5.3-codex", reasoningEffort: "high" }
-        },
+    executionBackends: {
+      codex: { type: "codex-cli" }
+    },
+    agents: {
+      planner: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" },
+      builder: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "medium" },
+      reviewer: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" }
+    },
         pipeline: { finalReview: true, maxFixLoops: 1 },
         commands: { checks: [] },
         safety: { requireGitRepo: true, requireCleanStart: true, manualCommit: true, forbidAutoCommit: true, forbidAutoPush: true },

@@ -1,10 +1,5 @@
 import type { ChangeReportPolicy } from "../change-report.js";
 
-export interface CodexRoleConfig {
-  model: string;
-  reasoningEffort: string;
-}
-
 export interface CodexCliBackendConfig {
   type: "codex-cli";
 }
@@ -47,11 +42,6 @@ export interface OrchestratorConfig {
     stagesDir: string;
     promptsDir: string;
     runsDir: string;
-  };
-  codex: {
-    planner: CodexRoleConfig;
-    builder: CodexRoleConfig;
-    reviewer: CodexRoleConfig;
   };
   executionBackends: ExecutionBackendConfigMap;
   agents: AgentConfigMap;

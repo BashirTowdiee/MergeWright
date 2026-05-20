@@ -15,7 +15,7 @@ export async function executeFixPhase(input: {
   targetWorkspaceRoot: string;
   progressLogger: ProgressLogger;
   config: {
-    codex: { builder: { model: string; reasoningEffort: string } };
+    agents: { builder: { model: string; reasoningEffort: string } };
     safety: { requireGitRepo: boolean };
   };
   executor: (...args: any[]) => Promise<any>;
@@ -89,7 +89,7 @@ export async function executeFixPhase(input: {
   }
 
   progressLogger.phaseStart("fix");
-  progressLogger.verbose(`fix model=${config.codex.builder.model} reasoning=${config.codex.builder.reasoningEffort} sandbox=${allowWrites ? "workspace-write" : "read-only"}`);
+  progressLogger.verbose(`fix model=${config.agents.builder.model} reasoning=${config.agents.builder.reasoningEffort} sandbox=${allowWrites ? "workspace-write" : "read-only"}`);
   if (allowWrites) {
     await ensureWriteSafetyIfNeeded();
   }
@@ -129,8 +129,8 @@ export async function executeFixPhase(input: {
         {
           prompt: fixPrompt,
           role: "builder",
-          model: config.codex.builder.model,
-          reasoningEffort: config.codex.builder.reasoningEffort,
+          model: config.agents.builder.model,
+          reasoningEffort: config.agents.builder.reasoningEffort,
           workspaceRoot: targetWorkspaceRoot,
           outputLastMessagePath: fixOutputLastMessagePath,
           dryRun: false,

@@ -13,7 +13,6 @@ import type {
   AgentConfigMap,
   AgentRoleConfig,
   CodexCliBackendConfig,
-  CodexRoleConfig,
   ConfiguredCheckCommand,
   ConfiguredCheckCommandCwd,
   ExecutionBackendConfig,
@@ -33,10 +32,13 @@ function makeBaseConfig(): Record<string, unknown> {
       promptsDir: "prompts",
       runsDir: "runs/acme"
     },
-    codex: {
-      planner: { model: "gpt-5.3-codex", reasoningEffort: "high" },
-      builder: { model: "gpt-5.3-codex", reasoningEffort: "medium" },
-      reviewer: { model: "gpt-5.3-codex", reasoningEffort: "high" }
+    executionBackends: {
+      codex: { type: "codex-cli" }
+    },
+    agents: {
+      planner: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" },
+      builder: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "medium" },
+      reviewer: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" }
     },
     pipeline: { finalReview: true, maxFixLoops: 1 },
     commands: { checks: [] },
@@ -55,24 +57,14 @@ test("valid empty commands.checks passes", () => {
   assert.deepEqual(config.commands.checks, []);
 });
 
-test("legacy codex config normalises execution backend and agents", () => {
+test("valid config with executionBackends and agents passes", () => {
   const config = validateConfig(makeBaseConfig());
-
-  assert.deepEqual(config.executionBackends, {
-    codex: {
-      type: "codex-cli"
-    }
-  });
-  assert.deepEqual(config.agents, {
-    planner: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" },
-    builder: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "medium" },
-    reviewer: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" }
-  });
+  assert.equal(config.executionBackends.codex?.type, "codex-cli");
+  assert.equal(config.agents.planner.backend, "codex");
 });
 
-test("new execution backend and agents config passes without codex block", () => {
+test("execution backend and agents config passes", () => {
   const config = makeBaseConfig();
-  delete (config as { codex?: unknown }).codex;
   (config as { executionBackends?: unknown }).executionBackends = {
     "codex-local": {
       type: "codex-cli"
@@ -96,16 +88,10 @@ test("new execution backend and agents config passes without codex block", () =>
     builder: { backend: "codex-local", model: "gpt-5.5-codex", reasoningEffort: "medium" },
     reviewer: { backend: "codex-local", model: "gpt-5.5-codex", reasoningEffort: "high" }
   });
-  assert.deepEqual(validated.codex, {
-    planner: { model: "gpt-5.5-codex", reasoningEffort: "high" },
-    builder: { model: "gpt-5.5-codex", reasoningEffort: "medium" },
-    reviewer: { model: "gpt-5.5-codex", reasoningEffort: "high" }
-  });
 });
 
 test("new agents config rejects unknown execution backend reference", () => {
   const config = makeBaseConfig();
-  delete (config as { codex?: unknown }).codex;
   (config as { executionBackends?: unknown }).executionBackends = {
     codex: {
       type: "codex-cli"
@@ -125,7 +111,6 @@ test("new agents config rejects unknown execution backend reference", () => {
 
 test("new execution backend config rejects unsupported backend type", () => {
   const config = makeBaseConfig();
-  delete (config as { codex?: unknown }).codex;
   (config as { executionBackends?: unknown }).executionBackends = {
     claude: {
       type: "claude-code-cli"
@@ -140,28 +125,42 @@ test("new execution backend config rejects unsupported backend type", () => {
   assert.throws(() => validateConfig(config), /executionBackends\.claude\.type must be "codex-cli" or "opencode-cli"/);
 });
 
-test("new config requires executionBackends when codex is absent", () => {
+test("config requires executionBackends", () => {
   const config = makeBaseConfig();
-  delete (config as { codex?: unknown }).codex;
+  delete (config as { executionBackends?: unknown }).executionBackends;
   (config as { agents?: unknown }).agents = {
     planner: { backend: "codex", model: "gpt-5.5-codex", reasoningEffort: "high" },
     builder: { backend: "codex", model: "gpt-5.5-codex", reasoningEffort: "medium" },
     reviewer: { backend: "codex", model: "gpt-5.5-codex", reasoningEffort: "high" }
   };
 
-  assert.throws(() => validateConfig(config), /executionBackends is required when codex is not provided/);
+  assert.throws(() => validateConfig(config), /executionBackends is required/);
 });
 
-test("new config requires agents when codex is absent", () => {
+test("config requires agents", () => {
   const config = makeBaseConfig();
-  delete (config as { codex?: unknown }).codex;
+  delete (config as { agents?: unknown }).agents;
   (config as { executionBackends?: unknown }).executionBackends = {
     codex: {
       type: "codex-cli"
     }
   };
 
-  assert.throws(() => validateConfig(config), /agents is required when codex is not provided/);
+  assert.throws(() => validateConfig(config), /agents is required/);
+});
+
+test("legacy top-level codex config is rejected", () => {
+  const config = makeBaseConfig();
+  (config as { codex?: unknown }).codex = {
+    planner: { model: "x", reasoningEffort: "high" },
+    builder: { model: "x", reasoningEffort: "medium" },
+    reviewer: { model: "x", reasoningEffort: "high" }
+  };
+
+  assert.throws(
+    () => validateConfig(config),
+    /legacy codex config is no longer supported\. Use executionBackends and agents\./
+  );
 });
 
 test("valid command object passes", () => {
@@ -382,7 +381,6 @@ test("config facade exports required runtime members", async () => {
 
 test("config facade type exports remain importable", () => {
   const ensure: {
-    role: CodexRoleConfig;
     codexBackend: CodexCliBackendConfig;
     openCodeBackend: OpenCodeCliBackendConfig;
     backend: ExecutionBackendConfig;

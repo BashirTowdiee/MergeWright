@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 import { createProgressLogger } from "../src/progress-logger.js";
 import { runStage } from "../src/runner.js";
 import type { RunMetadata } from "../src/run-metadata.js";
-import type { CodexExecutionResult } from "../src/codex.js";
+import type { AgentExecutionResult } from "../src/codex.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -76,11 +76,14 @@ async function makeFixture(options?: {
           promptsDir: "prompts",
           runsDir: options?.runsDir ?? "runs/acme"
         },
-        codex: {
-          planner: { model: "gpt-5.3-codex", reasoningEffort: "high" },
-          builder: { model: "gpt-5.3-codex", reasoningEffort: "medium" },
-          reviewer: { model: "gpt-5.3-codex", reasoningEffort: "high" }
-        },
+    executionBackends: {
+      codex: { type: "codex-cli" }
+    },
+    agents: {
+      planner: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" },
+      builder: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "medium" },
+      reviewer: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" }
+    },
         pipeline: { finalReview: true, maxFixLoops: 1 },
         commands: { checks: [] },
         safety: {
@@ -155,11 +158,6 @@ test("runStage uses codex-compatible adapter path without override (agent backen
           stagesDir: "stages/acme",
           promptsDir: "prompts",
           runsDir: "runs/acme"
-        },
-        codex: {
-          planner: { model: "legacy-planner-model", reasoningEffort: "high" },
-          builder: { model: "legacy-builder-model", reasoningEffort: "medium" },
-          reviewer: { model: "legacy-reviewer-model", reasoningEffort: "high" }
         },
         executionBackends: {
           "codex-local": { type: "codex-cli" }
@@ -529,11 +527,14 @@ test("runsDir inside target workspace still fails", async () => {
           promptsDir: "prompts",
           runsDir: "target-workspace/runs/acme"
         },
-        codex: {
-          planner: { model: "gpt-5.3-codex", reasoningEffort: "high" },
-          builder: { model: "gpt-5.3-codex", reasoningEffort: "medium" },
-          reviewer: { model: "gpt-5.3-codex", reasoningEffort: "high" }
-        },
+    executionBackends: {
+      codex: { type: "codex-cli" }
+    },
+    agents: {
+      planner: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" },
+      builder: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "medium" },
+      reviewer: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" }
+    },
         pipeline: { finalReview: true, maxFixLoops: 1 },
         commands: { checks: [] },
         safety: {
@@ -1309,7 +1310,7 @@ test("planner execution only extracts builder prompt, renders reviewer preview, 
       called += 1;
       assert.equal(request.role, "planner");
       assert.equal(request.workspaceRoot, workspaceRoot);
-      const execResult: CodexExecutionResult = {
+      const execResult: AgentExecutionResult = {
         command: "codex",
         args: ["exec", "-"],
         cwd: orchestratorRoot,
@@ -2631,11 +2632,14 @@ test("runChecks true writes check artefacts for passing command", async () => {
         projectName: "acme",
         workspaceRoot: await mkdtemp(path.join(os.tmpdir(), "target-")),
         paths: { stagesDir: "stages/acme", promptsDir: "prompts", runsDir: "runs/acme" },
-        codex: {
-          planner: { model: "gpt-5.3-codex", reasoningEffort: "high" },
-          builder: { model: "gpt-5.3-codex", reasoningEffort: "medium" },
-          reviewer: { model: "gpt-5.3-codex", reasoningEffort: "high" }
-        },
+    executionBackends: {
+      codex: { type: "codex-cli" }
+    },
+    agents: {
+      planner: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" },
+      builder: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "medium" },
+      reviewer: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" }
+    },
         pipeline: { finalReview: true, maxFixLoops: 1 },
         commands: { checks: [{ name: "unit-tests", command: "npm", args: ["test"], cwd: "orchestrator" }] },
         safety: {
@@ -2689,11 +2693,14 @@ test("failing check writes diagnostics and throws; second check is not run", asy
         projectName: "acme",
         workspaceRoot,
         paths: { stagesDir: "stages/acme", promptsDir: "prompts", runsDir: "runs/acme" },
-        codex: {
-          planner: { model: "gpt-5.3-codex", reasoningEffort: "high" },
-          builder: { model: "gpt-5.3-codex", reasoningEffort: "medium" },
-          reviewer: { model: "gpt-5.3-codex", reasoningEffort: "high" }
-        },
+    executionBackends: {
+      codex: { type: "codex-cli" }
+    },
+    agents: {
+      planner: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" },
+      builder: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "medium" },
+      reviewer: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" }
+    },
         pipeline: { finalReview: true, maxFixLoops: 1 },
         commands: {
           checks: [
@@ -2755,11 +2762,14 @@ test("checks support workspace and orchestrator cwd", async () => {
         projectName: "acme",
         workspaceRoot,
         paths: { stagesDir: "stages/acme", promptsDir: "prompts", runsDir: "runs/acme" },
-        codex: {
-          planner: { model: "gpt-5.3-codex", reasoningEffort: "high" },
-          builder: { model: "gpt-5.3-codex", reasoningEffort: "medium" },
-          reviewer: { model: "gpt-5.3-codex", reasoningEffort: "high" }
-        },
+    executionBackends: {
+      codex: { type: "codex-cli" }
+    },
+    agents: {
+      planner: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" },
+      builder: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "medium" },
+      reviewer: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" }
+    },
         pipeline: { finalReview: true, maxFixLoops: 1 },
         commands: {
           checks: [

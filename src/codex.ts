@@ -2,9 +2,6 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import type {
-  AgentExecutionBackendMetadata,
-  AgentExecutorRequest,
-  AgentExecutorResult,
   AgentExecutionRequest,
   AgentExecutionResult,
   AgentExecutionOptions,
@@ -36,19 +33,10 @@ export interface CodexBuiltCommand {
   promptStdin: string;
 }
 
-export type CodexExecutionRequest = AgentExecutorRequest;
-export type CodexExecutionBackendMetadata = AgentExecutionBackendMetadata;
-export type CodexExecutionResult = AgentExecutorResult;
-export type CodexExecutionOptions = AgentExecutionOptions;
-export type CodexExecutor = AgentExecutor;
-
 export type {
-  AgentExecutorRequest,
-  AgentExecutorResult,
   AgentExecutionRequest,
   AgentExecutionResult,
   AgentExecutionOptions,
-  AgentExecutionBackendMetadata,
   AgentExecutor
 };
 
@@ -63,8 +51,8 @@ export function parseCodexExecHelp(helpText: string): CodexExecCapabilities {
   };
 }
 
-export function validateCodexExecutionRequest(
-  request: CodexExecutionRequest,
+export function validateAgentExecutionRequest(
+  request: AgentExecutionRequest,
   capabilities: CodexExecCapabilities
 ): void {
   if (!request || typeof request !== "object") {
@@ -101,8 +89,8 @@ export function validateCodexExecutionRequest(
   assertRequiredCapabilities(capabilities);
 }
 
-export function buildCodexExecArgs(request: CodexExecutionRequest, capabilities: CodexExecCapabilities): CodexBuiltCommand {
-  validateCodexExecutionRequest(request, capabilities);
+export function buildCodexExecArgs(request: AgentExecutionRequest, capabilities: CodexExecCapabilities): CodexBuiltCommand {
+  validateAgentExecutionRequest(request, capabilities);
 
   const outputLastMessagePath = path.resolve(request.outputLastMessagePath);
   const workspaceRoot = path.resolve(request.workspaceRoot);
@@ -137,10 +125,10 @@ export function buildCodexExecArgs(request: CodexExecutionRequest, capabilities:
 }
 
 export async function executeCodex(
-  request: CodexExecutionRequest,
+  request: AgentExecutionRequest,
   capabilities: CodexExecCapabilities = DEFAULT_CODEX_EXEC_CAPABILITIES,
-  options: CodexExecutionOptions = {}
-): Promise<CodexExecutionResult> {
+  options: AgentExecutionOptions = {}
+): Promise<AgentExecutionResult> {
   const built = buildCodexExecArgs(request, capabilities);
 
   if (request.dryRun) {
@@ -292,6 +280,6 @@ function isNonEmpty(value: string): boolean {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function isValidRole(value: unknown): value is CodexExecutionRequest["role"] {
+function isValidRole(value: unknown): value is AgentExecutionRequest["role"] {
   return value === "planner" || value === "builder" || value === "reviewer";
 }

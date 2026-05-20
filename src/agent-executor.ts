@@ -48,13 +48,6 @@ export type AgentExecutor = (
   options?: AgentExecutionOptions
 ) => Promise<AgentExecutionResult>;
 
-// Required generic executor naming; keep AgentExecution* as compatibility names.
+// Preferred generic executor naming.
 export type AgentExecutorRequest = AgentExecutionRequest;
 export type AgentExecutorResult = AgentExecutionResult;
-
-// Compatibility aliases for existing Codex-shaped imports.
-export type CodexExecutionRequest = AgentExecutionRequest;
-export type CodexExecutionBackendMetadata = AgentExecutionBackendMetadata;
-export type CodexExecutionResult = AgentExecutionResult;
-export type CodexExecutionOptions = AgentExecutionOptions;
-export type CodexExecutor = AgentExecutor;

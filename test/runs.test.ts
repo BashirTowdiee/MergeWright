@@ -20,11 +20,6 @@ function fixtureConfig(runsDir = "runs/acme"): OrchestratorConfig {
     projectName: "acme",
     workspaceRoot: "/tmp/workspace",
     paths: { stagesDir: "stages/acme", promptsDir: "prompts", runsDir },
-    codex: {
-      planner: { model: "gpt-5.3-codex", reasoningEffort: "high" },
-      builder: { model: "gpt-5.3-codex", reasoningEffort: "medium" },
-      reviewer: { model: "gpt-5.3-codex", reasoningEffort: "high" }
-    },
     executionBackends: {
       codex: { type: "codex-cli" }
     },

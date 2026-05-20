@@ -15,7 +15,7 @@ export async function executeBuilderPhase(input: {
   extractedBuilderPrompt: string;
   progressLogger: ProgressLogger;
   config: {
-    codex: { builder: { model: string; reasoningEffort: string } };
+    agents: { builder: { model: string; reasoningEffort: string } };
     safety: { requireGitRepo: boolean };
   };
   executor: (...args: any[]) => Promise<any>;
@@ -63,7 +63,7 @@ export async function executeBuilderPhase(input: {
   }
 
   progressLogger.phaseStart("builder");
-  progressLogger.verbose(`builder model=${config.codex.builder.model} reasoning=${config.codex.builder.reasoningEffort} sandbox=${allowWrites ? "workspace-write" : "read-only"}`);
+  progressLogger.verbose(`builder model=${config.agents.builder.model} reasoning=${config.agents.builder.reasoningEffort} sandbox=${allowWrites ? "workspace-write" : "read-only"}`);
   if (allowWrites) {
     await ensureWriteSafetyIfNeeded();
   }
@@ -103,8 +103,8 @@ export async function executeBuilderPhase(input: {
         {
           prompt: extractedBuilderPrompt,
           role: "builder",
-          model: config.codex.builder.model,
-          reasoningEffort: config.codex.builder.reasoningEffort,
+          model: config.agents.builder.model,
+          reasoningEffort: config.agents.builder.reasoningEffort,
           workspaceRoot: targetWorkspaceRoot,
           outputLastMessagePath: builderOutputLastMessagePath,
           dryRun: false,

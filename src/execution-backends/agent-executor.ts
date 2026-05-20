@@ -65,8 +65,6 @@ export function createAgentExecutor(
   };
 }
 
-export const createCodexCompatibleExecutor = createAgentExecutor;
-
 function toAgentExecutionResult(
   result: BackendExecutionResult,
   backend: NonNullable<AgentExecutionResult["backend"]>

@@ -7,7 +7,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { runStage } from "../src/runner.js";
 import { continueRun } from "../src/continue-run.js";
-import type { CodexExecutionRequest, CodexExecutionResult } from "../src/codex.js";
+import type { AgentExecutionRequest, AgentExecutionResult } from "../src/codex.js";
 import type { RunMetadata } from "../src/run-metadata.js";
 
 const execFileAsync = promisify(execFile);
@@ -48,11 +48,14 @@ async function makeFixture(writeSafetyEnabled = true): Promise<{ orchestratorRoo
         projectName: "acme",
         workspaceRoot,
         paths: { stagesDir: "stages/acme", promptsDir: "prompts", runsDir: "runs/acme" },
-        codex: {
-          planner: { model: "gpt-5.3-codex", reasoningEffort: "high" },
-          builder: { model: "gpt-5.3-codex", reasoningEffort: "medium" },
-          reviewer: { model: "gpt-5.3-codex", reasoningEffort: "high" }
-        },
+    executionBackends: {
+      codex: { type: "codex-cli" }
+    },
+    agents: {
+      planner: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" },
+      builder: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "medium" },
+      reviewer: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" }
+    },
         pipeline: { finalReview: true, maxFixLoops: 1 },
         commands: { checks: [{ name: "ok", command: "echo", args: ["ok"], cwd: "workspace" }] },
         safety: {
@@ -83,7 +86,7 @@ async function makeFixture(writeSafetyEnabled = true): Promise<{ orchestratorRoo
   return { orchestratorRoot, configArg, workspaceRoot };
 }
 
-function makeCodexResult(req: CodexExecutionRequest, outputLastMessage: string): CodexExecutionResult {
+function makeCodexResult(req: AgentExecutionRequest, outputLastMessage: string): AgentExecutionResult {
   return {
     command: "codex",
     args: [],

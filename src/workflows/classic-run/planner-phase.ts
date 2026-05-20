@@ -19,9 +19,8 @@ export async function executePlannerPhase(input: {
   streamCodex: boolean;
   progressLogger: ProgressLogger;
   config: {
-    agents: { planner: { backend: string } };
+    agents: { planner: { backend: string; model: string; reasoningEffort: string } };
     executionBackends: Record<string, { type: string } | undefined>;
-    codex: { planner: { model: string; reasoningEffort: string } };
     safety: { requireGitRepo: boolean };
   };
   executor: (...args: any[]) => Promise<any>;
@@ -94,8 +93,8 @@ export async function executePlannerPhase(input: {
       plannerDryRunExecution = await executor({
         prompt: renderedPlanner,
         role: "planner",
-        model: config.codex.planner.model,
-        reasoningEffort: config.codex.planner.reasoningEffort,
+        model: config.agents.planner.model,
+        reasoningEffort: config.agents.planner.reasoningEffort,
         workspaceRoot: targetWorkspaceRoot,
         outputLastMessagePath,
         dryRun: true,
@@ -193,7 +192,7 @@ export async function executePlannerPhase(input: {
   }
 
   progressLogger.phaseStart("planner");
-  progressLogger.verbose(`planner model=${config.codex.planner.model} reasoning=${config.codex.planner.reasoningEffort} sandbox=read-only`);
+  progressLogger.verbose(`planner model=${config.agents.planner.model} reasoning=${config.agents.planner.reasoningEffort} sandbox=read-only`);
   await updatePhaseAndPersist("planner", { status: "unknown", startedAt: new Date().toISOString() });
   setFailedPhase("planner");
   const outputLastMessagePath = path.resolve(runDir, "06-planner-output-last-message.md");
@@ -208,8 +207,8 @@ export async function executePlannerPhase(input: {
         {
           prompt: renderedPlanner,
           role: "planner",
-          model: config.codex.planner.model,
-          reasoningEffort: config.codex.planner.reasoningEffort,
+          model: config.agents.planner.model,
+          reasoningEffort: config.agents.planner.reasoningEffort,
           workspaceRoot: targetWorkspaceRoot,
           outputLastMessagePath,
           dryRun: false,

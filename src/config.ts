@@ -4,7 +4,6 @@ export { validateWorkspaceSafety } from "./config/workspace-safety.js";
 export { validateConfig } from "./config/validate-config.js";
 
 export type {
-  CodexRoleConfig,
   CodexCliBackendConfig,
   OpenCodeCliBackendConfig,
   ExecutionBackendConfig,

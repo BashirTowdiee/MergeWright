@@ -3,18 +3,10 @@ import type { ExecutionBackendType } from "../execution-backends/execution-backe
 import type { ExecutionBackendConfig, ExecutionBackendConfigMap } from "./types.js";
 
 export function parseExecutionBackends(
-  value: unknown,
-  codexRaw: Record<string, unknown> | undefined
+  value: unknown
 ): ExecutionBackendConfigMap {
   if (value == null) {
-    if (codexRaw == null) {
-      throw new Error("Invalid config: executionBackends is required when codex is not provided");
-    }
-    return {
-      codex: {
-        type: "codex-cli"
-      }
-    };
+    throw new Error("Invalid config: executionBackends is required");
   }
 
   const raw = assertObject(value, "executionBackends");
