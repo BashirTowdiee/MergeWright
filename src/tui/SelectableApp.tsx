@@ -4,6 +4,7 @@ import { describeSafeActionIntent } from "./action-intent.js";
 import { formatStatusLegend, getStatusSymbol } from "./components/status.js";
 import { buildEvidencePreview } from "./evidence-preview.js";
 import { getEmptyStateMessage } from "./empty-state.js";
+import { buildFindingDetailLines } from "./finding-detail.js";
 import { formatFileScopeLabel, resolveScopedFiles, toggleFileScope, type FileScope } from "./file-scope.js";
 import { getFocusedPaneTitle, moveFocus, type FocusedPane } from "./focus.js";
 import { formatKeyBinding, TUI_KEY_BINDINGS } from "./keymap.js";
@@ -24,6 +25,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [selectedPhaseIndex, setSelectedPhaseIndex] = useState(0);
   const [selectedActionIndex, setSelectedActionIndex] = useState(0);
   const [selectedArtefactIndex, setSelectedArtefactIndex] = useState(0);
+  const [selectedFindingIndex, setSelectedFindingIndex] = useState(0);
   const selectedRun = useMemo(() => {
     const run = fixture.runs[selectedRunIndex];
     return run ? fixture.runDetailsById[run.id] ?? fixture.selectedRun : fixture.selectedRun;
@@ -32,11 +34,13 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const scopedArtifacts = resolveScopedFiles({ scope: fileScope, files: selectedRun.artefacts, selectedPhase });
   const selectedArtefact = scopedArtifacts[selectedArtefactIndex];
   const selectedAction = selectedRun.safeActions[selectedActionIndex];
+  const selectedFinding = selectedRun.reviewerFindings[selectedFindingIndex];
   const evidenceLines = buildEvidencePreview({
     artefact: selectedArtefact,
     findings: selectedRun.reviewerFindings,
     snippets: fixture.evidenceSnippets
   });
+  const findingDetailLines = buildFindingDetailLines(selectedFinding);
   const runContextLines = buildRunContextLines(selectedRun);
   const runWarningLines = buildRunWarningLines(selectedRun.warnings);
   const phaseDetailLines = buildPhaseDetailLines(selectedPhase);
@@ -71,6 +75,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       setSelectedPhaseIndex(0);
       setSelectedActionIndex(0);
       setSelectedArtefactIndex(0);
+      setSelectedFindingIndex(0);
       setNotice(createInfoNotice("Selected run changed."));
     }
     if (focusedPane === "runs" && (input === "j" || key.downArrow)) {
@@ -78,6 +83,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       setSelectedPhaseIndex(0);
       setSelectedActionIndex(0);
       setSelectedArtefactIndex(0);
+      setSelectedFindingIndex(0);
       setNotice(createInfoNotice("Selected run changed."));
     }
     if (focusedPane === "phases" && (input === "k" || key.upArrow)) {
@@ -104,6 +110,14 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
     }
     if (focusedPane === "artefacts" && (input === "j" || key.downArrow)) {
       setSelectedArtefactIndex((currentIndex) => moveSelection({ currentIndex, itemCount: scopedArtifacts.length, direction: "down" }));
+      setNotice(null);
+    }
+    if (focusedPane === "findings" && (input === "k" || key.upArrow)) {
+      setSelectedFindingIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.reviewerFindings.length, direction: "up" }));
+      setNotice(null);
+    }
+    if (focusedPane === "findings" && (input === "j" || key.downArrow)) {
+      setSelectedFindingIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.reviewerFindings.length, direction: "down" }));
       setNotice(null);
     }
   });
@@ -185,9 +199,15 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
             <Text key={`${line}-${index}`}>{line}</Text>
           ))}
           <Box marginTop={1}>
-            <Text bold>Review findings</Text>
+            <Text bold>{getFocusedPaneTitle("Review findings", focusedPane === "findings")}</Text>
             {selectedRun.reviewerFindings.length === 0 ? <Text dimColor>{getEmptyStateMessage("findings")}</Text> : selectedRun.reviewerFindings.map((finding, index) => (
-              <Text key={`${finding.severity}-${index}`}>{finding.severity.toUpperCase()}: {finding.message}</Text>
+              <Text key={`${finding.severity}-${index}`} inverse={focusedPane === "findings" && index === selectedFindingIndex}>{index === selectedFindingIndex ? ">" : " "} {finding.severity.toUpperCase()}: {finding.message}</Text>
+            ))}
+          </Box>
+          <Box marginTop={1}>
+            <Text bold>Finding detail</Text>
+            {findingDetailLines.map((line) => (
+              <Text key={line}>{line}</Text>
             ))}
           </Box>
         </Box>
