@@ -1,6 +1,6 @@
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { CodexExecutionBackendMetadata } from "./codex.js";
+import type { AgentExecutionBackendMetadata } from "./agent-executor.js";
 
 export type RunPhaseName = "planner" | "builder" | "reviewer" | "fixPlanning" | "fixExecution" | "checks";
 export type RunPhaseStatus = "unknown" | "disabled" | "skipped" | "executed" | "failed";
@@ -24,7 +24,7 @@ export interface RunMetadataPhase {
   completedAt?: string;
   reason?: string;
   artefacts?: string[];
-  backend?: CodexExecutionBackendMetadata;
+  backend?: AgentExecutionBackendMetadata;
 }
 
 export interface RunMetadata {

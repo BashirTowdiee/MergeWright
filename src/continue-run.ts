@@ -1,9 +1,9 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { executeCheckCommand, resolveCheckCommandCwd } from "./commands.js";
-import type { CodexExecutionBackendMetadata, CodexExecutor } from "./codex.js";
+import type { AgentExecutionBackendMetadata, AgentExecutor } from "./agent-executor.js";
 import { loadAndValidateConfig, resolveConfigPath } from "./config.js";
-import { createCodexCompatibleExecutor } from "./execution-backends/codex-compatible-executor.js";
+import { createAgentExecutor } from "./execution-backends/agent-executor.js";
 import { serialiseBackendCommandArtefact } from "./execution-backends/backend-command-artefact.js";
 import { writePlanHtmlFromRun } from "./plan-html.js";
 import { loadPromptTemplates, renderTemplate, type TemplateVariables } from "./prompts.js";
@@ -28,7 +28,7 @@ export interface ContinueOptions {
   verbose: boolean;
   orchestratorRoot: string;
   progressLogger?: ProgressLogger;
-  codexExecutor?: CodexExecutor;
+  codexExecutor?: AgentExecutor;
   writeAuditPreCapture?: typeof captureWriteAuditPreState;
   writeAuditPostCapture?: typeof captureWriteAuditPostStateAndWriteArtefacts;
   checkCommandExecutor?: typeof executeCheckCommand;
@@ -100,8 +100,8 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
   const before = snapshotStatuses(metadata);
   const artefacts: string[] = [];
   const metadataWriter = options.metadataWriter ?? writeRunMetadata;
-  const codexExecutor: CodexExecutor = createCodexCompatibleExecutor(config, {
-    overrideCodexExecutor: options.codexExecutor
+  const codexExecutor: AgentExecutor = createAgentExecutor(config, {
+    overrideAgentExecutor: options.codexExecutor
   });
   const writeAuditPreCapture = options.writeAuditPreCapture ?? captureWriteAuditPreState;
   const writeAuditPostCapture = options.writeAuditPostCapture ?? captureWriteAuditPostStateAndWriteArtefacts;
@@ -124,7 +124,7 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
     status: RunPhaseStatus,
     reason?: string,
     phaseArtefacts?: string[],
-    backend?: CodexExecutionBackendMetadata
+    backend?: AgentExecutionBackendMetadata
   ) => {
     updateRunPhase(metadata, phase, {
       status,

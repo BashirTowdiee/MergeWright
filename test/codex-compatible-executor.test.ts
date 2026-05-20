@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createCodexCompatibleExecutor } from "../src/execution-backends/codex-compatible-executor.js";
+import { createAgentExecutor } from "../src/execution-backends/agent-executor.js";
 import type { OrchestratorConfig } from "../src/config.js";
 import type { CodexExecutor } from "../src/codex.js";
+import type { AgentExecutor } from "../src/agent-executor.js";
 import type { ExecutionBackend, AgentExecutionRequest } from "../src/execution-backends/execution-backend-types.js";
 import type { ExecutionBackendRegistry } from "../src/execution-backends/execution-backend-registry.js";
 import { OpenCodeCliBackend } from "../src/execution-backends/opencode-cli-backend.js";
@@ -346,4 +348,128 @@ test("codex-compatible executor rejects stale unknown backend references", async
       }),
     /agent "planner" references unknown execution backend "missing"/
   );
+});
+
+test("agent executor factory delegates to configured backend with unchanged result shape", async () => {
+  const backend: ExecutionBackend = {
+    type: "codex-cli",
+    capabilities: {
+      providesHarness: true,
+      supportsLocalWorkspace: true,
+      supportsFileEdits: true,
+      supportsShellCommands: true,
+      supportsSandboxMode: true,
+      supportsStreaming: true,
+      supportsReasoningEffort: true,
+      supportsModelSelection: true
+    },
+    async execute(request) {
+      return {
+        backendName: request.backendName,
+        backendType: request.backendType,
+        model: request.model,
+        command: "codex",
+        args: ["exec"],
+        cwd: request.orchestratorRoot,
+        stdout: "stdout",
+        stderr: "stderr",
+        exitCode: 0,
+        signal: null,
+        durationMs: 1,
+        success: true,
+        outputLastMessagePath: request.outputLastMessagePath,
+        outputLastMessage: "last message",
+        skipped: false
+      };
+    }
+  };
+
+  const executor: AgentExecutor = createAgentExecutor(makeConfig(), { registry: makeRegistry(backend) });
+  const result = await executor({
+    prompt: "prompt",
+    role: "planner",
+    model: "legacy-request-model",
+    reasoningEffort: "legacy-request-reasoning",
+    workspaceRoot: "/tmp/workspace",
+    outputLastMessagePath: "/tmp/run/out.md",
+    dryRun: false,
+    requireGitRepo: true,
+    orchestratorRoot: "/tmp/orchestrator",
+    sandboxMode: "read-only"
+  });
+
+  assert.equal(result.command, "codex");
+  assert.equal(result.backend?.backendName, "codex-local");
+  assert.equal(result.backend?.backendType, "codex-cli");
+  assert.equal(result.backend?.agentRole, "planner");
+  assert.equal(result.backend?.model, "agent-planner");
+});
+
+test("agent executor factory forwards execution options and callbacks unchanged", async () => {
+  let receivedOptions:
+    | {
+        streamOutput?: boolean;
+        onStdoutChunk?: (chunk: string) => void;
+        onStderrChunk?: (chunk: string) => void;
+      }
+    | undefined;
+
+  const backend: ExecutionBackend = {
+    type: "codex-cli",
+    capabilities: {
+      providesHarness: true,
+      supportsLocalWorkspace: true,
+      supportsFileEdits: true,
+      supportsShellCommands: true,
+      supportsSandboxMode: true,
+      supportsStreaming: true,
+      supportsReasoningEffort: true,
+      supportsModelSelection: true
+    },
+    async execute(request, options) {
+      receivedOptions = options;
+      return {
+        backendName: request.backendName,
+        backendType: request.backendType,
+        model: request.model,
+        command: "codex",
+        args: ["exec"],
+        cwd: request.orchestratorRoot,
+        stdout: "",
+        stderr: "",
+        exitCode: 0,
+        signal: null,
+        durationMs: 1,
+        success: true,
+        outputLastMessagePath: request.outputLastMessagePath,
+        outputLastMessage: "",
+        skipped: false
+      };
+    }
+  };
+
+  const onStdoutChunk = (_chunk: string): void => {};
+  const onStderrChunk = (_chunk: string): void => {};
+  const options = { streamOutput: true, onStdoutChunk, onStderrChunk };
+  const executor = createAgentExecutor(makeConfig(), { registry: makeRegistry(backend) });
+
+  await executor(
+    {
+      prompt: "prompt",
+      role: "planner",
+      model: "legacy-request-model",
+      reasoningEffort: "legacy-request-reasoning",
+      workspaceRoot: "/tmp/workspace",
+      outputLastMessagePath: "/tmp/run/out.md",
+      dryRun: false,
+      requireGitRepo: true,
+      orchestratorRoot: "/tmp/orchestrator",
+      sandboxMode: "read-only"
+    },
+    options
+  );
+
+  assert.equal(receivedOptions, options);
+  assert.equal(receivedOptions?.onStdoutChunk, onStdoutChunk);
+  assert.equal(receivedOptions?.onStderrChunk, onStderrChunk);
 });

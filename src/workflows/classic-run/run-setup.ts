@@ -1,6 +1,6 @@
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { createCodexCompatibleExecutor } from "../../execution-backends/codex-compatible-executor.js";
+import { createAgentExecutor } from "../../execution-backends/agent-executor.js";
 import { loadPromptTemplates } from "../../prompts.js";
 import { loadAndValidateConfig, resolveConfigPath, validateWorkspaceSafety } from "../../config.js";
 import {
@@ -24,8 +24,8 @@ export async function prepareClassicRunContext(
   progressLogger.phaseStart("setup", "loading config");
   const configPath = resolveConfigPath(orchestratorRoot, options.configArg);
   const config = await loadAndValidateConfig(configPath);
-  const executor = createCodexCompatibleExecutor(config, {
-    overrideCodexExecutor: options.codexExecutor
+  const executor = createAgentExecutor(config, {
+    overrideAgentExecutor: options.codexExecutor
   });
   progressLogger.verbose(`Config: ${configPath}`);
 

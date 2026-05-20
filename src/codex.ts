@@ -1,19 +1,15 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
-
-export interface CodexExecutionRequest {
-  prompt: string;
-  role: "planner" | "builder" | "reviewer";
-  model: string;
-  reasoningEffort: string;
-  workspaceRoot: string;
-  outputLastMessagePath: string;
-  dryRun: boolean;
-  requireGitRepo: boolean;
-  orchestratorRoot: string;
-  sandboxMode?: "read-only" | "workspace-write";
-}
+import type {
+  AgentExecutionBackendMetadata,
+  AgentExecutorRequest,
+  AgentExecutorResult,
+  AgentExecutionRequest,
+  AgentExecutionResult,
+  AgentExecutionOptions,
+  AgentExecutor
+} from "./agent-executor.js";
 
 export interface CodexExecCapabilities {
   hasModelFlag: boolean;
@@ -40,37 +36,21 @@ export interface CodexBuiltCommand {
   promptStdin: string;
 }
 
-export interface CodexExecutionBackendMetadata {
-  backendName: string;
-  backendType: string;
-  agentRole: string;
-  model: string;
-  reasoningEffort: string;
-}
+export type CodexExecutionRequest = AgentExecutorRequest;
+export type CodexExecutionBackendMetadata = AgentExecutionBackendMetadata;
+export type CodexExecutionResult = AgentExecutorResult;
+export type CodexExecutionOptions = AgentExecutionOptions;
+export type CodexExecutor = AgentExecutor;
 
-export interface CodexExecutionResult {
-  command: string;
-  args: string[];
-  cwd: string;
-  stdout: string;
-  stderr: string;
-  exitCode: number | null;
-  signal: NodeJS.Signals | null;
-  durationMs: number;
-  success: boolean;
-  outputLastMessagePath: string;
-  outputLastMessage: string;
-  skipped: boolean;
-  backend?: CodexExecutionBackendMetadata;
-}
-
-export interface CodexExecutionOptions {
-  streamOutput?: boolean;
-  onStdoutChunk?: (chunk: string) => void;
-  onStderrChunk?: (chunk: string) => void;
-}
-
-export type CodexExecutor = (request: CodexExecutionRequest, options?: CodexExecutionOptions) => Promise<CodexExecutionResult>;
+export type {
+  AgentExecutorRequest,
+  AgentExecutorResult,
+  AgentExecutionRequest,
+  AgentExecutionResult,
+  AgentExecutionOptions,
+  AgentExecutionBackendMetadata,
+  AgentExecutor
+};
 
 export function parseCodexExecHelp(helpText: string): CodexExecCapabilities {
   return {

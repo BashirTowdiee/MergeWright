@@ -1,7 +1,8 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { executeCodex, type CodexExecutionResult, type CodexExecutor } from "../../../codex.js";
+import type { AgentExecutionResult, AgentExecutor } from "../../../agent-executor.js";
 import { loadAndValidateConfig, resolveConfigPath } from "../../../config.js";
+import { createAgentExecutor } from "../../../execution-backends/agent-executor.js";
 import { renderStagePlanMarkdown } from "../../../stage-plan-renderer.js";
 import { readStagePlan, writeStagePlan } from "../../../stage-plan-store.js";
 import { ensureReassessmentDir, renderReassessmentReport, writeReassessmentPromptArtefact, writeReassessmentResultArtefacts } from "./reassessment-artefacts.js";
@@ -17,7 +18,7 @@ export interface ReassessStagePlanOptions {
   configArg: string;
   orchestratorRoot: string;
   dryRun: boolean;
-  codexExecutor?: CodexExecutor;
+  codexExecutor?: AgentExecutor;
 }
 
 export interface ReassessStagePlanResult {
@@ -73,8 +74,8 @@ export async function reassessStagePlan(options: ReassessStagePlanOptions): Prom
   await writeReassessmentPromptArtefact(reassessmentDir, prompt);
 
   const outputPath = path.join(reassessmentDir, "reassessment-output-last-message.md");
-  const codexExecutor = options.codexExecutor ?? executeCodex;
-  const execution = await codexExecutor({
+  const executor = options.codexExecutor ?? createAgentExecutor(config);
+  const execution = await executor({
     prompt,
     role: "reviewer",
     model: config.codex.reviewer.model,
@@ -127,7 +128,7 @@ export async function reassessStagePlan(options: ReassessStagePlanOptions): Prom
   };
 }
 
-function buildExecutionError(execution: CodexExecutionResult): Error {
+function buildExecutionError(execution: AgentExecutionResult): Error {
   const details = [
     `Reassessment execution failed with exit code ${execution.exitCode ?? "null"}.`,
     execution.stderr.trim() ? `stderr: ${execution.stderr.trim()}` : undefined

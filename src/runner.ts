@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { executeCheckCommand } from "./commands.js";
-import type { CodexExecutor } from "./codex.js";
+import type { AgentExecutor } from "./agent-executor.js";
 import { renderTemplate, type TemplateVariables } from "./prompts.js";
 import { NOOP_PROGRESS_LOGGER, type ProgressLogger } from "./progress-logger.js";
 import { captureWriteAuditPostStateAndWriteArtefacts, captureWriteAuditPreState } from "./write-audit.js";
@@ -44,7 +44,7 @@ export interface RunOptions {
   verbose: boolean;
   orchestratorRoot: string;
   progressLogger?: ProgressLogger;
-  codexExecutor?: CodexExecutor;
+  codexExecutor?: AgentExecutor;
   writeAuditPreCapture?: typeof captureWriteAuditPreState;
   writeAuditPostCapture?: typeof captureWriteAuditPostStateAndWriteArtefacts;
   checkCommandExecutor?: typeof executeCheckCommand;
