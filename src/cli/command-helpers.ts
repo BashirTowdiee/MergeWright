@@ -79,7 +79,7 @@ export async function runProbeOpenCodeCommand(args: ParsedArgs, orchestratorRoot
         role: "planner",
         model: "probe-model",
         workspaceRoot: process.cwd(),
-        outputLastMessagePath: path.resolve(process.cwd(), ".shepherds-staff-opencode-probe-output.md"),
+        outputLastMessagePath: path.resolve(process.cwd(), ".MergeWright-opencode-probe-output.md"),
         orchestratorRoot: process.cwd(),
         dryRun: true,
         command

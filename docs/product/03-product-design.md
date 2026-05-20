@@ -2,7 +2,7 @@
 
 ## Product shape
 
-Shepherds-Staff is designed as a local-first orchestration product with multiple surfaces over a shared core.
+MergeWright is designed as a local-first orchestration product with multiple surfaces over a shared core.
 
 ```txt
 Core orchestration engine
@@ -81,7 +81,7 @@ Core concepts:
 
 1. User chooses project and stage.
 2. User runs dry-run.
-3. Shepherds-Staff shows projected phases and safety state.
+3. MergeWright shows projected phases and safety state.
 4. No target repository writes occur.
 
 ### Manual phase execution
@@ -95,13 +95,13 @@ Core concepts:
 ### Human-gated auto-chain
 
 1. User starts auto-chain.
-2. Shepherds-Staff executes bounded phases.
+2. MergeWright executes bounded phases.
 3. Review and fix decisions are captured.
 4. Checks run only when safety rules permit.
 5. Reports are generated after successful completion.
 
 ## Design boundaries
 
-Shepherds-Staff should not hide generated changes, bypass review, or treat provider output as trusted by default.
+MergeWright should not hide generated changes, bypass review, or treat provider output as trusted by default.
 
 Future UI surfaces should expose the same product model as the CLI rather than inventing a parallel workflow.

@@ -6,7 +6,7 @@ Proposed architecture direction. This document defines the target shape for futu
 
 ## Architecture goal
 
-Shepherds-Staff should be structured around a reusable orchestration core that can support CLI, local API, dashboard, and future editor integrations without duplicating workflow logic.
+MergeWright should be structured around a reusable orchestration core that can support CLI, local API, dashboard, and future editor integrations without duplicating workflow logic.
 
 ## Current architecture posture
 

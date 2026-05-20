@@ -2,13 +2,13 @@
 
 ## Strategic direction
 
-Shepherds-Staff should be steered as an AI software delivery harness, not a generic multi-agent runtime.
+MergeWright should be steered as an AI software delivery harness, not a generic multi-agent runtime.
 
 The product should answer one question better than adjacent tools:
 
 > Can this AI-assisted change be trusted enough to merge?
 
-This makes execution backends interchangeable. Codex, Claude Code, OpenCode, CAO, and future agents can all produce work. Shepherds-Staff owns the delivery path around that work: contracts, evidence, review gates, fix loops, reports, and merge-readiness decisions.
+This makes execution backends interchangeable. Codex, Claude Code, OpenCode, CAO, and future agents can all produce work. MergeWright owns the delivery path around that work: contracts, evidence, review gates, fix loops, reports, and merge-readiness decisions.
 
 ## Target product shape
 
@@ -32,7 +32,7 @@ Core positioning:
 ```text
 Coding agents write code.
 Agent runtimes coordinate workers.
-Shepherds-Staff proves whether the change is acceptable.
+MergeWright proves whether the change is acceptable.
 ```
 
 ## Design principles
@@ -388,7 +388,7 @@ Acceptance bar:
 
 ### Track 6: Backend expansion without product drift
 
-Goal: integrate more execution backends while keeping Shepherds-Staff's trust model central.
+Goal: integrate more execution backends while keeping MergeWright's trust model central.
 
 #### 6.1 Runner contract hardening
 
@@ -410,7 +410,7 @@ Acceptance bar:
 
 #### 6.2 CAO as an optional backend
 
-If CAO support is added, treat it as a worker runtime, not as Shepherds-Staff's product centre.
+If CAO support is added, treat it as a worker runtime, not as MergeWright's product centre.
 
 Conceptual config:
 
@@ -425,8 +425,8 @@ backend:
 
 Acceptance bar:
 
-- CAO output is normalised into Shepherds-Staff artefacts
-- Shepherds-Staff still owns review gates and merge-readiness decisions
+- CAO output is normalised into MergeWright artefacts
+- MergeWright still owns review gates and merge-readiness decisions
 - failure modes are deterministic when CAO is unavailable
 
 ## Suggested milestone order
@@ -530,7 +530,7 @@ Why last: runtime breadth should not come before the delivery harness is strong.
 
 ## Success criteria
 
-Shepherds-Staff is ahead of generic agent orchestrators when a user can run one command and answer:
+MergeWright is ahead of generic agent orchestrators when a user can run one command and answer:
 
 - what changed?
 - why did it change?

@@ -16,7 +16,7 @@ test("createTuiSpikeFixture provides realistic run cockpit data", () => {
 test("renderTuiSpikeFixture renders runs, phase flow, actions, artefacts, and findings", () => {
   const output = renderTuiSpikeFixture(createTuiSpikeFixture());
 
-  assert.match(output, /Shepherds-Staff TUI spike/);
+  assert.match(output, /MergeWright TUI spike/);
   assert.match(output, /Runs/);
   assert.match(output, /docs-site build/);
   assert.match(output, /Phase flow/);

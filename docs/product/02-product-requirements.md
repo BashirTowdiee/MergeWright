@@ -6,7 +6,7 @@ Proposed requirements. Requirements marked Current are already represented by th
 
 ## Purpose
 
-This document defines the product requirements for Shepherds-Staff as a local-first agentic workflow orchestrator for safe, staged, auditable AI-assisted software development.
+This document defines the product requirements for MergeWright as a local-first agentic workflow orchestrator for safe, staged, auditable AI-assisted software development.
 
 ## Product goals
 
@@ -53,7 +53,7 @@ A maintainer who wants to use AI assistance without losing control of repository
 
 ### Initialise a project, Current, P0
 
-The user can configure Shepherds-Staff for a target repository and create starter stage scaffolding.
+The user can configure MergeWright for a target repository and create starter stage scaffolding.
 
 Requirements:
 

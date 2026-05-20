@@ -6,11 +6,11 @@ Proposed data model. This document defines the target shape needed for CLI, API,
 
 ## Purpose
 
-This document defines the initial data model for Shepherds-Staff product state and artefacts.
+This document defines the initial data model for MergeWright product state and artefacts.
 
 ## Storage approach
 
-Shepherds-Staff should remain filesystem-first for local operation.
+MergeWright should remain filesystem-first for local operation.
 
 Current and future state should be represented through:
 

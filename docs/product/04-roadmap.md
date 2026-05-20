@@ -6,7 +6,7 @@ Proposed roadmap, updated for the accepted TUI-primary interface direction.
 
 ## Roadmap purpose
 
-This roadmap turns the product direction into staged delivery. Shepherds-Staff should keep the CLI as the automation surface and make the TUI the main human interface for local agent workflow supervision.
+This roadmap turns the product direction into staged delivery. MergeWright should keep the CLI as the automation surface and make the TUI the main human interface for local agent workflow supervision.
 
 ## Roadmap principles
 
@@ -20,7 +20,7 @@ This roadmap turns the product direction into staged delivery. Shepherds-Staff s
 
 ## Phase 1: Product foundation
 
-Goal: formalise Shepherds-Staff as a product, not only a CLI implementation.
+Goal: formalise MergeWright as a product, not only a CLI implementation.
 
 Deliverables:
 
@@ -163,7 +163,7 @@ Exit criteria:
 
 ## Phase 8: Workflow polish
 
-Goal: make Shepherds-Staff easier to use, demonstrate, and adopt.
+Goal: make MergeWright easier to use, demonstrate, and adopt.
 
 Deliverables:
 
@@ -175,5 +175,5 @@ Deliverables:
 
 Exit criteria:
 
-- Users can understand, run, inspect, and review Shepherds-Staff workflows with minimal maintainer guidance.
+- Users can understand, run, inspect, and review MergeWright workflows with minimal maintainer guidance.
 - The TUI feels like the central local cockpit for AI-assisted software development.

@@ -8,7 +8,7 @@ test("tui-spike command renders the framework-neutral TUI spike", async () => {
   await runCommand(parseArgs(["tui-spike"]), process.cwd(), "linux", async () => {}, (line) => output.push(line));
 
   const text = output.join("\n");
-  assert.match(text, /Shepherds-Staff TUI spike/);
+  assert.match(text, /MergeWright TUI spike/);
   assert.match(text, /Runs/);
   assert.match(text, /docs-site build/);
   assert.match(text, /Phase flow/);

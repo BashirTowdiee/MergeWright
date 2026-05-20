@@ -1,6 +1,6 @@
 # Architecture Overview
 
-Shepherds-Staff is a CLI delivery harness for controlled AI-assisted engineering workflows.
+MergeWright is a CLI delivery harness for controlled AI-assisted engineering workflows.
 
 It coordinates phase/stage execution, captures auditable artefacts, and turns agent-generated work into reviewable delivery evidence. The architecture should optimise for merge confidence rather than generic agent runtime breadth.
 
@@ -174,7 +174,7 @@ This evaluator should be testable without invoking an AI agent.
 
 ## Backend strategy
 
-Shepherds-Staff should remain backend-agnostic.
+MergeWright should remain backend-agnostic.
 
 Backend runners should be responsible for execution only:
 
@@ -182,7 +182,7 @@ Backend runners should be responsible for execution only:
 prompt in -> process execution -> stdout/stderr/status out
 ```
 
-Shepherds-Staff should remain responsible for:
+MergeWright should remain responsible for:
 
 - contracts
 - sequencing

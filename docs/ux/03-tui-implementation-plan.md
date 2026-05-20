@@ -6,14 +6,14 @@ Proposed implementation plan. The accepted product direction is that the TUI bec
 
 ## Purpose
 
-This document defines the implementation plan for the Shepherds-Staff TUI.
+This document defines the implementation plan for the MergeWright TUI.
 
 The TUI should be a terminal-native control plane for safe, staged, auditable AI coding workflows. It should not be a chat app, CI dashboard, or generic command launcher.
 
 ## Best TUI concept
 
 ```txt
-Shepherds-Staff TUI:
+MergeWright TUI:
 A terminal-native control plane for safe, staged, auditable AI coding workflows.
 
 CLI = automation layer
@@ -81,7 +81,7 @@ Avoid:
 - Heavy analytics cards
 - Web admin console feel
 
-Use Shepherds-Staff language:
+Use MergeWright language:
 
 - Run
 - Stage
@@ -418,7 +418,7 @@ Purpose: keep repo context visible.
 Example:
 
 ```txt
-Shepherds-Staff  Repo: Shepherds-Staff  Branch: docs/tui-primary-interface  Mode: local
+MergeWright  Repo: MergeWright  Branch: docs/tui-primary-interface  Mode: local
 ```
 
 Include:
@@ -522,7 +522,7 @@ Blocked:
 Checks cannot run until review passes.
 ```
 
-This pane is critical. It is what makes Shepherds-Staff different from a log viewer.
+This pane is critical. It is what makes MergeWright different from a log viewer.
 
 ### Bottom pane: Artefact preview
 
@@ -927,7 +927,7 @@ Acceptance:
 - selected run shows goal/status/phases
 - failed phase is obvious
 - blocked state is explained
-- phase flow uses Shepherds-Staff terms
+- phase flow uses MergeWright terms
 
 ### Stage TUI-5: Artefact viewer
 
@@ -1257,7 +1257,7 @@ AI agent runs are observable, reviewable, resumable, and safe.
 Implement Stage TUI-0: TUI data contracts and read-only application services.
 
 Context:
-Shepherds-Staff is moving toward a TUI as the primary human interface. The CLI remains the automation layer. The TUI must not own orchestration state or parse CLI stdout.
+MergeWright is moving toward a TUI as the primary human interface. The CLI remains the automation layer. The TUI must not own orchestration state or parse CLI stdout.
 
 Scope:
 Add TUI-ready view-model types and read-only application services only.

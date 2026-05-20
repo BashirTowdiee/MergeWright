@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the testing strategy for Shepherds-Staff as it grows from a CLI tool into a multi-surface orchestration product.
+This document defines the testing strategy for MergeWright as it grows from a CLI tool into a multi-surface orchestration product.
 
 ## Testing goals
 

@@ -6,7 +6,7 @@ Proposed UX direction. The dashboard should be implemented after the run state, 
 
 ## Purpose
 
-This document defines the initial UX direction for a future Shepherds-Staff local dashboard.
+This document defines the initial UX direction for a future MergeWright local dashboard.
 
 The dashboard should not replace the CLI. It should expose run state, artefacts, review gates, and workflow controls visually.
 
@@ -22,7 +22,7 @@ The dashboard should not replace the CLI. It should expose run state, artefacts,
 
 ## Target users
 
-- Maintainer using Shepherds-Staff locally.
+- Maintainer using MergeWright locally.
 - Developers running staged AI coding workflows.
 - Technical reviewers inspecting AI-generated changes.
 

@@ -2,11 +2,11 @@
 
 ## Status
 
-Accepted product direction. This document frames Shepherds-Staff as a product beyond the current CLI implementation. Current runtime behaviour should still be verified against the root README and code.
+Accepted product direction. This document frames MergeWright as a product beyond the current CLI implementation. Current runtime behaviour should still be verified against the root README and code.
 
 ## Product summary
 
-Shepherds-Staff is a local-first agentic workflow orchestrator for safe, staged, auditable AI-assisted software development.
+MergeWright is a local-first agentic workflow orchestrator for safe, staged, auditable AI-assisted software development.
 
 It helps developers use AI coding agents in a controlled engineering process by separating work into explicit phases:
 
@@ -18,12 +18,12 @@ The CLI is the current implemented surface and remains the automation/scripting 
 
 ## Product vision
 
-Shepherds-Staff should become a trusted orchestration layer between developers and AI coding agents.
+MergeWright should become a trusted orchestration layer between developers and AI coding agents.
 
 Long-term vision:
 
 ```txt
-A developer can describe a complex software change, have Shepherds-Staff break it into safe stages, run the correct agent workflow, capture every artefact, enforce review gates, run checks, generate reports, and keep the developer in control at each critical decision point.
+A developer can describe a complex software change, have MergeWright break it into safe stages, run the correct agent workflow, capture every artefact, enforce review gates, run checks, generate reports, and keep the developer in control at each critical decision point.
 ```
 
 The product should make AI-assisted development safer, more repeatable, more auditable, and less dependent on ad-hoc prompting.
@@ -44,7 +44,7 @@ Common problems:
 - It is difficult to compare what was planned against what changed.
 - There is no standard way to generate a change report or PR summary.
 
-Shepherds-Staff solves this by turning AI coding work into a structured workflow with explicit phases, bounded execution, persisted artefacts, and safety checks.
+MergeWright solves this by turning AI coding work into a structured workflow with explicit phases, bounded execution, persisted artefacts, and safety checks.
 
 ## Current product state
 
@@ -173,7 +173,7 @@ Current workflow:
 
 1. Configure a target project.
 2. Create stage instructions.
-3. Run Shepherds-Staff through the CLI.
+3. Run MergeWright through the CLI.
 4. Execute planner, builder, reviewer, fix, or auto-chain flow.
 5. Capture prompts, logs, outputs, and metadata as artefacts.
 6. Inspect results manually.
@@ -193,9 +193,9 @@ Main pain points:
 
 Future workflow:
 
-1. User opens the Shepherds-Staff TUI from a target repository.
+1. User opens the MergeWright TUI from a target repository.
 2. User selects or creates a staged run.
-3. Shepherds-Staff executes phases with safety boundaries.
+3. MergeWright executes phases with safety boundaries.
 4. The TUI shows current run state, phase flow, artefacts, logs, changed files, review findings, and safe next actions.
 5. User approves, requests fix, continues, stops, or generates reports through explicit TUI actions.
 6. The CLI remains available for automation and scripted commands.
@@ -217,7 +217,7 @@ A local TUI for supervising AI coding workflows.
 
 ## Differentiation
 
-Shepherds-Staff is differentiated by:
+MergeWright is differentiated by:
 
 - Structured phase model.
 - Explicit planner, builder, and reviewer separation.
@@ -297,10 +297,10 @@ Future. Only worth considering after the terminal-native workflow proves value.
 
 ## Key product questions
 
-1. Should Shepherds-Staff remain Codex-specific, or become provider-agnostic?
+1. Should MergeWright remain Codex-specific, or become provider-agnostic?
 2. Should the product optimise for manual phase control or human-gated auto-chain?
 3. Should the product remain local-only, or leave room for hosted/team modes later?
-4. Should Shepherds-Staff eventually support controlled commits?
+4. Should MergeWright eventually support controlled commits?
 5. Should the central TUI use Ink, OpenTUI/Solid, or another framework?
 
 Initial recommendation:
@@ -325,12 +325,12 @@ Initial recommendation:
 
 ## Discovery conclusion
 
-Shepherds-Staff should be treated as more than a CLI.
+MergeWright should be treated as more than a CLI.
 
 Overall product direction:
 
 ```txt
-Shepherds-Staff is a terminal-native control plane for safe, staged, auditable AI-assisted software development.
+MergeWright is a terminal-native control plane for safe, staged, auditable AI-assisted software development.
 ```
 
 The CLI remains the automation foundation. The TUI becomes the primary human interface. Web and editor surfaces should come later as optional complements, not the next core product surface.

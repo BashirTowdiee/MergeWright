@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document records the initial technical design direction for Shepherds-Staff.
+This document records the initial technical design direction for MergeWright.
 
 ## Core design direction
 

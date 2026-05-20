@@ -2,11 +2,11 @@
 
 ## Status
 
-Accepted product direction. The TUI is the primary human interface for Shepherds-Staff.
+Accepted product direction. The TUI is the primary human interface for MergeWright.
 
 ## Purpose
 
-This document defines the initial design direction for the Shepherds-Staff TUI.
+This document defines the initial design direction for the MergeWright TUI.
 
 The TUI should be a terminal-native control surface for supervising local AI coding workflows. It should not feel like a web dashboard, SaaS console, or CI/CD clone.
 
