@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { describeSafeActionIntent } from "./action-intent.js";
 import { formatStatusLegend, getStatusSymbol } from "./components/status.js";
+import { formatCommandPaletteLine, getCommandPaletteItems } from "./command-palette.js";
 import { buildEvidencePreview } from "./evidence-preview.js";
 import { getEmptyStateMessage } from "./empty-state.js";
 import { buildFindingDetailLines } from "./finding-detail.js";
@@ -21,6 +22,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [focusedPane, setFocusedPane] = useState<FocusedPane>("runs");
   const [fileScope, setFileScope] = useState<FileScope>("phase");
   const [helpOpen, setHelpOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [notice, setNotice] = useState<TuiNotice | null>(createInfoNotice("TUI is read-only. Actions are previews only."));
   const [selectedRunIndex, setSelectedRunIndex] = useState(0);
   const [selectedPhaseIndex, setSelectedPhaseIndex] = useState(0);
@@ -54,7 +56,11 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       setHelpOpen((current) => !current);
       return;
     }
-    if (helpOpen) {
+    if (input === "p") {
+      setCommandPaletteOpen((current) => !current);
+      return;
+    }
+    if (helpOpen || commandPaletteOpen) {
       return;
     }
     if (input === "s") {
@@ -126,6 +132,10 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
 
   if (helpOpen) {
     return <HelpOverlay />;
+  }
+
+  if (commandPaletteOpen) {
+    return <CommandPalettePreview />;
   }
 
   return (
@@ -222,7 +232,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
         <Text dimColor>Status: {formatStatusLegend()}</Text>
       </Box>
       <Box>
-        <Text dimColor>? help - s toggle file scope - tab focus pane - j/k select item - enter previews selected action - read-only - Ctrl+C to exit</Text>
+        <Text dimColor>? help - p command palette - s toggle file scope - tab focus pane - j/k select item - enter previews selected action - read-only - Ctrl+C to exit</Text>
       </Box>
     </Box>
   );
@@ -241,6 +251,20 @@ function HelpOverlay() {
       <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
         <Text bold>Status legend</Text>
         <Text>{formatStatusLegend()}</Text>
+      </Box>
+    </Box>
+  );
+}
+
+function CommandPalettePreview() {
+  return (
+    <Box flexDirection="column" paddingX={1}>
+      <Text bold>Command palette</Text>
+      <Text dimColor>Press p to close. Commands are preview-only.</Text>
+      <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
+        {getCommandPaletteItems().map((item) => (
+          <Text key={item.id}>{formatCommandPaletteLine(item)}</Text>
+        ))}
       </Box>
     </Box>
   );
