@@ -3,11 +3,13 @@ import { Box, Text, useInput } from "ink";
 import { getStatusLabel, getStatusSymbol } from "./components/status.js";
 import { buildEvidencePreview } from "./evidence-preview.js";
 import { getFocusedPaneTitle, moveFocus, type FocusedPane } from "./focus.js";
+import { formatKeyBinding, TUI_KEY_BINDINGS } from "./keymap.js";
 import { moveSelection } from "./navigation.js";
 import type { TuiSpikeFixture } from "./spike-fixture.js";
 
 export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [focusedPane, setFocusedPane] = useState<FocusedPane>("runs");
+  const [helpOpen, setHelpOpen] = useState(false);
   const [selectedRunIndex, setSelectedRunIndex] = useState(0);
   const [selectedArtefactIndex, setSelectedArtefactIndex] = useState(0);
   const selectedRun = useMemo(() => {
@@ -18,6 +20,13 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const evidenceLines = buildEvidencePreview({ artefact: selectedArtefact, findings: selectedRun.reviewerFindings });
 
   useInput((input, key) => {
+    if (input === "?") {
+      setHelpOpen((current) => !current);
+      return;
+    }
+    if (helpOpen) {
+      return;
+    }
     if (input === "\t" || key.tab) {
       setFocusedPane((current) => moveFocus({ current, direction: key.shift ? "previous" : "next" }));
       return;
@@ -38,6 +47,10 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       setSelectedArtefactIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.artefacts.length, direction: "down" }));
     }
   });
+
+  if (helpOpen) {
+    return <HelpOverlay />;
+  }
 
   return (
     <Box flexDirection="column" paddingX={1}>
@@ -99,7 +112,21 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
         </Box>
       </Box>
       <Box marginTop={1}>
-        <Text dimColor>tab focus pane - j/k select item - read-only - actions disabled - Ctrl+C to exit</Text>
+        <Text dimColor>? help - tab focus pane - j/k select item - read-only - actions disabled - Ctrl+C to exit</Text>
+      </Box>
+    </Box>
+  );
+}
+
+function HelpOverlay() {
+  return (
+    <Box flexDirection="column" paddingX={1}>
+      <Text bold>MergeWright TUI Help</Text>
+      <Text dimColor>Press ? to close help.</Text>
+      <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
+        {TUI_KEY_BINDINGS.map((binding) => (
+          <Text key={`${binding.scope}-${binding.key}`}>{formatKeyBinding(binding)}</Text>
+        ))}
       </Box>
     </Box>
   );
