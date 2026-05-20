@@ -4,7 +4,7 @@ import type { CommandHandler } from "../command-context.js";
 
 export const handleTuiCommand: CommandHandler = async ({ writeLine }) => {
   writeLine("MergeWright TUI preview");
-  writeLine("Framework: pending Ink vs OpenTUI/Solid decision");
+  writeLine("Framework: Ink");
   writeLine("Mode: read-only preview fixture");
   writeLine("");
 
