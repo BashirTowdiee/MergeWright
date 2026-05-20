@@ -4,6 +4,8 @@
 
 Proposed implementation plan. The accepted product direction is that the TUI becomes the primary human interface, while the CLI remains the automation and scripting surface.
 
+Framework decision: Ink is accepted for the first central TUI implementation.
+
 ## Purpose
 
 This document defines the implementation plan for the MergeWright TUI.
@@ -220,6 +222,33 @@ The application/domain layer should own:
 - report generation
 - provider execution
 
+## Accepted framework
+
+Ink is the accepted framework for the first central TUI implementation.
+
+Rationale:
+
+- MergeWright is already TypeScript/Node.
+- The first TUI milestone is a read-only inspector.
+- Ink gives a React-style component model without introducing another language.
+- It is lower risk than OpenTUI/Solid for the first shippable TUI.
+
+Implementation notes:
+
+- Add `ink` and `react` through `npm install`, not by manually editing lockfiles.
+- Keep the existing dependency-free `tui-spike` command as a fixture/preview helper until the Ink shell fully replaces it.
+- Use Ink for the real `tui` command after dependencies are installed.
+- Keep the TUI app behind shared read-model services.
+
+Known Ink risks:
+
+- Complex full-screen layouts can become fiddly.
+- Scrollable logs and large artefacts need careful rendering.
+- Focus management should be explicit and testable.
+- Live rendering may need debouncing to avoid flicker.
+
+Revisit OpenTUI/Solid only if Ink becomes a blocker for panes, scrollback, live logs, or rendering stability.
+
 ## Proposed folder structure
 
 ```txt
@@ -315,518 +344,11 @@ src/
         BlockedReasonPanel.tsx
 ```
 
-## Core view models
-
-Define view models before choosing Ink or OpenTUI/Solid. These make the TUI portable.
-
-```ts
-export type RunStatus =
-  | "pending"
-  | "running"
-  | "passed"
-  | "failed"
-  | "blocked"
-  | "cancelled"
-  | "unknown";
-
-export type PhaseStatus =
-  | "pending"
-  | "running"
-  | "passed"
-  | "failed"
-  | "blocked"
-  | "skipped"
-  | "unknown";
-
-export type RunListItemViewModel = {
-  id: string;
-  title: string;
-  status: RunStatus;
-  subtitle: string;
-  startedAt?: string;
-  completedAt?: string;
-  branch?: string;
-  mode?: "dry-run" | "read-only" | "write-enabled" | "auto-chain";
-};
-
-export type PhaseNodeViewModel = {
-  id: string;
-  label: string;
-  status: PhaseStatus;
-  summary?: string;
-  startedAt?: string;
-  completedAt?: string;
-  durationMs?: number;
-  artefactIds: string[];
-  blockedReason?: string;
-};
-
-export type ArtefactViewModel = {
-  id: string;
-  title: string;
-  kind: "markdown" | "json" | "log" | "diff" | "text";
-  path: string;
-  phaseId?: string;
-  sizeBytes?: number;
-};
-
-export type SafeActionViewModel = {
-  id:
-    | "continue"
-    | "request-fix"
-    | "generate-report"
-    | "generate-pr-summary"
-    | "open-artefact"
-    | "open-run-folder"
-    | "rerun-reviewer"
-    | "stop";
-  label: string;
-  enabled: boolean;
-  blockedReason?: string;
-  risk: "low" | "medium" | "high";
-  requiresConfirmation: boolean;
-};
-```
-
-A run detail view model should compose these:
-
-```ts
-export type RunDetailViewModel = {
-  id: string;
-  title: string;
-  goal?: string;
-  status: RunStatus;
-  workspaceRoot: string;
-  branch?: string;
-  mode?: string;
-  provider?: string;
-  model?: string;
-  phases: PhaseNodeViewModel[];
-  artefacts: ArtefactViewModel[];
-  safeActions: SafeActionViewModel[];
-  blockedReason?: string;
-  reviewerFindings?: ReviewFindingViewModel[];
-};
-```
-
-## UI layout details
-
-### Header
-
-Purpose: keep repo context visible.
-
-Example:
-
-```txt
-MergeWright  Repo: MergeWright  Branch: docs/tui-primary-interface  Mode: local
-```
-
-Include:
-
-- project name
-- shortened workspace path
-- git branch
-- dirty/clean status
-- provider/backend
-- current time or live indicator
-
-### Left pane: Runs
-
-```txt
-Runs
-────────────────────
-! docs-site build
-  failed · 2 min ago
-
-✓ product docs
-  passed · 28 min ago
-
-! provider config
-  blocked · yesterday
-```
-
-Keyboard:
-
-- j/k: move
-- enter: select
-- /: filter
-- r: refresh
-
-Filters:
-
-- all
-- failed
-- blocked
-- running
-- passed
-
-### Middle pane: Current run
-
-Top summary:
-
-```txt
-Goal
-Add product docs and Astro docs site
-
-Status
-Failed at reviewer
-
-Mode
-Auto-chain, read-only
-```
-
-Phase flow:
-
-```txt
-Planner       ✓  completed
-Builder       ✓  completed
-Reviewer      !  failed
-Fix Planner   ○  ready
-Fix Executor  ○  pending
-Checks        ○  blocked
-Report        ○  pending
-```
-
-Use a vertical flow first. It is simpler and more terminal-friendly than a graph.
-
-Later, support branching:
-
-```txt
-Planner
-  ↓
-Builder
-  ↓
-Reviewer
-  ├─ pass → Checks → Report
-  └─ fail → Fix Planner → Fix Executor → Reviewer retry
-```
-
-### Right pane: Safe action
-
-Purpose: prevent the user from guessing.
-
-```txt
-Safe next action
-────────────────────
-Needs fix
-
-Reviewer found:
-docs route assumes optional order metadata exists.
-
-Available:
-[f] Generate fix prompt
-[o] Open reviewer output
-[d] View diff
-
-Blocked:
-Checks cannot run until review passes.
-```
-
-This pane is critical. It is what makes MergeWright different from a log viewer.
-
-### Bottom pane: Artefact preview
-
-Tabs:
-
-```txt
-[Output] [Logs] [Diff] [Metadata] [Report]
-```
-
-Renderers:
-
-- Markdown: headings, bullets, code fences.
-- JSON: formatted tree or pretty JSON.
-- Log: scrollable text.
-- Diff: minimal syntax highlighting.
-- Text: plain.
-
-## Keyboard model
-
-Global shortcuts:
-
-- q: quit
-- ?: help
-- tab: next pane
-- shift-tab: previous pane
-- r: refresh
-- /: filter/search
-- :: command palette
-- escape: close modal/back
-
-Run shortcuts:
-
-- j/k: move selection
-- enter: select/open
-- p: planner output
-- b: builder output
-- v: reviewer output
-- f: fix output
-- l: logs
-- d: diff
-- m: metadata
-- g: generate report
-- c: continue
-- x: stop/cancel
-- o: open artefact in editor
-
-Dangerous actions should always use a confirmation modal:
-
-```txt
-Write-enabled execution
-
-This may modify files in the target repository.
-
-Safety:
-✓ Git repo valid
-✓ Branch allowed
-✓ Working tree clean
-✓ Post-write review required
-
-Type "allow writes" to continue.
-```
-
-Never bury write-mode behind a shortcut alone.
-
-## Required application services
-
-### `listRuns`
-
-```ts
-listRuns(input: {
-  projectRoot: string;
-  filter?: RunStatus | "all";
-}): Promise<RunListItemViewModel[]>
-```
-
-### `inspectRun`
-
-```ts
-inspectRun(input: {
-  projectRoot: string;
-  runId: string;
-}): Promise<RunDetailViewModel>
-```
-
-### `readArtefact`
-
-```ts
-readArtefact(input: {
-  projectRoot: string;
-  runId: string;
-  artefactId: string;
-}): Promise<RenderableArtefact>
-```
-
-### `getAvailableActions`
-
-```ts
-getAvailableActions(input: {
-  projectRoot: string;
-  runId: string;
-}): Promise<SafeActionViewModel[]>
-```
-
-### `executeTuiAction`
-
-```ts
-executeTuiAction(input: {
-  projectRoot: string;
-  runId: string;
-  actionId: SafeActionViewModel["id"];
-  confirmed?: boolean;
-}): Promise<RunDetailViewModel>
-```
-
-The TUI should not know how to continue a run. It should call `executeTuiAction`.
-
-## State model
-
-### TUI state only
-
-```ts
-export type FocusedPane =
-  | "runs"
-  | "currentRun"
-  | "artefacts"
-  | "safeActions"
-  | "preview";
-
-export type TuiState = {
-  selectedRunId?: string;
-  selectedPhaseId?: string;
-  selectedArtefactId?: string;
-  focusedPane: FocusedPane;
-  runFilter: "all" | "failed" | "blocked" | "running" | "passed";
-  previewScrollOffset: number;
-  listScrollOffset: number;
-  commandPaletteOpen: boolean;
-  helpOpen: boolean;
-  confirmation?: {
-    actionId: string;
-    prompt: string;
-  };
-};
-```
-
-### Not TUI state
-
-Do not put these in TUI state as source of truth:
-
-- config values
-- stage content
-- run status
-- phase status
-- artefact metadata
-- available actions
-- safety gate result
-- provider config
-
-They are domain/application state.
-
-## Important reusable components
-
-### Layout components
-
-- Pane
-- HeaderBar
-- FooterBar
-- FocusBorder
-- SplitLayout
-- StatusLine
-
-### Workflow components
-
-- RunSummary
-- PhaseFlow
-- PhaseNode
-- ReviewFindings
-- ChangedFilesSummary
-
-### Safety components
-
-- SafetyGatePanel
-- SafetyRuleList
-- BlockedReasonPanel
-- AvailableActionList
-- ConfirmDangerAction
-
-This is the most important category.
-
-### Artefact components
-
-- ArtefactList
-- ArtefactPreview
-- MarkdownPreview
-- JsonPreview
-- LogPreview
-- DiffPreview
-
-### Utility components
-
-- SelectableList
-- KeyValueTable
-- HelpOverlay
-- CommandPalette
-- EmptyState
-- ErrorPanel
-- LoadingPanel
-
-## Doctor screen
-
-Include a diagnostics screen early.
-
-```txt
-Doctor
-────────────────────────
-Node version             ✓
-Git available            ✓
-Current directory repo   ✓
-Config valid             ✓
-Runs directory writable  ✓
-Codex available          ✓
-OpenCode available       ?
-Working tree clean       !
-```
-
-Checks:
-
-- Node version
-- package installed
-- Git available
-- workspace is repo
-- config exists
-- config valid
-- prompts directory exists
-- runs directory writable
-- provider executable available
-- provider probe result
-- working tree state
-- docs-site build scripts, if relevant
-
-## Framework decision
-
-### Option A: Ink
-
-Use if:
-
-- faster MVP is more important
-- React mental model is preferred
-- lower framework risk is preferred
-- the first goal is a read-only inspector
-
-Concerns:
-
-- complex full-screen layouts
-- scrolling logs
-- focus management
-- flicker risk in live views
-
-### Option B: OpenTUI/Solid
-
-Use if:
-
-- TUI is definitely central
-- a serious full-screen terminal app is the goal
-- ecosystem risk is acceptable
-- OpenCode-style architecture is desirable
-
-Concerns:
-
-- less mature docs
-- smaller community
-- more framework-specific debugging
-
-### Recommendation
-
-Do a two-spike decision.
-
-Build the same screen in both:
-
-- left run list
-- middle phase flow
-- right safe action
-- bottom artefact preview
-- keyboard navigation
-- scrollable log
-- terminal resize
-
-Timebox:
-
-- Ink spike: 1 day
-- OpenTUI/Solid spike: 1 day
-- Decision doc: 0.5 day
-
-Acceptance:
-
-```txt
-Which framework handles panes, focus, scroll, resize, and live updates with less friction?
-```
-
 ## Implementation stages
 
 ### Stage TUI-0: Prepare contracts
 
-Goal: make TUI possible without UI work.
+Status: complete.
 
 Deliverables:
 
@@ -840,62 +362,34 @@ Deliverables:
 - readArtefact service
 - getAvailableActions service
 
-Tests:
+### Stage TUI-1: Ink dependency and shell
 
-- listRuns returns sorted runs
-- inspectRun handles missing metadata
-- inspectRun maps phases consistently
-- getAvailableActions returns blocked reasons
-- readArtefact supports markdown/json/log/text
+Goal: install Ink correctly and render a real Ink app shell.
 
-### Stage TUI-1: Framework spike
-
-Goal: choose Ink vs OpenTUI/Solid.
-
-Deliverables:
-
-- `spike/ink-tui`
-- `spike/opentui-solid`
-- decision doc
-
-Acceptance:
-
-- Both render the same hard screen.
-- Both support pane focus.
-- Both support scrollable preview.
-- Both handle resize.
-- Decision is recorded.
-
-### Stage TUI-2: TUI shell
-
-Goal: add entry point and app shell.
-
-Command:
+Required local command:
 
 ```bash
-npm run agent -- tui
+npm install ink react
 ```
 
 Deliverables:
 
-- tui command
-- App component
-- HeaderBar
-- FooterBar
-- Pane layout
-- keyboard focus switching
-- help overlay
-- empty states
+- `package.json` and `package-lock.json` updated by npm.
+- `src/tui/App.tsx`.
+- `src/tui/index.tsx`.
+- `tui` command renders the Ink app shell.
+- Preview app uses the existing fixture/read-model data.
+- No run mutation actions.
 
 Acceptance:
 
-- TUI opens.
-- TUI shows current repo context.
-- TUI quits cleanly.
-- TUI shows help.
-- TUI does not execute run actions.
+- `npm run build` passes.
+- `npm test` passes.
+- `npm run agent -- tui` opens the Ink shell.
+- The shell shows header, runs, phase flow, safe action, and evidence preview sections.
+- The TUI exits cleanly.
 
-### Stage TUI-3: Read-only run list
+### Stage TUI-2: Read-only run list
 
 Deliverables:
 
@@ -912,7 +406,7 @@ Acceptance:
 - selection changes current run detail
 - missing runs directory shows helpful empty state
 
-### Stage TUI-4: Run detail and phase flow
+### Stage TUI-3: Run detail and phase flow
 
 Deliverables:
 
@@ -929,7 +423,7 @@ Acceptance:
 - blocked state is explained
 - phase flow uses MergeWright terms
 
-### Stage TUI-5: Artefact viewer
+### Stage TUI-4: Artefact viewer
 
 Deliverables:
 
@@ -950,7 +444,7 @@ Acceptance:
 - logs are scrollable
 - missing artefact shows clear error
 
-### Stage TUI-6: Safe action display
+### Stage TUI-5: Safe action display
 
 Deliverables:
 
@@ -966,7 +460,7 @@ Acceptance:
 - write actions are marked high risk
 - no action is inferred in the TUI without application service result
 
-### Stage TUI-7: Controlled read-only actions
+### Stage TUI-6: Controlled read-only actions
 
 Add low-risk actions:
 
@@ -983,7 +477,7 @@ Acceptance:
 - errors render in ErrorPanel
 - no write-enabled action exists yet
 
-### Stage TUI-8: Continue/fix actions
+### Stage TUI-7: Continue/fix actions
 
 Add controlled workflow actions:
 
@@ -999,7 +493,7 @@ Acceptance:
 - confirmation appears for medium/high risk
 - run detail refreshes after action
 
-### Stage TUI-9: Write-aware controls
+### Stage TUI-8: Write-aware controls
 
 Deliverables:
 
@@ -1030,7 +524,7 @@ Test:
 - blocked reason rendering
 - keymap resolution
 
-### Component tests
+### Ink component tests
 
 For the chosen TUI framework:
 
@@ -1083,71 +577,6 @@ runs/<project>/<timestamp-stage>/
   pr-summary.md
 ```
 
-### `run.json`
-
-Should contain:
-
-```ts
-type RunMetadata = {
-  id: string;
-  projectName: string;
-  workspaceRoot: string;
-  stageId: string;
-  goal?: string;
-  status: RunStatus;
-  mode: string;
-  createdAt: string;
-  updatedAt: string;
-  phases: Record<string, {
-    status: PhaseStatus;
-    startedAt?: string;
-    completedAt?: string;
-    outputArtefactIds?: string[];
-    blockedReason?: string;
-  }>;
-  provider?: {
-    id: string;
-    model?: string;
-  };
-};
-```
-
-### `artefacts.json`
-
-```ts
-type ArtefactIndex = {
-  artefacts: Array<{
-    id: string;
-    phaseId?: string;
-    kind: "markdown" | "json" | "log" | "diff" | "text";
-    title: string;
-    path: string;
-    createdAt?: string;
-  }>;
-};
-```
-
-### `events.jsonl`
-
-Useful later for live mode:
-
-```ts
-type RunEvent = {
-  id: string;
-  type:
-    | "phase.started"
-    | "phase.completed"
-    | "phase.failed"
-    | "artefact.written"
-    | "safety.blocked"
-    | "action.available";
-  timestamp: string;
-  runId: string;
-  phaseId?: string;
-  message?: string;
-};
-```
-
 ## Live mode
 
 Do not start with live streaming. Add it after the read-only inspector works.
@@ -1160,16 +589,6 @@ Live mode needs:
 - log tailing
 - debounced UI refresh
 - cancel handling
-
-Implementation:
-
-```txt
-useRunWatcher(runId)
-  watches run.json
-  watches artefacts.json
-  tails events.jsonl
-  refreshes detail safely
-```
 
 Acceptance:
 
@@ -1251,48 +670,29 @@ The strongest hiring signal is:
 AI agent runs are observable, reviewable, resumable, and safe.
 ```
 
-## First implementation prompt
+## Next implementation prompt
 
 ```txt
-Implement Stage TUI-0: TUI data contracts and read-only application services.
+Implement Stage TUI-1: Ink dependency and app shell.
 
 Context:
-MergeWright is moving toward a TUI as the primary human interface. The CLI remains the automation layer. The TUI must not own orchestration state or parse CLI stdout.
+Ink is the accepted TUI framework for MergeWright. The CLI remains the automation layer. The TUI must not own orchestration state or parse CLI stdout.
 
 Scope:
-Add TUI-ready view-model types and read-only application services only.
-
-Implement:
-1. RunListItemViewModel
-2. RunDetailViewModel
-3. PhaseNodeViewModel
-4. ArtefactViewModel
-5. SafeActionViewModel
-6. listRuns service
-7. inspectRun service
-8. readArtefact service
-9. getAvailableActions service
+Install Ink/React through npm, add an Ink app shell, and wire the existing `tui` command to render it.
 
 Rules:
-- Do not add a TUI framework yet.
+- Run `npm install ink react` so package-lock.json is generated correctly.
+- Do not manually edit package-lock.json.
+- Keep `tui-spike` as the dependency-free fixture renderer.
 - Do not add run mutation actions.
-- Do not change existing CLI behaviour.
-- Do not shell out to CLI commands.
-- Read from existing run directories and metadata where available.
-- Degrade gracefully when metadata is missing.
-- Keep safety/action derivation centralised outside the future TUI.
-
-Tests:
-- Unit test view-model mapping.
-- Test missing/partial run metadata.
-- Test failed/blocked/passed phase mapping.
-- Test artefact kind detection.
-- Test available action derivation for failed reviewer, blocked checks, completed run, and missing metadata.
+- Do not change orchestration behaviour.
+- Use existing TUI fixture/read-model data only.
 
 Acceptance:
-- Existing tests pass.
-- New services can support a read-only TUI run inspector.
-- No runtime orchestration behaviour changes.
+- `npm run build` passes.
+- `npm test` passes.
+- `npm run agent -- tui` renders an Ink app shell with header, run list, phase flow, safe action, and evidence sections.
 ```
 
 ## Summary recommendation
@@ -1300,8 +700,8 @@ Acceptance:
 Build in this order:
 
 1. TUI contracts and read-only services.
-2. Ink vs OpenTUI/Solid spike.
-3. TUI shell.
+2. Ink framework decision.
+3. Ink dependency and app shell.
 4. Run list.
 5. Run detail and phase flow.
 6. Artefact viewer.
