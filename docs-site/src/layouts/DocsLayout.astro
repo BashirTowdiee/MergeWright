@@ -11,10 +11,7 @@ interface DocNavItem {
   id: string;
   data: {
     title?: string;
-    order?: number;
-    section?: string;
     description?: string;
-    status?: 'draft' | 'review' | 'stable';
   };
 }
 
@@ -24,159 +21,50 @@ interface Props {
   headings: Heading[];
 }
 
-interface DocMeta {
-  title: string;
-  section: string;
-  description: string;
-  status?: 'draft' | 'review' | 'stable';
-}
-
-interface DocCategory {
-  id: string;
-  title: string;
-  docs: string[];
-}
-
-const categories: DocCategory[] = [
-  { id: 'start', title: 'Start here', docs: ['readme', 'workflow', 'commands'] },
-  { id: 'stage-plans', title: 'Stage Plans', docs: ['stage-plan-workflow'] },
-  { id: 'safety-operations', title: 'Safety and operations', docs: ['safety', 'write-mode', 'operations', 'prompting'] },
-  { id: 'product', title: 'Product planning', docs: ['product-discovery', 'product-requirements', 'product-design', 'roadmap', 'decisions-and-open-questions'] },
-  { id: 'engineering', title: 'Engineering design', docs: ['architecture', 'architecture-plan', 'technical-design', 'data-design', 'api-design', 'testing-strategy', 'cicd-plan', 'release-plan', 'production-readiness'] },
-  { id: 'ux', title: 'UX and dashboard', docs: ['dashboard-design'] },
-  { id: 'acceptance-reference', title: 'Acceptance and reference', docs: ['v1-acceptance', 'v2-acceptance'] },
-];
-
-const docMeta: Record<string, DocMeta> = {
-  readme: {
-    title: 'Overview',
-    section: 'Start here',
-    description: 'High-level overview of Shepherds-Staff, the core workflows, and safety model.',
-    status: 'stable',
-  },
-  workflow: {
-    title: 'Workflow guide',
-    section: 'Start here',
-    description: 'End-to-end operator workflows for classic runs and Stage Plans.',
-    status: 'stable',
-  },
-  commands: {
-    title: 'Command reference',
-    section: 'Start here',
-    description: 'CLI commands, flags, examples, failure modes, and command boundaries.',
-    status: 'stable',
-  },
-  'stage-plan-workflow': {
-    title: 'Stage Plan workflow',
-    section: 'Stage Plans',
-    description: 'Multi-stage human-gated delivery workflow with review, fixes, reassessment, and explicit accepted-stage auto-commit.',
-    status: 'stable',
-  },
-  safety: {
-    title: 'Safety model',
-    section: 'Safety and operations',
-    description: 'Safety defaults, review gates, dry-run behaviour, auto-commit limits, and write-safety rules.',
-    status: 'stable',
-  },
-  'write-mode': {
-    title: 'Write mode',
-    section: 'Safety and operations',
-    description: 'Write-enabled execution rules, audit artefacts, post-write review, and Stage Plan write behaviour.',
-    status: 'stable',
-  },
-  operations: {
-    title: 'Operations',
-    section: 'Safety and operations',
-    description: 'Operational practices for running, inspecting, and maintaining orchestrated workflows.',
-    status: 'review',
-  },
-  prompting: {
-    title: 'Prompting',
-    section: 'Safety and operations',
-    description: 'Prompt construction, phase boundaries, model instructions, and output expectations.',
-    status: 'review',
-  },
-  architecture: {
-    title: 'Architecture overview',
-    section: 'Engineering design',
-    description: 'System architecture and core orchestrator components.',
-    status: 'stable',
-  },
-  'v1-acceptance': {
-    title: 'V1 acceptance',
-    section: 'Acceptance and reference',
-    description: 'Acceptance notes for the initial read-only orchestration workflow.',
-    status: 'review',
-  },
-  'v2-acceptance': {
-    title: 'V2 acceptance',
-    section: 'Acceptance and reference',
-    description: 'Acceptance notes for write-mode hardening and post-write review gates.',
-    status: 'review',
-  },
-};
-
-function keyFromId(id: string): string {
-  const file = id.split('/').pop() ?? id;
-  return file.replace(/\.md$/, '').toLowerCase().replace(/_/g, '-');
-}
+const { currentDoc, docs, headings } = Astro.props;
 
 function routeForDocId(id: string): string {
-  return `/docs/${keyFromId(id)}`;
+  return `/docs/${id}`;
 }
 
 function titleFromId(id: string): string {
-  return keyFromId(id).replace(/^\d+-/, '').replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+  const file = id.split('/').pop() ?? id;
+  return file
+    .replace(/\.md$/, '')
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function categoryForKey(key: string): DocCategory | undefined {
-  return categories.find((category) => category.docs.includes(key));
+function groupFromId(id: string): string {
+  const parts = id.split('/');
+  if (parts.length === 1) return 'root';
+  return parts[0] ?? 'root';
 }
 
-function metadataForDoc(doc: DocNavItem): DocMeta {
-  const key = keyFromId(doc.id);
-  const category = categoryForKey(key);
-  const title = doc.data.title ?? docMeta[key]?.title ?? titleFromId(doc.id);
-
-  return {
-    title,
-    section: doc.data.section ?? docMeta[key]?.section ?? category?.title ?? 'Reference',
-    description: doc.data.description ?? docMeta[key]?.description ?? `Reference documentation for ${title}.`,
-    status: doc.data.status ?? docMeta[key]?.status ?? 'draft',
-  };
+const grouped = new Map<string, DocNavItem[]>();
+for (const doc of docs) {
+  const group = groupFromId(doc.id);
+  const current = grouped.get(group) ?? [];
+  current.push(doc);
+  grouped.set(group, current);
 }
 
-function sortInCategory(aId: string, bId: string, category: DocCategory): number {
-  const aOrder = category.docs.indexOf(keyFromId(aId));
-  const bOrder = category.docs.indexOf(keyFromId(bId));
-  return (aOrder === -1 ? 999 : aOrder) - (bOrder === -1 ? 999 : bOrder);
+const sortedGroups = [...grouped.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+for (const [, items] of sortedGroups) {
+  items.sort((a, b) => a.id.localeCompare(b.id));
 }
-
-const { currentDoc, docs, headings } = Astro.props;
-const groupedDocs = categories
-  .map((category) => {
-    const items = docs
-      .filter((doc) => category.docs.includes(keyFromId(doc.id)))
-      .sort((a, b) => sortInCategory(a.id, b.id, category));
-
-    return { category, items };
-  })
-  .filter((group) => group.items.length > 0);
-
-const uncategorisedDocs = docs
-  .filter((doc) => !categoryForKey(keyFromId(doc.id)))
-  .sort((a, b) => metadataForDoc(a).title.localeCompare(metadataForDoc(b).title));
 
 const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
-const currentMeta = metadataForDoc(currentDoc);
+const currentTitle = currentDoc.data.title ?? titleFromId(currentDoc.id);
+const currentDescription = currentDoc.data.description ?? '';
 ---
 
 <html lang="en-AU">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{currentMeta.title} | Shepherds-Staff Docs</title>
-    <meta name="description" content={currentMeta.description} />
+    <title>{currentTitle} | Shepherds-Staff Docs</title>
+    <meta name="description" content={currentDescription} />
   </head>
   <body>
     <header class="topbar">
@@ -186,60 +74,31 @@ const currentMeta = metadataForDoc(currentDoc);
       <aside class="left-nav">
         <nav aria-label="Documentation navigation">
           <h2>Documentation</h2>
-          {groupedDocs.map(({ category, items }) => (
-            <section class="nav-section" aria-labelledby={`nav-${category.id}`}>
-              <h3 id={`nav-${category.id}`}>{category.title}</h3>
+          {sortedGroups.map(([group, items]) => (
+            <section class="nav-section" aria-labelledby={`nav-${group}`}>
+              <h3 id={`nav-${group}`}>{group}</h3>
               <ul>
-                {items.map((doc) => {
-                  const meta = metadataForDoc(doc);
-
-                  return (
-                    <li>
-                      <a
-                        href={routeForDocId(doc.id)}
-                        class={keyFromId(doc.id) === keyFromId(currentDoc.id) ? 'active' : ''}
-                        aria-current={keyFromId(doc.id) === keyFromId(currentDoc.id) ? 'page' : undefined}
-                      >
-                        <span>{meta.title}</span>
-                        <span class={`nav-status status-${meta.status ?? 'draft'}`}>{meta.status ?? 'draft'}</span>
-                      </a>
-                    </li>
-                  );
-                })}
+                {items.map((doc) => (
+                  <li>
+                    <a
+                      href={routeForDocId(doc.id)}
+                      class={doc.id === currentDoc.id ? 'active' : ''}
+                      aria-current={doc.id === currentDoc.id ? 'page' : undefined}
+                    >
+                      <span>{doc.data.title ?? titleFromId(doc.id)}</span>
+                    </a>
+                  </li>
+                ))}
               </ul>
             </section>
           ))}
-          {uncategorisedDocs.length > 0 && (
-            <section class="nav-section" aria-labelledby="nav-reference">
-              <h3 id="nav-reference">Other reference</h3>
-              <ul>
-                {uncategorisedDocs.map((doc) => {
-                  const meta = metadataForDoc(doc);
-                  return (
-                    <li>
-                      <a
-                        href={routeForDocId(doc.id)}
-                        class={keyFromId(doc.id) === keyFromId(currentDoc.id) ? 'active' : ''}
-                        aria-current={keyFromId(doc.id) === keyFromId(currentDoc.id) ? 'page' : undefined}
-                      >
-                        <span>{meta.title}</span>
-                        <span class={`nav-status status-${meta.status ?? 'draft'}`}>{meta.status ?? 'draft'}</span>
-                      </a>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          )}
         </nav>
       </aside>
 
       <main class="doc-main">
         <header class="doc-header">
-          <p class="doc-section">{currentMeta.section}</p>
-          <h1>{currentMeta.title}</h1>
-          <p>{currentMeta.description}</p>
-          <p class={`doc-status status-${currentMeta.status ?? 'draft'}`}>Status: {currentMeta.status ?? 'draft'}</p>
+          <h1>{currentTitle}</h1>
+          {currentDescription && <p>{currentDescription}</p>}
         </header>
         <slot />
       </main>

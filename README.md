@@ -96,7 +96,7 @@ npm run agent -- accept-stage stage-01-provider-contract \
 
 `accept-stage --auto-commit` is the only supported auto-commit path. `run-stage`, `run-stages`, and `continue-stages` reject `--auto-commit` because they stop at `review_required` and do not auto-accept work.
 
-See `docs/STAGE_PLAN_WORKFLOW.md` for the full Stage Plan guide.
+See `docs/workflows/stage-plan.md` for the full Stage Plan guide.
 
 ## Safety model
 
@@ -112,8 +112,8 @@ See `docs/STAGE_PLAN_WORKFLOW.md` for the full Stage Plan guide.
 
 For details, see:
 
-- `docs/SAFETY.md`
-- `docs/WRITE_MODE.md`
+- `docs/safety/write-safety.md`
+- `docs/safety/write-mode.md`
 
 ## Quick start
 
@@ -185,14 +185,14 @@ For Stage Plans:
 
 ## Documentation
 
-- `docs/STAGE_PLAN_WORKFLOW.md`
-- `docs/COMMANDS.md`
-- `docs/WORKFLOW.md`
-- `docs/ARCHITECTURE.md`
-- `docs/EXECUTION_BACKENDS.md`
+- `docs/workflows/stage-plan.md`
+- `docs/cli/commands.md`
+- `docs/workflows/classic-run.md`
+- `docs/architecture/overview.md`
+- `docs/configuration/execution-backends.md`
 - `docs/PROMPTING.md`
 - `docs/OPERATIONS.md`
-- `docs/SAFETY.md`
-- `docs/WRITE_MODE.md`
+- `docs/safety/write-safety.md`
+- `docs/safety/write-mode.md`
 - `docs/V1_ACCEPTANCE.md`
 - `docs/V2_ACCEPTANCE.md`

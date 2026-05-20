@@ -106,8 +106,8 @@ The CLI already supports list-runs/show-run/open-run and persists run.json.
 
 # Files Likely Involved
 - README.md
-- docs/COMMANDS.md
-- docs/WORKFLOW.md
+- docs/cli/commands.md
+- docs/workflows/classic-run.md
 
 # Hard Constraints
 - Do not change runtime behavior.
