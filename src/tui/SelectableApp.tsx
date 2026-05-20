@@ -6,6 +6,7 @@ import { buildEvidencePreview } from "./evidence-preview.js";
 import { getEmptyStateMessage } from "./empty-state.js";
 import { buildFindingDetailLines } from "./finding-detail.js";
 import { formatFileScopeLabel, resolveScopedFiles, toggleFileScope, type FileScope } from "./file-scope.js";
+import { buildFocusBreadcrumb } from "./focus-breadcrumb.js";
 import { getFocusedPaneTitle, moveFocus, type FocusedPane } from "./focus.js";
 import { formatKeyBinding, TUI_KEY_BINDINGS } from "./keymap.js";
 import { buildLayoutSummary } from "./layout-summary.js";
@@ -40,6 +41,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
     findings: selectedRun.reviewerFindings,
     snippets: fixture.evidenceSnippets
   });
+  const focusBreadcrumb = buildFocusBreadcrumb({ focusedPane, selectedRun, selectedPhase, fileScope });
   const findingDetailLines = buildFindingDetailLines(selectedFinding);
   const runContextLines = buildRunContextLines(selectedRun);
   const runWarningLines = buildRunWarningLines(selectedRun.warnings);
@@ -135,6 +137,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
           <Text>  Mode: {selectedRun.mode}</Text>
         </Box>
         <Text dimColor>{layoutSummary}</Text>
+        <Text dimColor>{focusBreadcrumb}</Text>
       </Box>
       <Box flexDirection="row" marginTop={1}>
         <Box flexDirection="column" width={30} borderStyle="round" paddingX={1} marginRight={1}>
