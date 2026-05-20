@@ -2,6 +2,8 @@
 
 Shepherds-Staff is a local-first CLI orchestrator for staged, auditable AI-assisted software delivery.
 
+The CLI remains the automation and scripting surface. The accepted product direction is to make a TUI the primary human interface for local run inspection, artefact review, safety gates, and controlled workflow actions.
+
 ## Where to start
 
 - New users: [getting-started/quick-start.md](./getting-started/quick-start.md)
@@ -21,6 +23,14 @@ Use Stage Plan for larger or multi-step changes with explicit review gates.
 - Artefacts: [concepts/artefacts.md](./concepts/artefacts.md)
 - Safety model: [concepts/safety-model.md](./concepts/safety-model.md)
 - Architecture: [architecture/overview.md](./architecture/overview.md)
+
+## Product planning docs
+
+- Product discovery: [product/01-product-discovery.md](./product/01-product-discovery.md)
+- Product requirements: [product/02-product-requirements.md](./product/02-product-requirements.md)
+- Roadmap: [product/04-roadmap.md](./product/04-roadmap.md)
+- Decisions and open questions: [product/05-decisions-and-open-questions.md](./product/05-decisions-and-open-questions.md)
+- TUI design: [ux/02-tui-design.md](./ux/02-tui-design.md)
 
 ## CLI reference
 
