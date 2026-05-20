@@ -2,15 +2,11 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { executeCheckCommand } from "./commands.js";
 import type { CodexExecutor } from "./codex.js";
-import { writePlanHtmlFromRun } from "./plan-html.js";
 import { renderTemplate, type TemplateVariables } from "./prompts.js";
 import { NOOP_PROGRESS_LOGGER, type ProgressLogger } from "./progress-logger.js";
 import { captureWriteAuditPostStateAndWriteArtefacts, captureWriteAuditPreState } from "./write-audit.js";
 import {
   addRunArtefact,
-  markRunFailure,
-  markRunSuccess,
-  toRunRelativePath,
   updateRunPhase,
   writeRunMetadata,
   type RunMetadata,
@@ -28,6 +24,9 @@ import { executeReviewerPhase } from "./workflows/classic-run/reviewer-phase.js"
 import { executeFixPlanningPhase } from "./workflows/classic-run/fix-planning-phase.js";
 import { executeFixPhase } from "./workflows/classic-run/fix-phase.js";
 import { executeChecksPhase } from "./workflows/classic-run/checks-phase.js";
+import { finaliseClassicRunSuccess } from "./workflows/classic-run/run-finalisation.js";
+import { finaliseClassicRunFailure } from "./workflows/classic-run/run-failure.js";
+import { buildClassicRunResult } from "./workflows/classic-run/run-result.js";
 
 export interface RunOptions {
   stageName: string;
@@ -460,21 +459,15 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
       }
     });
 
-    const written = await writeArtefacts(runDir, artefacts);
-    if (options.planHtml) {
-      const planHtmlPath = await writePlanHtmlFromRun(
-        runDir,
-        metadata,
-        written.map((filePath) => toRunRelativePath(runDir, filePath))
-      );
-      written.push(planHtmlPath);
-      progressLogger.artefact("plan html", planHtmlPath);
-    }
-    for (const artefact of written) {
-      addRunArtefact(metadata, toRunRelativePath(runDir, artefact));
-    }
-    markRunSuccess(metadata);
-    await persistMetadata();
+    const written = await finaliseClassicRunSuccess({
+      runDir,
+      artefacts,
+      metadata,
+      writeArtefacts,
+      persistMetadata,
+      planHtml: options.planHtml ?? false,
+      progressLogger
+    });
 
     if (options.verbose) {
       void config;
@@ -482,7 +475,7 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
 
     progressLogger.info(options.dryRun ? "Run dry-run completed" : "Run completed successfully");
 
-    return {
+    return buildClassicRunResult({
       stageName: options.stageName,
       orchestratorRoot,
       targetWorkspaceRoot,
@@ -494,18 +487,16 @@ export async function runStage(options: RunOptions): Promise<RunResult> {
       allowWrites,
       writeSafetyState,
       writeEnabledPhases
-    };
+    });
   } catch (error) {
-    markRunFailure(metadata, error, failedPhase);
-    await persistMetadata(error);
-    if (failedPhase) {
-      progressLogger.phaseFailed(failedPhase, error);
-      progressLogger.info(`Run failed during phase: ${failedPhase}`);
-    } else {
-      progressLogger.phaseFailed("run", error);
-    }
-    progressLogger.info(`Diagnostics: ${runDir}`);
-    throw error;
+    return finaliseClassicRunFailure({
+      error,
+      failedPhase,
+      metadata,
+      persistMetadata,
+      progressLogger,
+      runDir
+    });
   }
 }
 
