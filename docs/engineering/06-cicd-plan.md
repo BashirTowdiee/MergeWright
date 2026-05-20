@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the CI/CD direction for Shepherds-Staff.
+This document defines the CI/CD direction for MergeWright.
 
 ## CI goals
 

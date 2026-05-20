@@ -13,7 +13,7 @@ export function createTuiSpikeFixture(): TuiSpikeFixture {
     goal: "Add product delivery docs, Astro docs site, and CI workflow.",
     status: "failed",
     workspaceRoot: "/absolute/path/to/orchestrator",
-    runDir: `/tmp/shepherds-staff/runs/${selectedRunId}`,
+    runDir: `/tmp/MergeWright/runs/${selectedRunId}`,
     branch: "docs/product-delivery-pack",
     mode: "read-only",
     provider: "codex",

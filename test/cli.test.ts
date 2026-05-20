@@ -2755,7 +2755,7 @@ test("probe-opencode fails when backend is not opencode-cli", async () => {
 test("probe-opencode --validate-readonly-contract includes validation and does not create output file", async () => {
   const fake = await makeFakeOpenCodeBin(probeCliWithOutputFlag);
   const output: string[] = [];
-  const outputPath = path.resolve(process.cwd(), ".shepherds-staff-opencode-probe-output.md");
+  const outputPath = path.resolve(process.cwd(), ".MergeWright-opencode-probe-output.md");
   await runCommand(
     parseArgs(["probe-opencode", "--command", fake.commandPath, "--validate-readonly-contract", "--json"]),
     process.cwd(),

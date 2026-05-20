@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines how Shepherds-Staff should move from local development to a reviewable release.
+This document defines how MergeWright should move from local development to a reviewable release.
 
 ## Release goals
 

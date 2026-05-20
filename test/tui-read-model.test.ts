@@ -34,7 +34,7 @@ function baseMetadata(runId: string, patch: Partial<RunMetadata> = {}): RunMetad
   return {
     version: 1,
     runId,
-    projectName: "Shepherds-Staff",
+    projectName: "MergeWright",
     stageName: "docs-site-build",
     preset: "full-readonly",
     workspaceRoot: "/tmp/workspace",

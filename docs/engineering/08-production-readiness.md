@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines what should be reviewed before Shepherds-Staff is considered production-ready for external users.
+This document defines what should be reviewed before MergeWright is considered production-ready for external users.
 
 ## Product readiness
 

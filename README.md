@@ -1,4 +1,4 @@
-# Shepherds-Staff
+# MergeWright
 
 `agent-stage` is a standalone CLI delivery harness for controlled AI-assisted engineering workflows. It turns agent-generated code changes into staged, reviewable, auditable delivery evidence.
 
@@ -11,13 +11,13 @@ It supports the original Planner -> Builder -> Reviewer flow, bounded fix loops,
 
 ## Product position
 
-Shepherds-Staff is not trying to be the agent that writes the most code or the runtime that launches the most workers. It sits above coding agents and focuses on delivery confidence.
+MergeWright is not trying to be the agent that writes the most code or the runtime that launches the most workers. It sits above coding agents and focuses on delivery confidence.
 
 Core promise:
 
 > Turn AI coding work into reviewable, auditable, merge-ready software changes.
 
-Coding agents generate work. Shepherds-Staff governs the delivery path around that work:
+Coding agents generate work. MergeWright governs the delivery path around that work:
 
 `intent -> plan -> implementation -> review -> fix loop -> checks -> evidence -> change report -> PR-ready summary`
 
@@ -25,7 +25,7 @@ This keeps the project focused on trust, repeatability, evidence, and human-cont
 
 ## What it solves
 
-Manual LLM-assisted development breaks down when prompts, phase ordering, review gates, and artefacts are handled ad hoc. Shepherds-Staff standardises that process by:
+Manual LLM-assisted development breaks down when prompts, phase ordering, review gates, and artefacts are handled ad hoc. MergeWright standardises that process by:
 
 - enforcing phase and stage dependencies
 - generating consistent prompts from structured context
@@ -37,7 +37,7 @@ Manual LLM-assisted development breaks down when prompts, phase ordering, review
 
 ## Delivery harness principles
 
-Shepherds-Staff should optimise for merge confidence. The long-term product direction is:
+MergeWright should optimise for merge confidence. The long-term product direction is:
 
 1. **Evidence first**: diff, checks, git state, review findings, and acceptance criteria should outrank agent summaries.
 2. **Deterministic gates**: stages should only pass when required evidence exists and required checks have run.
@@ -49,7 +49,7 @@ See `docs/roadmap/delivery-harness.md` for the implementation plan.
 
 ## Core workflows
 
-Shepherds-Staff currently supports two related workflows.
+MergeWright currently supports two related workflows.
 
 ### Classic run workflow
 

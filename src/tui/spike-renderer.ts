@@ -27,7 +27,7 @@ export function renderTuiSpikeFixture(fixture: TuiSpikeFixture): string {
   const findingLines = fixture.selectedRun.reviewerFindings.map((finding) => `${finding.severity.toUpperCase()}: ${finding.message}`);
 
   return [
-    "Shepherds-Staff TUI spike",
+    "MergeWright TUI spike",
     `Repo: ${fixture.selectedRun.workspaceRoot ?? "unknown"}`,
     `Branch: ${fixture.selectedRun.branch ?? "unknown"}`,
     "",

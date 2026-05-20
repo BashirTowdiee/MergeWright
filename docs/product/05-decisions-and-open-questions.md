@@ -2,7 +2,7 @@
 
 ## Status
 
-This document tracks product and architecture decisions that affect Shepherds-Staff delivery.
+This document tracks product and architecture decisions that affect MergeWright delivery.
 
 Use this file to prevent unresolved assumptions from being hidden inside discovery, roadmap, API, or UX docs.
 
@@ -23,7 +23,7 @@ Status: Accepted
 Decision:
 
 ```txt
-Shepherds-Staff should be positioned as a local-first, terminal-native agentic workflow orchestrator for safe, staged, auditable AI-assisted software development.
+MergeWright should be positioned as a local-first, terminal-native agentic workflow orchestrator for safe, staged, auditable AI-assisted software development.
 ```
 
 Rationale:
@@ -64,12 +64,12 @@ Status: Accepted
 Decision:
 
 ```txt
-The TUI is the chosen primary human interface for Shepherds-Staff.
+The TUI is the chosen primary human interface for MergeWright.
 ```
 
 Rationale:
 
-Shepherds-Staff is local-first, repo-aware, terminal-native, and developer-oriented. A TUI better fits the product identity than a SaaS-style web dashboard. It keeps users in the same environment where they run commands, inspect git state, review logs, and supervise agent workflows.
+MergeWright is local-first, repo-aware, terminal-native, and developer-oriented. A TUI better fits the product identity than a SaaS-style web dashboard. It keeps users in the same environment where they run commands, inspect git state, review logs, and supervise agent workflows.
 
 Implications:
 
@@ -85,7 +85,7 @@ Status: Accepted
 Decision:
 
 ```txt
-Shepherds-Staff should remain local-first for the current product horizon.
+MergeWright should remain local-first for the current product horizon.
 ```
 
 Rationale:
@@ -124,7 +124,7 @@ Status: Open
 Decision needed:
 
 ```txt
-Should Shepherds-Staff formally commit to a provider-agnostic execution contract, with Codex as the first provider?
+Should MergeWright formally commit to a provider-agnostic execution contract, with Codex as the first provider?
 ```
 
 Default recommendation:
@@ -151,7 +151,7 @@ Status: Open
 Decision needed:
 
 ```txt
-Should Shepherds-Staff eventually support controlled local commits after review gates pass?
+Should MergeWright eventually support controlled local commits after review gates pass?
 ```
 
 Default recommendation:
@@ -222,7 +222,7 @@ Implications if OpenTUI/Solid is chosen:
 ## Open questions requiring maintainer input
 
 1. Should provider-agnostic execution be a committed product direction, or should the product stay Codex-specific for now?
-2. Should controlled local commits be a future product goal, or should Shepherds-Staff permanently leave commits to the user?
+2. Should controlled local commits be a future product goal, or should MergeWright permanently leave commits to the user?
 3. Should the central TUI use Ink, OpenTUI/Solid, or another framework?
 4. Should hosted/team modes be excluded entirely to keep the product local-only?
 5. Should run metadata use a clean public schema even if it differs from current internal names, or should it mirror existing implementation names exactly?

@@ -6,7 +6,7 @@ Proposed future layer. The API should not be treated as implemented until a loca
 
 ## Purpose
 
-This document defines the initial local API direction for Shepherds-Staff.
+This document defines the initial local API direction for MergeWright.
 
 The API is not the current primary surface. It is a future layer that should expose the orchestration core to a local dashboard or editor extension.
 
@@ -150,7 +150,7 @@ GET /api/runs/:runId/reports
 {
   "schemaVersion": 1,
   "id": "2026-05-17T10-20-30-stage-01",
-  "projectId": "shepherds-staff",
+  "projectId": "MergeWright",
   "stageId": "stage-01",
   "status": "running",
   "mode": "auto-chain",

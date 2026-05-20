@@ -1,6 +1,6 @@
-# Shepherds-Staff Documentation
+# MergeWright Documentation
 
-Shepherds-Staff is a local-first CLI orchestrator for staged, auditable AI-assisted software delivery.
+MergeWright is a local-first CLI orchestrator for staged, auditable AI-assisted software delivery.
 
 The CLI remains the automation and scripting surface. The accepted product direction is to make a TUI the primary human interface for local run inspection, artefact review, safety gates, and controlled workflow actions.
 
