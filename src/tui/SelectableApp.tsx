@@ -4,12 +4,12 @@ import { describeSafeActionIntent } from "./action-intent.js";
 import { formatStatusLegend, getStatusSymbol } from "./components/status.js";
 import { buildEvidencePreview } from "./evidence-preview.js";
 import { getEmptyStateMessage } from "./empty-state.js";
+import { formatFileScopeLabel, resolveScopedFiles, toggleFileScope, type FileScope } from "./file-scope.js";
 import { getFocusedPaneTitle, moveFocus, type FocusedPane } from "./focus.js";
 import { formatKeyBinding, TUI_KEY_BINDINGS } from "./keymap.js";
 import { buildLayoutSummary } from "./layout-summary.js";
 import { createInfoNotice, formatNotice, type TuiNotice } from "./notice.js";
 import { moveSelection } from "./navigation.js";
-import { filterArtifactsForPhase, formatArtifactScopeLabel } from "./phase-artifacts.js";
 import { buildPhaseDetailLines } from "./phase-detail.js";
 import { buildRunContextLines } from "./run-context.js";
 import { buildRunWarningLines } from "./run-warnings.js";
@@ -17,6 +17,7 @@ import type { TuiSpikeFixture } from "./spike-fixture.js";
 
 export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [focusedPane, setFocusedPane] = useState<FocusedPane>("runs");
+  const [fileScope, setFileScope] = useState<FileScope>("phase");
   const [helpOpen, setHelpOpen] = useState(false);
   const [notice, setNotice] = useState<TuiNotice | null>(createInfoNotice("TUI is read-only. Actions are previews only."));
   const [selectedRunIndex, setSelectedRunIndex] = useState(0);
@@ -28,7 +29,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
     return run ? fixture.runDetailsById[run.id] ?? fixture.selectedRun : fixture.selectedRun;
   }, [fixture, selectedRunIndex]);
   const selectedPhase = selectedRun.phases[selectedPhaseIndex];
-  const scopedArtifacts = filterArtifactsForPhase({ artifacts: selectedRun.artefacts, selectedPhase });
+  const scopedArtifacts = resolveScopedFiles({ scope: fileScope, files: selectedRun.artefacts, selectedPhase });
   const selectedArtefact = scopedArtifacts[selectedArtefactIndex];
   const selectedAction = selectedRun.safeActions[selectedActionIndex];
   const evidenceLines = buildEvidencePreview({
@@ -40,7 +41,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const runWarningLines = buildRunWarningLines(selectedRun.warnings);
   const phaseDetailLines = buildPhaseDetailLines(selectedPhase);
   const layoutSummary = buildLayoutSummary({ runs: fixture.runs, selectedRun });
-  const artifactScopeLabel = formatArtifactScopeLabel(selectedPhase);
+  const fileScopeLabel = formatFileScopeLabel({ scope: fileScope, selectedPhase });
 
   useInput((input, key) => {
     if (input === "?") {
@@ -48,6 +49,12 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       return;
     }
     if (helpOpen) {
+      return;
+    }
+    if (input === "s") {
+      setFileScope((current) => toggleFileScope(current));
+      setSelectedArtefactIndex(0);
+      setNotice(createInfoNotice("File scope changed."));
       return;
     }
     if (key.return && focusedPane === "actions") {
@@ -167,7 +174,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       </Box>
       <Box flexDirection="row" marginTop={1}>
         <Box flexDirection="column" width={46} borderStyle="round" paddingX={1} marginRight={1}>
-          <Text bold>{getFocusedPaneTitle(artifactScopeLabel, focusedPane === "artefacts")}</Text>
+          <Text bold>{getFocusedPaneTitle(fileScopeLabel, focusedPane === "artefacts")}</Text>
           {scopedArtifacts.length === 0 ? <Text dimColor>{getEmptyStateMessage("artefacts")}</Text> : scopedArtifacts.map((artefact, index) => (
             <Text key={artefact.id} inverse={focusedPane === "artefacts" && index === selectedArtefactIndex}>{index === selectedArtefactIndex ? ">" : " "} {artefact.kind.padEnd(8)} {artefact.title}</Text>
           ))}
@@ -192,7 +199,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
         <Text dimColor>Status: {formatStatusLegend()}</Text>
       </Box>
       <Box>
-        <Text dimColor>? help - tab focus pane - j/k select item - enter previews selected action - read-only - Ctrl+C to exit</Text>
+        <Text dimColor>? help - s toggle file scope - tab focus pane - j/k select item - enter previews selected action - read-only - Ctrl+C to exit</Text>
       </Box>
     </Box>
   );
