@@ -1,9 +1,11 @@
+import type { EvidenceSnippet } from "./evidence-preview.js";
 import type { RunDetailViewModel, RunListItemViewModel, TuiPhaseStatus, TuiRunStatus } from "./view-models.js";
 
 export interface TuiSpikeFixture {
   runs: RunListItemViewModel[];
   selectedRun: RunDetailViewModel;
   runDetailsById: Record<string, RunDetailViewModel>;
+  evidenceSnippets?: Record<string, EvidenceSnippet>;
 }
 
 export function createTuiSpikeFixture(): TuiSpikeFixture {
