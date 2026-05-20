@@ -307,6 +307,7 @@ test("malformed checks-status.json becomes unknown with malformed signal", async
   const runDir = await createRunFixture({ checksRaw: "{not-json" });
   const report = await generateChangeReport({ runDir });
   assert.equal(report.checks.state, "unknown");
+  assert.equal((report.checks as { malformed?: boolean }).malformed, true);
   assert.equal(report.riskSignals.includes("Checks status artefact is malformed."), true);
 });
 
