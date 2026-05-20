@@ -1,6 +1,6 @@
-export type FocusedPane = "runs" | "actions" | "artefacts";
+export type FocusedPane = "runs" | "phases" | "actions" | "artefacts";
 
-const PANE_ORDER: FocusedPane[] = ["runs", "actions", "artefacts"];
+const PANE_ORDER: FocusedPane[] = ["runs", "phases", "actions", "artefacts"];
 
 export function moveFocus(input: { current: FocusedPane; direction: "next" | "previous" }): FocusedPane {
   const index = PANE_ORDER.indexOf(input.current);
