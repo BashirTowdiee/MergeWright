@@ -8,6 +8,7 @@ export const TUI_KEY_BINDINGS: TuiKeyBinding[] = [
   { key: "tab", description: "cycle focused pane", scope: "global" },
   { key: "shift+tab", description: "cycle focused pane backwards", scope: "global" },
   { key: "?", description: "toggle help", scope: "global" },
+  { key: "s", description: "toggle file scope", scope: "global" },
   { key: "ctrl+c", description: "exit", scope: "global" },
   { key: "j / down", description: "move selection down in focused pane", scope: "focused-pane" },
   { key: "k / up", description: "move selection up in focused pane", scope: "focused-pane" },
