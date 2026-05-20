@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { describeSafeActionIntent } from "./action-intent.js";
 import { formatStatusLegend, getStatusSymbol } from "./components/status.js";
-import { formatCommandPaletteLine, getCommandPaletteItems } from "./command-palette.js";
+import { describeCommandPaletteSelection, formatCommandPaletteLine, getCommandPaletteItems } from "./command-palette.js";
 import { buildEvidencePreview } from "./evidence-preview.js";
 import { getEmptyStateMessage } from "./empty-state.js";
 import { buildFindingDetailLines } from "./finding-detail.js";
@@ -23,12 +23,15 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [fileScope, setFileScope] = useState<FileScope>("phase");
   const [helpOpen, setHelpOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
   const [notice, setNotice] = useState<TuiNotice | null>(createInfoNotice("TUI is read-only. Actions are previews only."));
   const [selectedRunIndex, setSelectedRunIndex] = useState(0);
   const [selectedPhaseIndex, setSelectedPhaseIndex] = useState(0);
   const [selectedActionIndex, setSelectedActionIndex] = useState(0);
   const [selectedArtefactIndex, setSelectedArtefactIndex] = useState(0);
   const [selectedFindingIndex, setSelectedFindingIndex] = useState(0);
+  const commandItems = getCommandPaletteItems();
+  const selectedCommand = commandItems[selectedCommandIndex];
   const selectedRun = useMemo(() => {
     const run = fixture.runs[selectedRunIndex];
     return run ? fixture.runDetailsById[run.id] ?? fixture.selectedRun : fixture.selectedRun;
@@ -60,7 +63,22 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       setCommandPaletteOpen((current) => !current);
       return;
     }
-    if (helpOpen || commandPaletteOpen) {
+    if (helpOpen) {
+      return;
+    }
+    if (commandPaletteOpen) {
+      if (input === "k" || key.upArrow) {
+        setSelectedCommandIndex((currentIndex) => moveSelection({ currentIndex, itemCount: commandItems.length, direction: "up" }));
+        return;
+      }
+      if (input === "j" || key.downArrow) {
+        setSelectedCommandIndex((currentIndex) => moveSelection({ currentIndex, itemCount: commandItems.length, direction: "down" }));
+        return;
+      }
+      if (key.return) {
+        setNotice(createInfoNotice(describeCommandPaletteSelection(selectedCommand)));
+        return;
+      }
       return;
     }
     if (input === "s") {
@@ -135,7 +153,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   }
 
   if (commandPaletteOpen) {
-    return <CommandPalettePreview />;
+    return <CommandPalettePreview selectedCommandIndex={selectedCommandIndex} selectedCommand={selectedCommand} />;
   }
 
   return (
@@ -256,15 +274,19 @@ function HelpOverlay() {
   );
 }
 
-function CommandPalettePreview() {
+function CommandPalettePreview({ selectedCommandIndex, selectedCommand }: { selectedCommandIndex: number; selectedCommand: ReturnType<typeof getCommandPaletteItems>[number] | undefined }) {
   return (
     <Box flexDirection="column" paddingX={1}>
       <Text bold>Command palette</Text>
-      <Text dimColor>Press p to close. Commands are preview-only.</Text>
+      <Text dimColor>Press p to close. Commands are preview-only. Use j/k and Enter to inspect.</Text>
       <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
-        {getCommandPaletteItems().map((item) => (
-          <Text key={item.id}>{formatCommandPaletteLine(item)}</Text>
+        {getCommandPaletteItems().map((item, index) => (
+          <Text key={item.id} inverse={index === selectedCommandIndex}>{index === selectedCommandIndex ? ">" : " "} {formatCommandPaletteLine(item)}</Text>
         ))}
+      </Box>
+      <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
+        <Text bold>Selected command</Text>
+        <Text>{describeCommandPaletteSelection(selectedCommand)}</Text>
       </Box>
     </Box>
   );
