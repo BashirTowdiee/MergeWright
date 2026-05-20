@@ -1,6 +1,26 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { validateConfig } from "../src/config.js";
+import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import {
+  loadAndValidateConfig,
+  resolveConfigPath,
+  validateConfig,
+  validateWorkspaceSafety
+} from "../src/config.js";
+import type {
+  AgentConfigMap,
+  AgentRoleConfig,
+  CodexCliBackendConfig,
+  CodexRoleConfig,
+  ConfiguredCheckCommand,
+  ConfiguredCheckCommandCwd,
+  ExecutionBackendConfig,
+  ExecutionBackendConfigMap,
+  OpenCodeCliBackendConfig,
+  OrchestratorConfig
+} from "../src/config.js";
 import { DEFAULT_CHANGE_REPORT_POLICY } from "../src/change-report.js";
 
 function makeBaseConfig(): Record<string, unknown> {
@@ -304,4 +324,74 @@ test("changeReport arrays must contain strings and booleans must be booleans", (
     }
   };
   assert.throws(() => validateConfig(badBoolean), /changeReport\.scopeDrift\.enabled must be a boolean/);
+});
+
+test("loadAndValidateConfig fails with unreadable config file error", async () => {
+  const missing = path.resolve(tmpdir(), `missing-config-${Date.now()}.json`);
+  await assert.rejects(
+    async () => loadAndValidateConfig(missing),
+    /Config file not found or unreadable at .*\. No fallback is used\./
+  );
+});
+
+test("loadAndValidateConfig fails with invalid JSON error", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "orchestrator-config-invalid-json-"));
+  const configPath = path.join(dir, "bad.json");
+  await writeFile(configPath, "{\n", "utf8");
+
+  await assert.rejects(async () => loadAndValidateConfig(configPath), /Invalid config JSON at .*: /);
+});
+
+test("resolveConfigPath preserves absolute paths", () => {
+  const absolute = path.resolve("/tmp", "config.json");
+  assert.equal(resolveConfigPath("/workspace/root", absolute), absolute);
+});
+
+test("resolveConfigPath resolves relative paths from orchestrator root", () => {
+  assert.equal(resolveConfigPath("/workspace/root", "configs/acme.json"), "/workspace/root/configs/acme.json");
+});
+
+test("validateWorkspaceSafety enforces workspace accessibility", async () => {
+  const missing = path.resolve(tmpdir(), `missing-workspace-${Date.now()}`);
+  await assert.rejects(
+    async () => validateWorkspaceSafety(missing, false),
+    /Target workspaceRoot does not exist or is not accessible: .*\./
+  );
+});
+
+test("validateWorkspaceSafety enforces .git when requireGitRepo is true", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "orchestrator-workspace-no-git-"));
+  await assert.rejects(
+    async () => validateWorkspaceSafety(workspace, true),
+    new RegExp(`Target workspaceRoot is not a git repository: missing ${workspace.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/\\.git`)
+  );
+});
+
+test("validateWorkspaceSafety passes without .git when requireGitRepo is false", async () => {
+  const workspace = await mkdtemp(path.join(tmpdir(), "orchestrator-workspace-ok-"));
+  await validateWorkspaceSafety(workspace, false);
+});
+
+test("config facade exports required runtime members", async () => {
+  const exported = await import("../src/config.js");
+  assert.equal(typeof exported.loadAndValidateConfig, "function");
+  assert.equal(typeof exported.resolveConfigPath, "function");
+  assert.equal(typeof exported.validateWorkspaceSafety, "function");
+  assert.equal(typeof exported.validateConfig, "function");
+});
+
+test("config facade type exports remain importable", () => {
+  const ensure: {
+    role: CodexRoleConfig;
+    codexBackend: CodexCliBackendConfig;
+    openCodeBackend: OpenCodeCliBackendConfig;
+    backend: ExecutionBackendConfig;
+    backendMap: ExecutionBackendConfigMap;
+    agentRole: AgentRoleConfig;
+    agentMap: AgentConfigMap;
+    orchestrator: OrchestratorConfig;
+    checkCwd: ConfiguredCheckCommandCwd;
+    check: ConfiguredCheckCommand;
+  } | null = null;
+  assert.equal(ensure, null);
 });
