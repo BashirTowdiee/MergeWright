@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Box, Text, useInput } from "ink";
+import { describeSafeActionIntent } from "./action-intent.js";
 import { getStatusLabel, getStatusSymbol } from "./components/status.js";
 import { buildEvidencePreview } from "./evidence-preview.js";
 import { getFocusedPaneTitle, moveFocus, type FocusedPane } from "./focus.js";
@@ -10,6 +11,7 @@ import type { TuiSpikeFixture } from "./spike-fixture.js";
 export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [focusedPane, setFocusedPane] = useState<FocusedPane>("runs");
   const [helpOpen, setHelpOpen] = useState(false);
+  const [actionIntent, setActionIntent] = useState<string | null>(null);
   const [selectedRunIndex, setSelectedRunIndex] = useState(0);
   const [selectedActionIndex, setSelectedActionIndex] = useState(0);
   const [selectedArtefactIndex, setSelectedArtefactIndex] = useState(0);
@@ -29,6 +31,10 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
     if (helpOpen) {
       return;
     }
+    if (key.return && focusedPane === "actions") {
+      setActionIntent(describeSafeActionIntent(selectedAction));
+      return;
+    }
     if (input === "\t" || key.tab) {
       setFocusedPane((current) => moveFocus({ current, direction: key.shift ? "previous" : "next" }));
       return;
@@ -38,17 +44,21 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       setSelectedRunIndex((currentIndex) => moveSelection({ currentIndex, itemCount: fixture.runs.length, direction: "up" }));
       setSelectedActionIndex(0);
       setSelectedArtefactIndex(0);
+      setActionIntent(null);
     }
     if (focusedPane === "runs" && (input === "j" || key.downArrow)) {
       setSelectedRunIndex((currentIndex) => moveSelection({ currentIndex, itemCount: fixture.runs.length, direction: "down" }));
       setSelectedActionIndex(0);
       setSelectedArtefactIndex(0);
+      setActionIntent(null);
     }
     if (focusedPane === "actions" && (input === "k" || key.upArrow)) {
       setSelectedActionIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.safeActions.length, direction: "up" }));
+      setActionIntent(null);
     }
     if (focusedPane === "actions" && (input === "j" || key.downArrow)) {
       setSelectedActionIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.safeActions.length, direction: "down" }));
+      setActionIntent(null);
     }
     if (focusedPane === "artefacts" && (input === "k" || key.upArrow)) {
       setSelectedArtefactIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.artefacts.length, direction: "up" }));
@@ -100,6 +110,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
             <Text key={action.id} inverse={focusedPane === "actions" && index === selectedActionIndex}>{index === selectedActionIndex ? ">" : " "} {action.enabled ? "ok" : "blocked"} {action.label}</Text>
           ))}
           {selectedAction ? <Text dimColor>Selected: {selectedAction.label}{selectedAction.blockedReason ? ` - ${selectedAction.blockedReason}` : ""}</Text> : null}
+          {actionIntent ? <Text>{actionIntent}</Text> : null}
         </Box>
       </Box>
       <Box flexDirection="row" marginTop={1}>
@@ -123,7 +134,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
         </Box>
       </Box>
       <Box marginTop={1}>
-        <Text dimColor>? help - tab focus pane - j/k select item - read-only - actions disabled - Ctrl+C to exit</Text>
+        <Text dimColor>? help - tab focus pane - j/k select item - enter previews selected action - read-only - Ctrl+C to exit</Text>
       </Box>
     </Box>
   );

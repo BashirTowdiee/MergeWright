@@ -10,7 +10,8 @@ export const TUI_KEY_BINDINGS: TuiKeyBinding[] = [
   { key: "?", description: "toggle help", scope: "global" },
   { key: "ctrl+c", description: "exit", scope: "global" },
   { key: "j / down", description: "move selection down in focused pane", scope: "focused-pane" },
-  { key: "k / up", description: "move selection up in focused pane", scope: "focused-pane" }
+  { key: "k / up", description: "move selection up in focused pane", scope: "focused-pane" },
+  { key: "enter", description: "preview selected safe action", scope: "focused-pane" }
 ];
 
 export function formatKeyBinding(binding: TuiKeyBinding): string {
