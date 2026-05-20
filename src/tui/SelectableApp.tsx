@@ -7,6 +7,7 @@ import { getFocusedPaneTitle, moveFocus, type FocusedPane } from "./focus.js";
 import { formatKeyBinding, TUI_KEY_BINDINGS } from "./keymap.js";
 import { createInfoNotice, formatNotice, type TuiNotice } from "./notice.js";
 import { moveSelection } from "./navigation.js";
+import { buildRunContextLines } from "./run-context.js";
 import type { TuiSpikeFixture } from "./spike-fixture.js";
 
 export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
@@ -27,6 +28,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
     findings: selectedRun.reviewerFindings,
     snippets: fixture.evidenceSnippets
   });
+  const runContextLines = buildRunContextLines(selectedRun);
 
   useInput((input, key) => {
     if (input === "?") {
@@ -102,7 +104,12 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
           <Text bold>Current run</Text>
           <Text bold>{selectedRun.title}</Text>
           <Text>{selectedRun.goal ?? "No goal recorded."}</Text>
-          <Text>Status: {getStatusLabel(selectedRun.status)}</Text>
+          <Box flexDirection="column" marginTop={1}>
+            <Text bold>Run context</Text>
+            {runContextLines.map((line) => (
+              <Text key={line}>{line}</Text>
+            ))}
+          </Box>
           <Box flexDirection="column" marginTop={1}>
             <Text bold>Phase flow</Text>
             {selectedRun.phases.map((phase) => (
