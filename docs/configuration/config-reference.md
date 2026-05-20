@@ -7,4 +7,3 @@ Key areas:
 - `writeSafety`
 - `executionBackends`
 - `agents`
-- legacy `codex` role config (compatibility)

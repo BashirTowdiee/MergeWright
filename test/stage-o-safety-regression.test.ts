@@ -2,11 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { buildCodexExecArgs, DEFAULT_CODEX_EXEC_CAPABILITIES, type CodexExecutionRequest } from "../src/codex.js";
+import { buildCodexExecArgs, DEFAULT_CODEX_EXEC_CAPABILITIES, type AgentExecutionRequest } from "../src/codex.js";
 import { resolvePipelinePreset, PIPELINE_PRESETS } from "../src/presets.js";
 import { validateConfiguredCheckCommand } from "../src/commands.js";
 
-const requestBase: Omit<CodexExecutionRequest, "role" | "model" | "reasoningEffort"> = {
+const requestBase: Omit<AgentExecutionRequest, "role" | "model" | "reasoningEffort"> = {
   prompt: "prompt",
   workspaceRoot: "/tmp/workspace",
   outputLastMessagePath: "/tmp/orchestrator/runs/out.md",

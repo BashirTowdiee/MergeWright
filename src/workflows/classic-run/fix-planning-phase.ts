@@ -15,7 +15,7 @@ export async function executeFixPlanningPhase(input: {
   reviewToFixPrompt: string;
   progressLogger: ProgressLogger;
   config: {
-    codex: { planner: { model: string; reasoningEffort: string } };
+    agents: { planner: { model: string; reasoningEffort: string } };
     safety: { requireGitRepo: boolean };
   };
   executor: (...args: any[]) => Promise<any>;
@@ -59,7 +59,7 @@ export async function executeFixPlanningPhase(input: {
   }
 
   progressLogger.phaseStart("fix-planning");
-  progressLogger.verbose(`fix-planning model=${config.codex.planner.model} reasoning=${config.codex.planner.reasoningEffort} sandbox=read-only`);
+  progressLogger.verbose(`fix-planning model=${config.agents.planner.model} reasoning=${config.agents.planner.reasoningEffort} sandbox=read-only`);
   await updatePhaseAndPersist("fixPlanning", { status: "unknown", startedAt: new Date().toISOString() });
   setFailedPhase("fixPlanning");
   const reviewToFixOutputLastMessagePath = path.resolve(runDir, "review-to-fix-output-last-message.md");
@@ -74,8 +74,8 @@ export async function executeFixPlanningPhase(input: {
         {
           prompt: reviewToFixPrompt,
           role: "planner",
-          model: config.codex.planner.model,
-          reasoningEffort: config.codex.planner.reasoningEffort,
+          model: config.agents.planner.model,
+          reasoningEffort: config.agents.planner.reasoningEffort,
           workspaceRoot: targetWorkspaceRoot,
           outputLastMessagePath: reviewToFixOutputLastMessagePath,
           dryRun: false,

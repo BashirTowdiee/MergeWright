@@ -1,5 +1,6 @@
 import { DEFAULT_CODEX_EXEC_CAPABILITIES, executeCodex } from "../codex.js";
-import type { CodexExecCapabilities, CodexExecutionOptions, CodexExecutionRequest } from "../codex.js";
+import type { CodexExecCapabilities } from "../codex.js";
+import type { AgentExecutionOptions as CodexRunOptions, AgentExecutionRequest as CodexRunRequest } from "../agent-executor.js";
 import type {
   AgentExecutionOptions,
   AgentExecutionRequest,
@@ -27,9 +28,9 @@ export class CodexCliBackend implements ExecutionBackend {
 
   async execute(request: AgentExecutionRequest, options: AgentExecutionOptions = {}): Promise<AgentExecutionResult> {
     const result = await executeCodex(
-      toCodexExecutionRequest(request),
+      toCodexRunRequest(request),
       this.codexCapabilities,
-      toCodexExecutionOptions(options)
+      toCodexRunOptions(options)
     );
 
     return {
@@ -52,7 +53,7 @@ export class CodexCliBackend implements ExecutionBackend {
   }
 }
 
-function toCodexExecutionRequest(request: AgentExecutionRequest): CodexExecutionRequest {
+function toCodexRunRequest(request: AgentExecutionRequest): CodexRunRequest {
   if (request.role !== "planner" && request.role !== "builder" && request.role !== "reviewer") {
     throw new Error("Invalid Codex execution request: role must be one of planner|builder|reviewer.");
   }
@@ -71,7 +72,7 @@ function toCodexExecutionRequest(request: AgentExecutionRequest): CodexExecution
   };
 }
 
-function toCodexExecutionOptions(options: AgentExecutionOptions): CodexExecutionOptions {
+function toCodexRunOptions(options: AgentExecutionOptions): CodexRunOptions {
   return {
     streamOutput: options.streamOutput,
     onStdoutChunk: options.onStdoutChunk,

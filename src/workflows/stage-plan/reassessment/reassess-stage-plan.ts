@@ -78,8 +78,8 @@ export async function reassessStagePlan(options: ReassessStagePlanOptions): Prom
   const execution = await executor({
     prompt,
     role: "reviewer",
-    model: config.codex.reviewer.model,
-    reasoningEffort: config.codex.reviewer.reasoningEffort,
+    model: config.agents.reviewer.model,
+    reasoningEffort: config.agents.reviewer.reasoningEffort,
     workspaceRoot: path.resolve(config.workspaceRoot),
     outputLastMessagePath: outputPath,
     dryRun: false,

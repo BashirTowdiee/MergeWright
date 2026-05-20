@@ -521,8 +521,8 @@ async function runReviewToFixAttemptAfterReviewerFailure(input: {
     {
       prompt: reviewToFixPrompt,
       role: "planner",
-      model: config.codex.planner.model,
-      reasoningEffort: config.codex.planner.reasoningEffort,
+      model: config.agents.planner.model,
+      reasoningEffort: config.agents.planner.reasoningEffort,
       workspaceRoot: config.workspaceRoot,
       outputLastMessagePath: outputPath,
       dryRun: false,
@@ -581,8 +581,8 @@ async function runReviewerAttemptAfterFix(input: {
     {
       prompt: reviewerPrompt,
       role: "reviewer",
-      model: config.codex.reviewer.model,
-      reasoningEffort: config.codex.reviewer.reasoningEffort,
+      model: config.agents.reviewer.model,
+      reasoningEffort: config.agents.reviewer.reasoningEffort,
       workspaceRoot: config.workspaceRoot,
       outputLastMessagePath: outputPath,
       dryRun: false,

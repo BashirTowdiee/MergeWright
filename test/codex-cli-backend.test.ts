@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { chmod, mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { buildCodexExecArgs, DEFAULT_CODEX_EXEC_CAPABILITIES, type CodexExecutionRequest } from "../src/codex.js";
+import { buildCodexExecArgs, DEFAULT_CODEX_EXEC_CAPABILITIES, type AgentExecutionRequest as CodexRunRequest } from "../src/codex.js";
 import { CODEX_CLI_BACKEND_CAPABILITIES, CodexCliBackend } from "../src/execution-backends/codex-cli-backend.js";
 import type { AgentExecutionRequest, ExecutionBackend } from "../src/execution-backends/execution-backend-types.js";
 
@@ -22,7 +22,7 @@ const agentRequestBase: AgentExecutionRequest = {
   sandboxMode: "read-only"
 };
 
-const codexRequestBase: CodexExecutionRequest = {
+const codexRequestBase: CodexRunRequest = {
   prompt: "plan this stage",
   role: "planner",
   model: "gpt-5.3-codex",
@@ -87,7 +87,7 @@ test("CodexCliBackend matches Codex args for workspace-write and skip git repo c
     requireGitRepo: false,
     sandboxMode: "workspace-write"
   };
-  const codexRequest: CodexExecutionRequest = {
+  const codexRequest: CodexRunRequest = {
     ...codexRequestBase,
     role: "builder",
     dryRun: true,

@@ -322,7 +322,7 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         if (allowWrites) {
           await ensureWriteSafetyIfNeeded();
         }
-        progressLogger.verbose(`builder model=${config.codex.builder.model} reasoning=${config.codex.builder.reasoningEffort} sandbox=${allowWrites ? "workspace-write" : "read-only"}`);
+        progressLogger.verbose(`builder model=${config.agents.builder.model} reasoning=${config.agents.builder.reasoningEffort} sandbox=${allowWrites ? "workspace-write" : "read-only"}`);
         failedPhase = "builder";
         let builderAudit: Awaited<ReturnType<typeof captureWriteAuditPreState>> | undefined;
         if (allowWrites) {
@@ -354,8 +354,8 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
             {
               prompt,
               role: "builder",
-              model: config.codex.builder.model,
-              reasoningEffort: config.codex.builder.reasoningEffort,
+              model: config.agents.builder.model,
+              reasoningEffort: config.agents.builder.reasoningEffort,
               workspaceRoot: metadata.workspaceRoot,
               outputLastMessagePath: outputPath,
               dryRun: false,
@@ -462,7 +462,7 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         }
 
         failedPhase = "reviewer";
-        progressLogger.verbose(`reviewer model=${config.codex.reviewer.model} reasoning=${config.codex.reviewer.reasoningEffort} sandbox=read-only`);
+        progressLogger.verbose(`reviewer model=${config.agents.reviewer.model} reasoning=${config.agents.reviewer.reasoningEffort} sandbox=read-only`);
         await updatePhase("reviewer", "unknown");
         const outputPath = path.resolve(runDir, "reviewer-output-last-message.md");
         progressLogger.info("[reviewer] waiting for Codex...");
@@ -472,8 +472,8 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
             {
               prompt: reviewerPrompt,
               role: "reviewer",
-              model: config.codex.reviewer.model,
-              reasoningEffort: config.codex.reviewer.reasoningEffort,
+              model: config.agents.reviewer.model,
+              reasoningEffort: config.agents.reviewer.reasoningEffort,
               workspaceRoot: metadata.workspaceRoot,
               outputLastMessagePath: outputPath,
               dryRun: false,
@@ -555,7 +555,7 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         }
 
         failedPhase = "fixPlanning";
-        progressLogger.verbose(`fix-planning model=${config.codex.planner.model} reasoning=${config.codex.planner.reasoningEffort} sandbox=read-only`);
+        progressLogger.verbose(`fix-planning model=${config.agents.planner.model} reasoning=${config.agents.planner.reasoningEffort} sandbox=read-only`);
         await updatePhase("fixPlanning", "unknown");
         const outputPath = path.resolve(runDir, "review-to-fix-output-last-message.md");
         progressLogger.info("[fix-planning] waiting for Codex...");
@@ -565,8 +565,8 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
             {
               prompt: reviewToFixPrompt,
               role: "planner",
-              model: config.codex.planner.model,
-              reasoningEffort: config.codex.planner.reasoningEffort,
+              model: config.agents.planner.model,
+              reasoningEffort: config.agents.planner.reasoningEffort,
               workspaceRoot: metadata.workspaceRoot,
               outputLastMessagePath: outputPath,
               dryRun: false,
@@ -672,7 +672,7 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
         if (allowWrites) {
           await ensureWriteSafetyIfNeeded();
         }
-        progressLogger.verbose(`fix model=${config.codex.builder.model} reasoning=${config.codex.builder.reasoningEffort} sandbox=${allowWrites ? "workspace-write" : "read-only"}`);
+        progressLogger.verbose(`fix model=${config.agents.builder.model} reasoning=${config.agents.builder.reasoningEffort} sandbox=${allowWrites ? "workspace-write" : "read-only"}`);
         failedPhase = "fixExecution";
         let fixAudit: Awaited<ReturnType<typeof captureWriteAuditPreState>> | undefined;
         if (allowWrites) {
@@ -707,8 +707,8 @@ export async function continueRun(options: ContinueOptions): Promise<ContinueRes
             {
               prompt,
               role: "builder",
-              model: config.codex.builder.model,
-              reasoningEffort: config.codex.builder.reasoningEffort,
+              model: config.agents.builder.model,
+              reasoningEffort: config.agents.builder.reasoningEffort,
               workspaceRoot: metadata.workspaceRoot,
               outputLastMessagePath: outputPath,
               dryRun: false,

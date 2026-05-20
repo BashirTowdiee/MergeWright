@@ -2,7 +2,6 @@ import { assertBoolean, assertNumber, assertObject, assertString } from "../vali
 import { parseAgents } from "./parse-agents.js";
 import { parseChangeReportPolicy } from "./parse-change-report-policy.js";
 import { parseCheckCommands } from "./parse-check-commands.js";
-import { codexFromAgents, parseCodexConfig } from "./parse-codex-config.js";
 import { parseExecutionBackends } from "./parse-execution-backends.js";
 import { parseSafety } from "./parse-safety.js";
 import type { OrchestratorConfig } from "./types.js";
@@ -11,17 +10,19 @@ import { parseWriteSafety } from "./parse-write-safety.js";
 export function validateConfig(input: unknown): OrchestratorConfig {
   const root = assertObject(input, "root");
 
+  if (root.codex != null) {
+    throw new Error("Invalid config: legacy codex config is no longer supported. Use executionBackends and agents.");
+  }
+
   const paths = assertObject(root.paths, "paths");
-  const codexRaw = root.codex == null ? undefined : assertObject(root.codex, "codex");
   const pipeline = assertObject(root.pipeline, "pipeline");
   const commands = assertObject(root.commands, "commands");
   const safety = assertObject(root.safety, "safety");
   const writeSafety = root.writeSafety == null ? {} : assertObject(root.writeSafety, "writeSafety");
   const changeReport = root.changeReport == null ? {} : assertObject(root.changeReport, "changeReport");
 
-  const executionBackends = parseExecutionBackends(root.executionBackends, codexRaw);
-  const agents = parseAgents(root.agents, codexRaw, executionBackends);
-  const codex = codexRaw == null ? codexFromAgents(agents) : parseCodexConfig(codexRaw);
+  const executionBackends = parseExecutionBackends(root.executionBackends);
+  const agents = parseAgents(root.agents, executionBackends);
 
   return {
     version: assertNumber(root.version, "version"),
@@ -32,7 +33,6 @@ export function validateConfig(input: unknown): OrchestratorConfig {
       promptsDir: assertString(paths.promptsDir, "paths.promptsDir"),
       runsDir: assertString(paths.runsDir, "paths.runsDir")
     },
-    codex,
     executionBackends,
     agents,
     pipeline: {

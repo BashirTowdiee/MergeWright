@@ -16,9 +16,8 @@ export async function executeReviewerPhase(input: {
   reviewerPrompt: string;
   progressLogger: ProgressLogger;
   config: {
-    agents: { reviewer: { backend: string } };
+    agents: { reviewer: { backend: string; model: string; reasoningEffort: string } };
     executionBackends: Record<string, { type: string } | undefined>;
-    codex: { reviewer: { model: string; reasoningEffort: string } };
     safety: { requireGitRepo: boolean };
   };
   executor: (...args: any[]) => Promise<any>;
@@ -72,8 +71,8 @@ export async function executeReviewerPhase(input: {
       const reviewerDryRunExecution = await executor({
         prompt: reviewerPrompt,
         role: "reviewer",
-        model: config.codex.reviewer.model,
-        reasoningEffort: config.codex.reviewer.reasoningEffort,
+        model: config.agents.reviewer.model,
+        reasoningEffort: config.agents.reviewer.reasoningEffort,
         workspaceRoot: targetWorkspaceRoot,
         outputLastMessagePath: reviewerOutputLastMessagePath,
         dryRun: true,
@@ -124,7 +123,7 @@ export async function executeReviewerPhase(input: {
   }
 
   progressLogger.phaseStart("reviewer");
-  progressLogger.verbose(`reviewer model=${config.codex.reviewer.model} reasoning=${config.codex.reviewer.reasoningEffort} sandbox=read-only`);
+  progressLogger.verbose(`reviewer model=${config.agents.reviewer.model} reasoning=${config.agents.reviewer.reasoningEffort} sandbox=read-only`);
   await updatePhaseAndPersist("reviewer", { status: "unknown", startedAt: new Date().toISOString() });
   setFailedPhase("reviewer");
   const reviewerOutputLastMessagePath = path.resolve(runDir, "reviewer-output-last-message.md");
@@ -139,8 +138,8 @@ export async function executeReviewerPhase(input: {
         {
           prompt: reviewerPrompt,
           role: "reviewer",
-          model: config.codex.reviewer.model,
-          reasoningEffort: config.codex.reviewer.reasoningEffort,
+          model: config.agents.reviewer.model,
+          reasoningEffort: config.agents.reviewer.reasoningEffort,
           workspaceRoot: targetWorkspaceRoot,
           outputLastMessagePath: reviewerOutputLastMessagePath,
           dryRun: false,

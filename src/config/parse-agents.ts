@@ -1,22 +1,12 @@
 import { assertObject, assertString } from "../validation.js";
-import { codexFromAgents, parseCodexConfig } from "./parse-codex-config.js";
 import type { AgentConfigMap, AgentRoleConfig, ExecutionBackendConfigMap } from "./types.js";
 
 export function parseAgents(
   value: unknown,
-  codexRaw: Record<string, unknown> | undefined,
   executionBackends: ExecutionBackendConfigMap
 ): AgentConfigMap {
   if (value == null) {
-    if (codexRaw == null) {
-      throw new Error("Invalid config: agents is required when codex is not provided");
-    }
-    const codex = parseCodexConfig(codexRaw);
-    return {
-      planner: { backend: "codex", ...codex.planner },
-      builder: { backend: "codex", ...codex.builder },
-      reviewer: { backend: "codex", ...codex.reviewer }
-    };
+    throw new Error("Invalid config: agents is required");
   }
 
   const raw = assertObject(value, "agents");
@@ -42,5 +32,3 @@ function parseAgentRole(value: unknown, field: string, executionBackends: Execut
     reasoningEffort: assertString(raw.reasoningEffort, `${field}.reasoningEffort`)
   };
 }
-
-export { codexFromAgents };

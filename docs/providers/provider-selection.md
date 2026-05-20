@@ -8,4 +8,4 @@ Roles:
 - builder
 - reviewer
 
-Legacy `codex` role configuration remains compatibility-supported and normalizes into backend/agent mapping.
+Define providers in `executionBackends` and bind planner/builder/reviewer roles in `agents`.
