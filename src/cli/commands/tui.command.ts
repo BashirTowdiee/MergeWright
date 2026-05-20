@@ -1,8 +1,14 @@
 import { createTuiSpikeFixture } from "../../tui/spike-fixture.js";
 import { renderTuiSpikeFixture } from "../../tui/spike-renderer.js";
+import { renderTuiApp } from "../../tui/index.js";
 import type { CommandHandler } from "../command-context.js";
 
 export const handleTuiCommand: CommandHandler = async ({ writeLine }) => {
+  if (process.stdout.isTTY) {
+    await renderTuiApp();
+    return;
+  }
+
   writeLine("MergeWright TUI preview");
   writeLine("Framework: Ink");
   writeLine("Mode: read-only preview fixture");
