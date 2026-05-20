@@ -9,6 +9,7 @@ import { formatKeyBinding, TUI_KEY_BINDINGS } from "./keymap.js";
 import { buildLayoutSummary } from "./layout-summary.js";
 import { createInfoNotice, formatNotice, type TuiNotice } from "./notice.js";
 import { moveSelection } from "./navigation.js";
+import { filterArtifactsForPhase, formatArtifactScopeLabel } from "./phase-artifacts.js";
 import { buildPhaseDetailLines } from "./phase-detail.js";
 import { buildRunContextLines } from "./run-context.js";
 import { buildRunWarningLines } from "./run-warnings.js";
@@ -27,7 +28,8 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
     return run ? fixture.runDetailsById[run.id] ?? fixture.selectedRun : fixture.selectedRun;
   }, [fixture, selectedRunIndex]);
   const selectedPhase = selectedRun.phases[selectedPhaseIndex];
-  const selectedArtefact = selectedRun.artefacts[selectedArtefactIndex];
+  const scopedArtifacts = filterArtifactsForPhase({ artifacts: selectedRun.artefacts, selectedPhase });
+  const selectedArtefact = scopedArtifacts[selectedArtefactIndex];
   const selectedAction = selectedRun.safeActions[selectedActionIndex];
   const evidenceLines = buildEvidencePreview({
     artefact: selectedArtefact,
@@ -38,6 +40,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const runWarningLines = buildRunWarningLines(selectedRun.warnings);
   const phaseDetailLines = buildPhaseDetailLines(selectedPhase);
   const layoutSummary = buildLayoutSummary({ runs: fixture.runs, selectedRun });
+  const artifactScopeLabel = formatArtifactScopeLabel(selectedPhase);
 
   useInput((input, key) => {
     if (input === "?") {
@@ -72,10 +75,12 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
     }
     if (focusedPane === "phases" && (input === "k" || key.upArrow)) {
       setSelectedPhaseIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.phases.length, direction: "up" }));
+      setSelectedArtefactIndex(0);
       setNotice(null);
     }
     if (focusedPane === "phases" && (input === "j" || key.downArrow)) {
       setSelectedPhaseIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.phases.length, direction: "down" }));
+      setSelectedArtefactIndex(0);
       setNotice(null);
     }
     if (focusedPane === "actions" && (input === "k" || key.upArrow)) {
@@ -87,11 +92,11 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       setNotice(null);
     }
     if (focusedPane === "artefacts" && (input === "k" || key.upArrow)) {
-      setSelectedArtefactIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.artefacts.length, direction: "up" }));
+      setSelectedArtefactIndex((currentIndex) => moveSelection({ currentIndex, itemCount: scopedArtifacts.length, direction: "up" }));
       setNotice(null);
     }
     if (focusedPane === "artefacts" && (input === "j" || key.downArrow)) {
-      setSelectedArtefactIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.artefacts.length, direction: "down" }));
+      setSelectedArtefactIndex((currentIndex) => moveSelection({ currentIndex, itemCount: scopedArtifacts.length, direction: "down" }));
       setNotice(null);
     }
   });
@@ -162,8 +167,8 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       </Box>
       <Box flexDirection="row" marginTop={1}>
         <Box flexDirection="column" width={46} borderStyle="round" paddingX={1} marginRight={1}>
-          <Text bold>{getFocusedPaneTitle("Artefacts", focusedPane === "artefacts")}</Text>
-          {selectedRun.artefacts.length === 0 ? <Text dimColor>{getEmptyStateMessage("artefacts")}</Text> : selectedRun.artefacts.map((artefact, index) => (
+          <Text bold>{getFocusedPaneTitle(artifactScopeLabel, focusedPane === "artefacts")}</Text>
+          {scopedArtifacts.length === 0 ? <Text dimColor>{getEmptyStateMessage("artefacts")}</Text> : scopedArtifacts.map((artefact, index) => (
             <Text key={artefact.id} inverse={focusedPane === "artefacts" && index === selectedArtefactIndex}>{index === selectedArtefactIndex ? ">" : " "} {artefact.kind.padEnd(8)} {artefact.title}</Text>
           ))}
         </Box>
