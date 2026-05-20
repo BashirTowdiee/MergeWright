@@ -2,189 +2,31 @@
 import { getCollection } from 'astro:content';
 import '../styles/global.css';
 
-interface DocMeta {
-  title: string;
-  section: string;
-  description: string;
-  status?: 'draft' | 'review' | 'stable';
-  order?: number;
-}
-
-interface DocCategory {
-  id: string;
-  title: string;
-  description: string;
-  docs: string[];
-}
-
-const categories: DocCategory[] = [
-  {
-    id: 'start',
-    title: 'Start here',
-    description: 'Overview, operating model, and the command surface most users need first.',
-    docs: ['readme', 'workflow', 'commands'],
-  },
-  {
-    id: 'stage-plans',
-    title: 'Stage Plan workflow',
-    description: 'Human-gated multi-stage delivery: import, run, review, fix, reassess, continue, and commit after acceptance.',
-    docs: ['stage-plan-workflow'],
-  },
-  {
-    id: 'safety-operations',
-    title: 'Safety and operations',
-    description: 'Write-mode boundaries, operational controls, prompting rules, and production safety checks.',
-    docs: ['safety', 'write-mode', 'operations', 'prompting'],
-  },
-  {
-    id: 'product',
-    title: 'Product planning',
-    description: 'Product discovery, requirements, design decisions, and delivery roadmap.',
-    docs: ['product-discovery', 'product-requirements', 'product-design', 'roadmap', 'decisions-and-open-questions'],
-  },
-  {
-    id: 'engineering',
-    title: 'Engineering design',
-    description: 'Architecture, technical design, data/API design, testing, CI/CD, release, and readiness plans.',
-    docs: ['architecture', 'architecture-plan', 'technical-design', 'data-design', 'api-design', 'testing-strategy', 'cicd-plan', 'release-plan', 'production-readiness'],
-  },
-  {
-    id: 'ux',
-    title: 'UX and dashboard',
-    description: 'Dashboard experience and interface design for the orchestration workflow.',
-    docs: ['dashboard-design'],
-  },
-  {
-    id: 'acceptance-reference',
-    title: 'Acceptance and reference',
-    description: 'Version acceptance notes and implementation hardening records.',
-    docs: ['v1-acceptance', 'v2-acceptance'],
-  },
-];
-
-const docMeta: Record<string, DocMeta> = {
-  readme: {
-    title: 'Overview',
-    section: 'Start here',
-    description: 'High-level overview of Shepherds-Staff, the core workflows, and safety model.',
-    status: 'stable',
-  },
-  workflow: {
-    title: 'Workflow guide',
-    section: 'Start here',
-    description: 'End-to-end operator workflows for classic runs and Stage Plans.',
-    status: 'stable',
-  },
-  commands: {
-    title: 'Command reference',
-    section: 'Start here',
-    description: 'CLI commands, flags, examples, failure modes, and command boundaries.',
-    status: 'stable',
-  },
-  'stage-plan-workflow': {
-    title: 'Stage Plan workflow',
-    section: 'Stage Plans',
-    description: 'Multi-stage human-gated delivery workflow with review, fixes, reassessment, and explicit accepted-stage auto-commit.',
-    status: 'stable',
-  },
-  safety: {
-    title: 'Safety model',
-    section: 'Safety and operations',
-    description: 'Safety defaults, review gates, dry-run behaviour, auto-commit limits, and write-safety rules.',
-    status: 'stable',
-  },
-  'write-mode': {
-    title: 'Write mode',
-    section: 'Safety and operations',
-    description: 'Write-enabled execution rules, audit artefacts, post-write review, and Stage Plan write behaviour.',
-    status: 'stable',
-  },
-  operations: {
-    title: 'Operations',
-    section: 'Safety and operations',
-    description: 'Operational practices for running, inspecting, and maintaining orchestrated workflows.',
-    status: 'review',
-  },
-  prompting: {
-    title: 'Prompting',
-    section: 'Safety and operations',
-    description: 'Prompt construction, phase boundaries, model instructions, and output expectations.',
-    status: 'review',
-  },
-  architecture: {
-    title: 'Architecture overview',
-    section: 'Engineering design',
-    description: 'System architecture and core orchestrator components.',
-    status: 'stable',
-  },
-  'v1-acceptance': {
-    title: 'V1 acceptance',
-    section: 'Acceptance and reference',
-    description: 'Acceptance notes for the initial read-only orchestration workflow.',
-    status: 'review',
-  },
-  'v2-acceptance': {
-    title: 'V2 acceptance',
-    section: 'Acceptance and reference',
-    description: 'Acceptance notes for write-mode hardening and post-write review gates.',
-    status: 'review',
-  },
-};
-
-function keyFromId(id: string): string {
-  const file = id.split('/').pop() ?? id;
-  return file.replace(/\.md$/, '').toLowerCase().replace(/_/g, '-');
-}
-
-function routeForDocId(id: string): string {
-  return `/docs/${keyFromId(id)}`;
-}
+const docs = await getCollection('docs');
 
 function titleFromId(id: string): string {
-  const name = keyFromId(id);
-  return name.replace(/^\d+-/, '').replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+  const file = id.split('/').pop() ?? id;
+  return file
+    .replace(/\.md$/, '')
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function metadataForDoc(doc: Awaited<ReturnType<typeof getCollection>>[number]): DocMeta {
-  const key = keyFromId(doc.id);
-  const section = doc.data.section ?? docMeta[key]?.section ?? categoryForKey(key)?.title ?? 'Reference';
-  const title = doc.data.title ?? docMeta[key]?.title ?? titleFromId(doc.id);
-
-  return {
-    title,
-    section,
-    description: doc.data.description ?? docMeta[key]?.description ?? `Reference documentation for ${title}.`,
-    status: doc.data.status ?? docMeta[key]?.status ?? 'draft',
-    order: doc.data.order ?? docMeta[key]?.order,
-  };
+function groupFromId(id: string): string {
+  const parts = id.split('/');
+  if (parts.length === 1) return 'root';
+  return parts[0] ?? 'root';
 }
 
-function categoryForKey(key: string): DocCategory | undefined {
-  return categories.find((category) => category.docs.includes(key));
+const grouped = new Map<string, typeof docs>();
+for (const doc of docs.sort((a, b) => a.id.localeCompare(b.id))) {
+  const group = groupFromId(doc.id);
+  const current = grouped.get(group) ?? [];
+  current.push(doc);
+  grouped.set(group, current);
 }
 
-function sortInCategory(aId: string, bId: string, category: DocCategory): number {
-  const aKey = keyFromId(aId);
-  const bKey = keyFromId(bId);
-  const aOrder = category.docs.indexOf(aKey);
-  const bOrder = category.docs.indexOf(bKey);
-  return (aOrder === -1 ? 999 : aOrder) - (bOrder === -1 ? 999 : bOrder);
-}
-
-const docs = await getCollection('docs');
-const groupedDocs = categories
-  .map((category) => {
-    const items = docs
-      .filter((doc) => category.docs.includes(keyFromId(doc.id)))
-      .sort((a, b) => sortInCategory(a.id, b.id, category));
-
-    return { category, items };
-  })
-  .filter((group) => group.items.length > 0);
-
-const uncategorisedDocs = docs
-  .filter((doc) => !categoryForKey(keyFromId(doc.id)))
-  .sort((a, b) => metadataForDoc(a).title.localeCompare(metadataForDoc(b).title));
+const groups = [...grouped.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 ---
 
 <html lang="en-AU">
@@ -192,76 +34,30 @@ const uncategorisedDocs = docs
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Shepherds-Staff Docs</title>
-    <meta
-      name="description"
-      content="Documentation for the Shepherds-Staff agentic workflow orchestrator, including quick start, Stage Plans, commands, safety, operations, product, and engineering design."
-    />
   </head>
   <body>
     <main class="landing">
       <header class="hero">
         <p class="eyebrow">Documentation</p>
         <h1>Shepherds-Staff Docs</h1>
-        <p>
-          Start with the workflow and command guides, then use Stage Plan, safety, product, and engineering references as needed.
-        </p>
+        <p>Product documentation for workflows, commands, safety, providers, reports, configuration, examples, and architecture.</p>
       </header>
 
-      <section class="quick-links" aria-label="Recommended starting points">
-        <a href="/docs/readme">Overview</a>
-        <a href="/docs/workflow">Workflow guide</a>
-        <a href="/docs/commands">Command reference</a>
-        <a href="/docs/stage-plan-workflow">Stage Plans</a>
-        <a href="/docs/safety">Safety model</a>
-      </section>
-
-      {groupedDocs.map(({ category, items }) => (
-        <section class="doc-category" aria-labelledby={`${category.id}-heading`}>
+      {groups.map(([group, items]) => (
+        <section class="doc-category">
           <header class="category-header">
-            <p class="eyebrow">{category.id.replace(/-/g, ' ')}</p>
-            <h2 id={`${category.id}-heading`}>{category.title}</h2>
-            <p>{category.description}</p>
+            <h2>{group}</h2>
           </header>
-
           <div class="cards">
-            {items.map((doc) => {
-              const meta = metadataForDoc(doc);
-
-              return (
-                <a class="card" href={routeForDocId(doc.id)}>
-                  <p class="card-section">{meta.section}</p>
-                  <h3>{meta.title}</h3>
-                  <p>{meta.description}</p>
-                  <p class={`badge status-${meta.status ?? 'draft'}`}>{meta.status ?? 'draft'}</p>
-                </a>
-              );
-            })}
+            {items.map((doc) => (
+              <a class="card" href={`/docs/${doc.id}`}>
+                <h3>{doc.data.title ?? titleFromId(doc.id)}</h3>
+                <p>{doc.id}</p>
+              </a>
+            ))}
           </div>
         </section>
       ))}
-
-      {uncategorisedDocs.length > 0 && (
-        <section class="doc-category" aria-labelledby="reference-heading">
-          <header class="category-header">
-            <p class="eyebrow">reference</p>
-            <h2 id="reference-heading">Other reference</h2>
-            <p>Additional generated or uncategorised documentation.</p>
-          </header>
-          <div class="cards">
-            {uncategorisedDocs.map((doc) => {
-              const meta = metadataForDoc(doc);
-              return (
-                <a class="card" href={routeForDocId(doc.id)}>
-                  <p class="card-section">{meta.section}</p>
-                  <h3>{meta.title}</h3>
-                  <p>{meta.description}</p>
-                  <p class={`badge status-${meta.status ?? 'draft'}`}>{meta.status ?? 'draft'}</p>
-                </a>
-              );
-            })}
-          </div>
-        </section>
-      )}
     </main>
   </body>
 </html>
