@@ -1,22 +1,34 @@
 import React, { useMemo, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { getStatusLabel, getStatusSymbol } from "./components/status.js";
+import { buildEvidencePreview } from "./evidence-preview.js";
 import { moveSelection } from "./navigation.js";
 import type { TuiSpikeFixture } from "./spike-fixture.js";
 
 export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [selectedRunIndex, setSelectedRunIndex] = useState(0);
+  const [selectedArtefactIndex, setSelectedArtefactIndex] = useState(0);
   const selectedRun = useMemo(() => {
     const run = fixture.runs[selectedRunIndex];
     return run ? fixture.runDetailsById[run.id] ?? fixture.selectedRun : fixture.selectedRun;
   }, [fixture, selectedRunIndex]);
+  const selectedArtefact = selectedRun.artefacts[selectedArtefactIndex];
+  const evidenceLines = buildEvidencePreview({ artefact: selectedArtefact, findings: selectedRun.reviewerFindings });
 
   useInput((input, key) => {
     if (input === "k" || key.upArrow) {
       setSelectedRunIndex((currentIndex) => moveSelection({ currentIndex, itemCount: fixture.runs.length, direction: "up" }));
+      setSelectedArtefactIndex(0);
     }
     if (input === "j" || key.downArrow) {
       setSelectedRunIndex((currentIndex) => moveSelection({ currentIndex, itemCount: fixture.runs.length, direction: "down" }));
+      setSelectedArtefactIndex(0);
+    }
+    if (input === "h" || key.leftArrow) {
+      setSelectedArtefactIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.artefacts.length, direction: "up" }));
+    }
+    if (input === "l" || key.rightArrow) {
+      setSelectedArtefactIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.artefacts.length, direction: "down" }));
     }
   });
 
@@ -62,19 +74,25 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       <Box flexDirection="row" marginTop={1}>
         <Box flexDirection="column" width={46} borderStyle="round" paddingX={1} marginRight={1}>
           <Text bold>Artefacts</Text>
-          {selectedRun.artefacts.length === 0 ? <Text dimColor>No artefacts recorded.</Text> : selectedRun.artefacts.map((artefact) => (
-            <Text key={artefact.id}>{artefact.kind.padEnd(8)} {artefact.title}</Text>
+          {selectedRun.artefacts.length === 0 ? <Text dimColor>No artefacts recorded.</Text> : selectedRun.artefacts.map((artefact, index) => (
+            <Text key={artefact.id} inverse={index === selectedArtefactIndex}>{index === selectedArtefactIndex ? ">" : " "} {artefact.kind.padEnd(8)} {artefact.title}</Text>
           ))}
         </Box>
         <Box flexDirection="column" width={80} borderStyle="round" paddingX={1}>
-          <Text bold>Review findings</Text>
-          {selectedRun.reviewerFindings.length === 0 ? <Text dimColor>No reviewer findings recorded.</Text> : selectedRun.reviewerFindings.map((finding, index) => (
-            <Text key={`${finding.severity}-${index}`}>{finding.severity.toUpperCase()}: {finding.message}</Text>
+          <Text bold>Evidence preview</Text>
+          {evidenceLines.map((line, index) => (
+            <Text key={`${line}-${index}`}>{line}</Text>
           ))}
+          <Box marginTop={1}>
+            <Text bold>Review findings</Text>
+            {selectedRun.reviewerFindings.length === 0 ? <Text dimColor>No reviewer findings recorded.</Text> : selectedRun.reviewerFindings.map((finding, index) => (
+              <Text key={`${finding.severity}-${index}`}>{finding.severity.toUpperCase()}: {finding.message}</Text>
+            ))}
+          </Box>
         </Box>
       </Box>
       <Box marginTop={1}>
-        <Text dimColor>j/k or arrows select run - read-only - actions disabled - Ctrl+C to exit</Text>
+        <Text dimColor>j/k select run - h/l select artefact - read-only - actions disabled - Ctrl+C to exit</Text>
       </Box>
     </Box>
   );
