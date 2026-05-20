@@ -10,6 +10,7 @@ import { buildLayoutSummary } from "./layout-summary.js";
 import { createInfoNotice, formatNotice, type TuiNotice } from "./notice.js";
 import { moveSelection } from "./navigation.js";
 import { buildRunContextLines } from "./run-context.js";
+import { buildRunWarningLines } from "./run-warnings.js";
 import type { TuiSpikeFixture } from "./spike-fixture.js";
 
 export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
@@ -31,6 +32,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
     snippets: fixture.evidenceSnippets
   });
   const runContextLines = buildRunContextLines(selectedRun);
+  const runWarningLines = buildRunWarningLines(selectedRun.warnings);
   const layoutSummary = buildLayoutSummary({ runs: fixture.runs, selectedRun });
 
   useInput((input, key) => {
@@ -114,6 +116,12 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
             <Text bold>Run context</Text>
             {runContextLines.map((line) => (
               <Text key={line}>{line}</Text>
+            ))}
+          </Box>
+          <Box flexDirection="column" marginTop={1}>
+            <Text bold>Warnings</Text>
+            {runWarningLines.map((line) => (
+              <Text key={line} dimColor={line === "No warnings recorded."}>{line}</Text>
             ))}
           </Box>
           <Box flexDirection="column" marginTop={1}>
