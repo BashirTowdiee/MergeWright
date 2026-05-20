@@ -11,12 +11,14 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [focusedPane, setFocusedPane] = useState<FocusedPane>("runs");
   const [helpOpen, setHelpOpen] = useState(false);
   const [selectedRunIndex, setSelectedRunIndex] = useState(0);
+  const [selectedActionIndex, setSelectedActionIndex] = useState(0);
   const [selectedArtefactIndex, setSelectedArtefactIndex] = useState(0);
   const selectedRun = useMemo(() => {
     const run = fixture.runs[selectedRunIndex];
     return run ? fixture.runDetailsById[run.id] ?? fixture.selectedRun : fixture.selectedRun;
   }, [fixture, selectedRunIndex]);
   const selectedArtefact = selectedRun.artefacts[selectedArtefactIndex];
+  const selectedAction = selectedRun.safeActions[selectedActionIndex];
   const evidenceLines = buildEvidencePreview({ artefact: selectedArtefact, findings: selectedRun.reviewerFindings });
 
   useInput((input, key) => {
@@ -34,11 +36,19 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
 
     if (focusedPane === "runs" && (input === "k" || key.upArrow)) {
       setSelectedRunIndex((currentIndex) => moveSelection({ currentIndex, itemCount: fixture.runs.length, direction: "up" }));
+      setSelectedActionIndex(0);
       setSelectedArtefactIndex(0);
     }
     if (focusedPane === "runs" && (input === "j" || key.downArrow)) {
       setSelectedRunIndex((currentIndex) => moveSelection({ currentIndex, itemCount: fixture.runs.length, direction: "down" }));
+      setSelectedActionIndex(0);
       setSelectedArtefactIndex(0);
+    }
+    if (focusedPane === "actions" && (input === "k" || key.upArrow)) {
+      setSelectedActionIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.safeActions.length, direction: "up" }));
+    }
+    if (focusedPane === "actions" && (input === "j" || key.downArrow)) {
+      setSelectedActionIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.safeActions.length, direction: "down" }));
     }
     if (focusedPane === "artefacts" && (input === "k" || key.upArrow)) {
       setSelectedArtefactIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.artefacts.length, direction: "up" }));
@@ -84,11 +94,12 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
           </Box>
         </Box>
         <Box flexDirection="column" width={42} borderStyle="round" paddingX={1}>
-          <Text bold>Safe action</Text>
+          <Text bold>{getFocusedPaneTitle("Safe action", focusedPane === "actions")}</Text>
           <Text>{selectedRun.blockedReason ?? "No blocker recorded."}</Text>
-          {selectedRun.safeActions.map((action) => (
-            <Text key={action.id}>{action.enabled ? ">" : "x"} {action.label}</Text>
+          {selectedRun.safeActions.map((action, index) => (
+            <Text key={action.id} inverse={focusedPane === "actions" && index === selectedActionIndex}>{index === selectedActionIndex ? ">" : " "} {action.enabled ? "ok" : "blocked"} {action.label}</Text>
           ))}
+          {selectedAction ? <Text dimColor>Selected: {selectedAction.label}{selectedAction.blockedReason ? ` - ${selectedAction.blockedReason}` : ""}</Text> : null}
         </Box>
       </Box>
       <Box flexDirection="row" marginTop={1}>
