@@ -6,6 +6,7 @@ import { buildEvidencePreview } from "./evidence-preview.js";
 import { getEmptyStateMessage } from "./empty-state.js";
 import { getFocusedPaneTitle, moveFocus, type FocusedPane } from "./focus.js";
 import { formatKeyBinding, TUI_KEY_BINDINGS } from "./keymap.js";
+import { buildLayoutSummary } from "./layout-summary.js";
 import { createInfoNotice, formatNotice, type TuiNotice } from "./notice.js";
 import { moveSelection } from "./navigation.js";
 import { buildRunContextLines } from "./run-context.js";
@@ -30,6 +31,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
     snippets: fixture.evidenceSnippets
   });
   const runContextLines = buildRunContextLines(selectedRun);
+  const layoutSummary = buildLayoutSummary({ runs: fixture.runs, selectedRun });
 
   useInput((input, key) => {
     if (input === "?") {
@@ -84,10 +86,13 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
 
   return (
     <Box flexDirection="column" paddingX={1}>
-      <Box flexDirection="row">
-        <Text bold>MergeWright</Text>
-        <Text>  Branch: {selectedRun.branch ?? "unknown"}</Text>
-        <Text>  Mode: {selectedRun.mode}</Text>
+      <Box flexDirection="column">
+        <Box flexDirection="row">
+          <Text bold>MergeWright</Text>
+          <Text>  Branch: {selectedRun.branch ?? "unknown"}</Text>
+          <Text>  Mode: {selectedRun.mode}</Text>
+        </Box>
+        <Text dimColor>{layoutSummary}</Text>
       </Box>
       <Box flexDirection="row" marginTop={1}>
         <Box flexDirection="column" width={30} borderStyle="round" paddingX={1} marginRight={1}>
