@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { describeSafeActionIntent } from "./action-intent.js";
 import { getStatusLabel, getStatusSymbol } from "./components/status.js";
-import { buildEvidencePreview, createEvidenceSnippet } from "./evidence-preview.js";
+import { buildEvidencePreview } from "./evidence-preview.js";
 import { getFocusedPaneTitle, moveFocus, type FocusedPane } from "./focus.js";
 import { formatKeyBinding, TUI_KEY_BINDINGS } from "./keymap.js";
 import { createInfoNotice, formatNotice, type TuiNotice } from "./notice.js";
@@ -22,18 +22,11 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   }, [fixture, selectedRunIndex]);
   const selectedArtefact = selectedRun.artefacts[selectedArtefactIndex];
   const selectedAction = selectedRun.safeActions[selectedActionIndex];
-  const evidenceSnippets = useMemo(() => {
-    if (!selectedArtefact) {
-      return {};
-    }
-    return {
-      [selectedArtefact.id]: createEvidenceSnippet({
-        artefactId: selectedArtefact.id,
-        content: `Selected artefact: ${selectedArtefact.title}\nPath: ${selectedArtefact.path}\nKind: ${selectedArtefact.kind}`
-      })
-    };
-  }, [selectedArtefact]);
-  const evidenceLines = buildEvidencePreview({ artefact: selectedArtefact, findings: selectedRun.reviewerFindings, snippets: evidenceSnippets });
+  const evidenceLines = buildEvidencePreview({
+    artefact: selectedArtefact,
+    findings: selectedRun.reviewerFindings,
+    snippets: fixture.evidenceSnippets
+  });
 
   useInput((input, key) => {
     if (input === "?") {
