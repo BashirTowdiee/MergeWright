@@ -132,8 +132,7 @@ test("inspectRunForTui maps phases, artefacts, findings, and safe actions", asyn
     }),
     files: {
       "06-planner-output-last-message.md": "# Plan",
-      "reviewer-output-last-message.md": "- High: route assumes optional metadata exists\n- Low: docs wording",
-      "run.json": "{}"
+      "reviewer-output-last-message.md": "- High: route assumes optional metadata exists\n- Low: docs wording"
     }
   });
 
