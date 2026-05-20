@@ -6,11 +6,13 @@ test("moveFocus cycles forward through panes", () => {
   assert.equal(moveFocus({ current: "runs", direction: "next" }), "phases");
   assert.equal(moveFocus({ current: "phases", direction: "next" }), "actions");
   assert.equal(moveFocus({ current: "actions", direction: "next" }), "artefacts");
-  assert.equal(moveFocus({ current: "artefacts", direction: "next" }), "runs");
+  assert.equal(moveFocus({ current: "artefacts", direction: "next" }), "findings");
+  assert.equal(moveFocus({ current: "findings", direction: "next" }), "runs");
 });
 
 test("moveFocus cycles backward through panes", () => {
-  assert.equal(moveFocus({ current: "runs", direction: "previous" }), "artefacts");
+  assert.equal(moveFocus({ current: "runs", direction: "previous" }), "findings");
+  assert.equal(moveFocus({ current: "findings", direction: "previous" }), "artefacts");
   assert.equal(moveFocus({ current: "artefacts", direction: "previous" }), "actions");
   assert.equal(moveFocus({ current: "actions", direction: "previous" }), "phases");
   assert.equal(moveFocus({ current: "phases", direction: "previous" }), "runs");
