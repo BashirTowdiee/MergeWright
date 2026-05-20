@@ -5,13 +5,14 @@ import { getStatusLabel, getStatusSymbol } from "./components/status.js";
 import { buildEvidencePreview } from "./evidence-preview.js";
 import { getFocusedPaneTitle, moveFocus, type FocusedPane } from "./focus.js";
 import { formatKeyBinding, TUI_KEY_BINDINGS } from "./keymap.js";
+import { createInfoNotice, formatNotice, type TuiNotice } from "./notice.js";
 import { moveSelection } from "./navigation.js";
 import type { TuiSpikeFixture } from "./spike-fixture.js";
 
 export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [focusedPane, setFocusedPane] = useState<FocusedPane>("runs");
   const [helpOpen, setHelpOpen] = useState(false);
-  const [actionIntent, setActionIntent] = useState<string | null>(null);
+  const [notice, setNotice] = useState<TuiNotice | null>(createInfoNotice("TUI is read-only. Actions are previews only."));
   const [selectedRunIndex, setSelectedRunIndex] = useState(0);
   const [selectedActionIndex, setSelectedActionIndex] = useState(0);
   const [selectedArtefactIndex, setSelectedArtefactIndex] = useState(0);
@@ -32,7 +33,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       return;
     }
     if (key.return && focusedPane === "actions") {
-      setActionIntent(describeSafeActionIntent(selectedAction));
+      setNotice(createInfoNotice(describeSafeActionIntent(selectedAction)));
       return;
     }
     if (input === "\t" || key.tab) {
@@ -44,27 +45,29 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       setSelectedRunIndex((currentIndex) => moveSelection({ currentIndex, itemCount: fixture.runs.length, direction: "up" }));
       setSelectedActionIndex(0);
       setSelectedArtefactIndex(0);
-      setActionIntent(null);
+      setNotice(createInfoNotice("Selected run changed."));
     }
     if (focusedPane === "runs" && (input === "j" || key.downArrow)) {
       setSelectedRunIndex((currentIndex) => moveSelection({ currentIndex, itemCount: fixture.runs.length, direction: "down" }));
       setSelectedActionIndex(0);
       setSelectedArtefactIndex(0);
-      setActionIntent(null);
+      setNotice(createInfoNotice("Selected run changed."));
     }
     if (focusedPane === "actions" && (input === "k" || key.upArrow)) {
       setSelectedActionIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.safeActions.length, direction: "up" }));
-      setActionIntent(null);
+      setNotice(null);
     }
     if (focusedPane === "actions" && (input === "j" || key.downArrow)) {
       setSelectedActionIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.safeActions.length, direction: "down" }));
-      setActionIntent(null);
+      setNotice(null);
     }
     if (focusedPane === "artefacts" && (input === "k" || key.upArrow)) {
       setSelectedArtefactIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.artefacts.length, direction: "up" }));
+      setNotice(null);
     }
     if (focusedPane === "artefacts" && (input === "j" || key.downArrow)) {
       setSelectedArtefactIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.artefacts.length, direction: "down" }));
+      setNotice(null);
     }
   });
 
@@ -110,7 +113,6 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
             <Text key={action.id} inverse={focusedPane === "actions" && index === selectedActionIndex}>{index === selectedActionIndex ? ">" : " "} {action.enabled ? "ok" : "blocked"} {action.label}</Text>
           ))}
           {selectedAction ? <Text dimColor>Selected: {selectedAction.label}{selectedAction.blockedReason ? ` - ${selectedAction.blockedReason}` : ""}</Text> : null}
-          {actionIntent ? <Text>{actionIntent}</Text> : null}
         </Box>
       </Box>
       <Box flexDirection="row" marginTop={1}>
@@ -134,6 +136,9 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
         </Box>
       </Box>
       <Box marginTop={1}>
+        <Text>{formatNotice(notice)}</Text>
+      </Box>
+      <Box>
         <Text dimColor>? help - tab focus pane - j/k select item - enter previews selected action - read-only - Ctrl+C to exit</Text>
       </Box>
     </Box>
