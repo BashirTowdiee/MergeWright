@@ -3,6 +3,7 @@ import { Box, Text, useInput } from "ink";
 import { describeSafeActionIntent } from "./action-intent.js";
 import { getStatusLabel, getStatusSymbol } from "./components/status.js";
 import { buildEvidencePreview } from "./evidence-preview.js";
+import { getEmptyStateMessage } from "./empty-state.js";
 import { getFocusedPaneTitle, moveFocus, type FocusedPane } from "./focus.js";
 import { formatKeyBinding, TUI_KEY_BINDINGS } from "./keymap.js";
 import { createInfoNotice, formatNotice, type TuiNotice } from "./notice.js";
@@ -91,7 +92,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       <Box flexDirection="row" marginTop={1}>
         <Box flexDirection="column" width={30} borderStyle="round" paddingX={1} marginRight={1}>
           <Text bold>{getFocusedPaneTitle("Runs", focusedPane === "runs")}</Text>
-          {fixture.runs.map((run, index) => (
+          {fixture.runs.length === 0 ? <Text dimColor>{getEmptyStateMessage("runs")}</Text> : fixture.runs.map((run, index) => (
             <Box key={run.id} flexDirection="column" marginBottom={1}>
               <Text inverse={focusedPane === "runs" && index === selectedRunIndex}>
                 {index === selectedRunIndex ? ">" : " "} {getStatusSymbol(run.status)} {run.title}
@@ -112,7 +113,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
           </Box>
           <Box flexDirection="column" marginTop={1}>
             <Text bold>Phase flow</Text>
-            {selectedRun.phases.map((phase) => (
+            {selectedRun.phases.length === 0 ? <Text dimColor>{getEmptyStateMessage("phases")}</Text> : selectedRun.phases.map((phase) => (
               <Text key={phase.id}>{getStatusSymbol(phase.status)} {phase.label}</Text>
             ))}
           </Box>
@@ -120,7 +121,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
         <Box flexDirection="column" width={42} borderStyle="round" paddingX={1}>
           <Text bold>{getFocusedPaneTitle("Safe action", focusedPane === "actions")}</Text>
           <Text>{selectedRun.blockedReason ?? "No blocker recorded."}</Text>
-          {selectedRun.safeActions.map((action, index) => (
+          {selectedRun.safeActions.length === 0 ? <Text dimColor>{getEmptyStateMessage("actions")}</Text> : selectedRun.safeActions.map((action, index) => (
             <Text key={action.id} inverse={focusedPane === "actions" && index === selectedActionIndex}>{index === selectedActionIndex ? ">" : " "} {action.enabled ? "ok" : "blocked"} {action.label}</Text>
           ))}
           {selectedAction ? <Text dimColor>Selected: {selectedAction.label}{selectedAction.blockedReason ? ` - ${selectedAction.blockedReason}` : ""}</Text> : null}
@@ -129,7 +130,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       <Box flexDirection="row" marginTop={1}>
         <Box flexDirection="column" width={46} borderStyle="round" paddingX={1} marginRight={1}>
           <Text bold>{getFocusedPaneTitle("Artefacts", focusedPane === "artefacts")}</Text>
-          {selectedRun.artefacts.length === 0 ? <Text dimColor>No artefacts recorded.</Text> : selectedRun.artefacts.map((artefact, index) => (
+          {selectedRun.artefacts.length === 0 ? <Text dimColor>{getEmptyStateMessage("artefacts")}</Text> : selectedRun.artefacts.map((artefact, index) => (
             <Text key={artefact.id} inverse={focusedPane === "artefacts" && index === selectedArtefactIndex}>{index === selectedArtefactIndex ? ">" : " "} {artefact.kind.padEnd(8)} {artefact.title}</Text>
           ))}
         </Box>
@@ -140,7 +141,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
           ))}
           <Box marginTop={1}>
             <Text bold>Review findings</Text>
-            {selectedRun.reviewerFindings.length === 0 ? <Text dimColor>No reviewer findings recorded.</Text> : selectedRun.reviewerFindings.map((finding, index) => (
+            {selectedRun.reviewerFindings.length === 0 ? <Text dimColor>{getEmptyStateMessage("findings")}</Text> : selectedRun.reviewerFindings.map((finding, index) => (
               <Text key={`${finding.severity}-${index}`}>{finding.severity.toUpperCase()}: {finding.message}</Text>
             ))}
           </Box>
