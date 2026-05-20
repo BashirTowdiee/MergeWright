@@ -2,6 +2,12 @@ import { resolvePipelinePreset } from "../../presets.js";
 import type { ParsedArgs } from "../types.js";
 
 export function validateParsedArgs(parsed: ParsedArgs): void {
+  if (parsed.command === "tui-spike") {
+    if (parsed.configArg || parsed.repoOverride || parsed.workspaceArg) {
+      throw new Error("tui-spike does not accept --config, --repo, or --workspace.");
+    }
+    return;
+  }
   if (
     parsed.allowWrites &&
     parsed.command !== "run" &&
