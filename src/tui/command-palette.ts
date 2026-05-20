@@ -37,3 +37,15 @@ export function getCommandPaletteItems(): CommandPaletteItem[] {
 export function formatCommandPaletteLine(item: CommandPaletteItem): string {
   return `${item.enabled ? "ok" : "disabled"} ${item.label} - ${item.description}`;
 }
+
+export function describeCommandPaletteSelection(item: CommandPaletteItem | undefined): string {
+  if (!item) {
+    return "No command selected.";
+  }
+
+  if (!item.enabled) {
+    return `Disabled command: ${item.label}. ${item.description}`;
+  }
+
+  return `Preview command: ${item.label}. ${item.description}`;
+}
