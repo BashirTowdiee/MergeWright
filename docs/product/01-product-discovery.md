@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed product direction. This document frames Shepherds-Staff as a product beyond the current CLI implementation. Current behaviour should still be verified against the root README and code.
+Accepted product direction. This document frames Shepherds-Staff as a product beyond the current CLI implementation. Current runtime behaviour should still be verified against the root README and code.
 
 ## Product summary
 
@@ -14,7 +14,7 @@ It helps developers use AI coding agents in a controlled engineering process by 
 Planner -> Builder -> Reviewer -> Fix Planner -> Fix Executor -> Checks -> Report
 ```
 
-The current product surface is the CLI. Future surfaces may include a local API, local web dashboard, VS Code extension, or desktop app.
+The CLI is the current implemented surface and remains the automation/scripting interface. The accepted primary human interface direction is a terminal UI, TUI. Future surfaces may include a local API, web dashboard, VS Code extension, or desktop app, but those are optional complements rather than the next core interface.
 
 ## Product vision
 
@@ -78,12 +78,12 @@ Developers will trust AI coding agents more when agent work is structured into s
 
 Supporting hypotheses:
 
-- Developers want AI coding workflows that feel closer to CI/CD pipelines than one-off chat prompts.
+- Developers want AI coding workflows that feel closer to controlled local developer tooling than one-off chat prompts.
 - Persistent run history makes agentic work easier to review and improve.
 - Explicit planner, builder, and reviewer separation improves output quality.
 - Human approval gates make auto-chain execution safer and more acceptable.
 - Change reports and PR summaries increase confidence in AI-generated changes.
-- A local-first model is more attractive to engineers than a hosted SaaS product early on.
+- A terminal-native interface is a stronger fit than a SaaS-style dashboard for the first main human interface.
 
 ## Target users
 
@@ -99,6 +99,7 @@ They typically:
 - Want staged implementation.
 - Want artefacts and reports.
 - Do not want fully autonomous unsafe changes.
+- Prefer local, keyboard-driven developer tools.
 
 ### Secondary users
 
@@ -121,7 +122,7 @@ They typically:
 Main job:
 
 ```txt
-When I need to make a complex software change with AI assistance, I want the work broken into controlled stages so I can inspect, approve, fix, continue, and report on it safely.
+When I need to make a complex software change with AI assistance, I want the work broken into controlled stages so I can inspect, approve, fix, continue, and report on it safely from my local development environment.
 ```
 
 Supporting jobs:
@@ -134,6 +135,7 @@ Supporting jobs:
 - When a run completes, I want a useful change report and PR summary.
 - When a run stops, I want to resume it without losing context.
 - When I use write mode, I want explicit safety boundaries.
+- When I supervise a run, I want a keyboard-first TUI that keeps run state, artefacts, logs, and safe next actions visible.
 
 ## Core product principles
 
@@ -157,9 +159,13 @@ Planner, builder, reviewer, fix, checks, and report should remain distinct conce
 
 A local developer tool is easier to trust, dogfood, and integrate with existing repositories.
 
+### TUI as the primary human interface
+
+The TUI should become the main interactive product surface for run inspection, artefact review, safety gates, and human-in-the-loop actions.
+
 ### CLI remains foundational
 
-The CLI is the automation backbone. Future GUI and editor surfaces should expose orchestration state rather than duplicate orchestration logic.
+The CLI remains the automation backbone for scripts, exact command execution, local CI-style usage, and dogfooding. The TUI should reuse shared application services rather than shelling out and parsing CLI text.
 
 ## Existing workflow
 
@@ -187,27 +193,26 @@ Main pain points:
 
 Future workflow:
 
-1. User defines a software change.
-2. Shepherds-Staff generates or accepts a staged plan.
-3. User chooses an execution mode.
-4. Shepherds-Staff executes each phase with safety boundaries.
-5. User reviews phase outputs and changed files.
-6. User approves, requests fix, continues, stops, or commits.
-7. Shepherds-Staff produces final reports and PR-ready summaries.
-8. The full run remains inspectable and reproducible.
+1. User opens the Shepherds-Staff TUI from a target repository.
+2. User selects or creates a staged run.
+3. Shepherds-Staff executes phases with safety boundaries.
+4. The TUI shows current run state, phase flow, artefacts, logs, changed files, review findings, and safe next actions.
+5. User approves, requests fix, continues, stops, or generates reports through explicit TUI actions.
+6. The CLI remains available for automation and scripted commands.
+7. The full run remains inspectable and reproducible from persisted artefacts.
 
 ## Product positioning
 
 Recommended positioning:
 
 ```txt
-A local-first agentic workflow orchestrator for safe, staged, auditable AI-assisted software development.
+A terminal-native control plane for safe, staged, auditable AI-assisted software development.
 ```
 
 Short positioning:
 
 ```txt
-A local control plane for safe AI-assisted software development.
+A local TUI for supervising AI coding workflows.
 ```
 
 ## Differentiation
@@ -224,14 +229,14 @@ Shepherds-Staff is differentiated by:
 - Artefact capture.
 - Change reports.
 - PR summaries.
+- TUI-first human-in-the-loop operation.
 - Future provider flexibility.
-- Future GUI observability.
 
 The key product distinction is workflow trust.
 
 ## MVP boundary
 
-The CLI is the current MVP surface. The next product phase should formalise the product model around the CLI and prepare for API and GUI surfaces.
+The CLI is the current MVP surface. The next product phase should formalise the product model around the CLI and prepare for a central TUI.
 
 Current or near-term scope:
 
@@ -248,7 +253,7 @@ Current or near-term scope:
 - PR summaries.
 - Plan visualisation.
 - Provider abstraction planning.
-- Local dashboard planning.
+- TUI run inspector planning.
 
 Out of scope for now:
 
@@ -262,6 +267,7 @@ Out of scope for now:
 - Auto-merge.
 - Unbounded autonomous execution.
 - Replacing the developer's IDE.
+- Web dashboard as the primary interface.
 
 ## Product surfaces
 
@@ -269,21 +275,25 @@ Out of scope for now:
 
 Current. Best for automation, scripting, dogfooding, local workflows, advanced users, and repeatable commands.
 
+### TUI
+
+Accepted primary human interface. Best for run selection, phase inspection, artefact browsing, review findings, safe next actions, fix loops, report generation, and keyboard-first local operation.
+
 ### Local API
 
-Proposed. Best for exposing the orchestration core to local dashboards and editor extensions.
+Future/optional. Useful if a later web or editor surface needs a process boundary, but not required before the TUI can start if shared application services are available.
 
 ### Local web dashboard
 
-Proposed. Best for run visibility, phase timelines, artefact browsing, review gates, change report inspection, live logs, and workflow control.
+Future/optional. Useful for richer Markdown/diff rendering or demos, but no longer the primary next product surface.
 
 ### VS Code extension
 
-Future. Best as a thin launcher and control surface after the local API and dashboard are stable.
+Future. Best as a thin launcher and editor integration after the TUI and core service boundaries are stable.
 
 ### Desktop app
 
-Future. Only worth considering after the local web dashboard proves value.
+Future. Only worth considering after the terminal-native workflow proves value.
 
 ## Key product questions
 
@@ -291,7 +301,7 @@ Future. Only worth considering after the local web dashboard proves value.
 2. Should the product optimise for manual phase control or human-gated auto-chain?
 3. Should the product remain local-only, or leave room for hosted/team modes later?
 4. Should Shepherds-Staff eventually support controlled commits?
-5. Should the dashboard initially inspect existing runs only, or also start and continue runs?
+5. Should the central TUI use Ink, OpenTUI/Solid, or another framework?
 
 Initial recommendation:
 
@@ -299,8 +309,8 @@ Initial recommendation:
 - Support both manual phase control and human-gated auto-chain.
 - Local-first now, without blocking future hosted/team modes.
 - Manual commit first, controlled auto-commit later.
-- Stabilise run state, artefact manifest, and API boundaries before building a large GUI.
-- Build the dashboard as read-only over existing run data first, then add execution controls.
+- Stabilise run state, artefact manifest, and application service boundaries before building a large TUI.
+- Spike Ink and OpenTUI/Solid before committing to the central TUI framework.
 
 ## Success criteria
 
@@ -311,7 +321,7 @@ Initial recommendation:
 - Write-mode execution is auditable.
 - Reports are useful enough for PR preparation.
 - The CLI remains reliable and scriptable.
-- The product can support a GUI without duplicating orchestration logic.
+- The TUI can support the main human workflow without duplicating orchestration logic.
 
 ## Discovery conclusion
 
@@ -320,7 +330,7 @@ Shepherds-Staff should be treated as more than a CLI.
 Overall product direction:
 
 ```txt
-Shepherds-Staff is a local-first control plane for safe, staged, auditable AI-assisted software development.
+Shepherds-Staff is a terminal-native control plane for safe, staged, auditable AI-assisted software development.
 ```
 
-The CLI remains the foundation. GUI and editor surfaces should come later as visual control and observability layers.
+The CLI remains the automation foundation. The TUI becomes the primary human interface. Web and editor surfaces should come later as optional complements, not the next core product surface.
