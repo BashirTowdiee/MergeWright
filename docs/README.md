@@ -31,6 +31,7 @@ Use Stage Plan for larger or multi-step changes with explicit review gates.
 - Roadmap: [product/04-roadmap.md](./product/04-roadmap.md)
 - Decisions and open questions: [product/05-decisions-and-open-questions.md](./product/05-decisions-and-open-questions.md)
 - TUI design: [ux/02-tui-design.md](./ux/02-tui-design.md)
+- TUI implementation plan: [ux/03-tui-implementation-plan.md](./ux/03-tui-implementation-plan.md)
 
 ## CLI reference
 
