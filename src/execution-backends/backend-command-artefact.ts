@@ -1,4 +1,4 @@
-import type { CodexExecutionBackendMetadata } from "../codex.js";
+import type { AgentExecutionBackendMetadata } from "../agent-executor.js";
 
 export interface BackendCommandArtefactInput {
   command: string;
@@ -7,7 +7,7 @@ export interface BackendCommandArtefactInput {
   outputLastMessagePath: string;
   promptViaStdin: boolean;
   sandboxMode?: "read-only" | "workspace-write";
-  backend?: CodexExecutionBackendMetadata;
+  backend?: AgentExecutionBackendMetadata;
 }
 
 export interface BackendCommandArtefact {
@@ -17,7 +17,7 @@ export interface BackendCommandArtefact {
   outputLastMessagePath: string;
   promptViaStdin: boolean;
   sandboxMode?: "read-only" | "workspace-write";
-  backend?: CodexExecutionBackendMetadata;
+  backend?: AgentExecutionBackendMetadata;
 }
 
 export function buildBackendCommandArtefact(input: BackendCommandArtefactInput): BackendCommandArtefact {

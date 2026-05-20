@@ -1,6 +1,6 @@
 import type { TemplateVariables } from "../../prompts.js";
 import type { OrchestratorConfig } from "../../config.js";
-import type { CodexExecutor } from "../../codex.js";
+import type { AgentExecutor } from "../../agent-executor.js";
 import type { RunOptions } from "../../runner.js";
 
 export interface ClassicRunExecutionOptions {
@@ -18,7 +18,7 @@ export interface ClassicRunContext {
   orchestratorRoot: string;
   configPath: string;
   config: OrchestratorConfig;
-  executor: CodexExecutor;
+  executor: AgentExecutor;
   targetWorkspaceRoot: string;
   stagesDir: string;
   promptsDir: string;
