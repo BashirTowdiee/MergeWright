@@ -1,11 +1,27 @@
 # Shepherds-Staff
 
-`agent-stage` is a standalone CLI orchestrator for controlled AI-assisted engineering workflows. It supports the original Planner -> Builder -> Reviewer flow, bounded fix loops, write-safety gates, run artefacts, and the newer Stage Plan workflow for human-gated multi-stage delivery.
+`agent-stage` is a standalone CLI delivery harness for controlled AI-assisted engineering workflows. It turns agent-generated code changes into staged, reviewable, auditable delivery evidence.
+
+It supports the original Planner -> Builder -> Reviewer flow, bounded fix loops, write-safety gates, run artefacts, AI Change Reports, and the newer Stage Plan workflow for human-gated multi-stage delivery.
 
 <p align="center">
   <img src="./assets/repoImage.png" alt="Standalone Codex CLI Orchestrator overview" width="900" />
 </p>
-<p align="center"><em>Structured, auditable orchestration for planner, builder, reviewer, stage plans, and bounded fix workflows.</em></p>
+<p align="center"><em>Structured, auditable orchestration for planner, builder, reviewer, stage plans, bounded fix workflows, and merge-readiness evidence.</em></p>
+
+## Product position
+
+Shepherds-Staff is not trying to be the agent that writes the most code or the runtime that launches the most workers. It sits above coding agents and focuses on delivery confidence.
+
+Core promise:
+
+> Turn AI coding work into reviewable, auditable, merge-ready software changes.
+
+Coding agents generate work. Shepherds-Staff governs the delivery path around that work:
+
+`intent -> plan -> implementation -> review -> fix loop -> checks -> evidence -> change report -> PR-ready summary`
+
+This keeps the project focused on trust, repeatability, evidence, and human-controlled acceptance rather than generic agent orchestration.
 
 ## What it solves
 
@@ -13,10 +29,23 @@ Manual LLM-assisted development breaks down when prompts, phase ordering, review
 
 - enforcing phase and stage dependencies
 - generating consistent prompts from structured context
-- storing run, stage, review, and reassessment artefacts
+- storing run, stage, review, reassessment, and report artefacts
 - supporting read-only previews before write-enabled execution
 - keeping human review gates explicit
+- collecting evidence before declaring work acceptable
 - allowing optional auto-commit only after explicit stage acceptance
+
+## Delivery harness principles
+
+Shepherds-Staff should optimise for merge confidence. The long-term product direction is:
+
+1. **Evidence first**: diff, checks, git state, review findings, and acceptance criteria should outrank agent summaries.
+2. **Deterministic gates**: stages should only pass when required evidence exists and required checks have run.
+3. **Human-gated acceptance**: write execution, fix loops, and commits remain explicit and inspectable.
+4. **Backend-agnostic execution**: Codex, Claude Code, OpenCode, CAO, or other runners should be interchangeable execution backends.
+5. **Audit-ready output**: every meaningful run should leave enough context to understand what changed, why it changed, how it was checked, and whether it is safe to merge.
+
+See `docs/roadmap/delivery-harness.md` for the implementation plan.
 
 ## Core workflows
 
@@ -185,6 +214,7 @@ For Stage Plans:
 
 ## Documentation
 
+- `docs/roadmap/delivery-harness.md`
 - `docs/workflows/stage-plan.md`
 - `docs/cli/commands.md`
 - `docs/workflows/classic-run.md`
