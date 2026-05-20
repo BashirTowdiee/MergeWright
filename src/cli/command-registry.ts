@@ -9,6 +9,7 @@ import { handleListRunsCommand } from "./commands/list-runs.command.js";
 import { handleShowRunCommand } from "./commands/show-run.command.js";
 import { handleOpenRunCommand } from "./commands/open-run.command.js";
 import { handleReportRunCommand } from "./commands/report-run.command.js";
+import { handleTuiCommand } from "./commands/tui.command.js";
 import { handleTuiSpikeCommand } from "./commands/tui-spike.command.js";
 import { handleRunStageCommand } from "./commands/stage-plan/run-stage.command.js";
 import { handleRunStagesCommand } from "./commands/stage-plan/run-stages.command.js";
@@ -28,6 +29,7 @@ export const commandHandlers = {
   "show-run": handleShowRunCommand,
   "open-run": handleOpenRunCommand,
   "report-run": handleReportRunCommand,
+  "tui": handleTuiCommand,
   "tui-spike": handleTuiSpikeCommand,
   "run-stage": handleRunStageCommand,
   "run-stages": handleRunStagesCommand,
