@@ -1,4 +1,4 @@
-import type { RunDetailViewModel, RunListItemViewModel } from "./view-models.js";
+import type { RunDetailViewModel, RunListItemViewModel, TuiPhaseStatus, TuiRunStatus } from "./view-models.js";
 
 export interface TuiSpikeFixture {
   runs: RunListItemViewModel[];
@@ -115,10 +115,11 @@ export function createTuiSpikeFixture(): TuiSpikeFixture {
 function createSimpleRunDetail(input: {
   id: string;
   title: string;
-  status: RunDetailViewModel["status"];
+  status: TuiRunStatus;
   summary: string;
   blockedReason?: string;
 }): RunDetailViewModel {
+  const reviewerStatus = mapRunStatusToPhaseStatus(input.status);
   return {
     id: input.id,
     title: input.title,
@@ -131,7 +132,7 @@ function createSimpleRunDetail(input: {
     phases: [
       { id: "planner", label: "Planner", status: input.status === "passed" ? "passed" : "unknown", artefactIds: [] },
       { id: "builder", label: "Builder", status: input.status === "passed" ? "passed" : "unknown", artefactIds: [] },
-      { id: "reviewer", label: "Reviewer", status: input.status === "passed" ? "passed" : input.status, artefactIds: [], blockedReason: input.blockedReason }
+      { id: "reviewer", label: "Reviewer", status: reviewerStatus, artefactIds: [], blockedReason: input.blockedReason }
     ],
     artefacts: [],
     reviewerFindings: input.blockedReason ? [{ severity: "unknown", message: input.blockedReason }] : [],
@@ -139,4 +140,11 @@ function createSimpleRunDetail(input: {
       { id: "open-run-folder", label: "Open run folder", enabled: true, risk: "low", requiresConfirmation: false }
     ]
   };
+}
+
+function mapRunStatusToPhaseStatus(status: TuiRunStatus): TuiPhaseStatus {
+  if (status === "passed" || status === "failed" || status === "blocked" || status === "pending" || status === "running" || status === "unknown") {
+    return status;
+  }
+  return "unknown";
 }
