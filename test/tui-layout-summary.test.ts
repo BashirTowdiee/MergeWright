@@ -5,8 +5,8 @@ import type { RunDetailViewModel, RunListItemViewModel } from "../src/tui/view-m
 
 test("buildLayoutSummary summarises visible TUI counts", () => {
   const runs: RunListItemViewModel[] = [
-    { id: "run-1", title: "Run 1", status: "passed", subtitle: "done", warnings: [] },
-    { id: "run-2", title: "Run 2", status: "failed", subtitle: "failed", warnings: [] }
+    { id: "run-1", title: "Run 1", status: "passed", subtitle: "done", mode: "read-only", warnings: [] },
+    { id: "run-2", title: "Run 2", status: "failed", subtitle: "failed", mode: "read-only", warnings: [] }
   ];
   const selectedRun: RunDetailViewModel = {
     id: "run-1",
@@ -15,7 +15,7 @@ test("buildLayoutSummary summarises visible TUI counts", () => {
     runDir: "/tmp/run-1",
     mode: "read-only",
     phases: [{ id: "planner", label: "Planner", status: "passed", artefactIds: [] }],
-    safeActions: [{ id: "open", label: "Open", enabled: true, risk: "low", requiresConfirmation: false }],
+    safeActions: [{ id: "open-run-folder", label: "Open", enabled: true, risk: "low", requiresConfirmation: false }],
     artefacts: [{ id: "a", title: "a.md", kind: "markdown", path: "a.md" }],
     reviewerFindings: [{ severity: "low", message: "note" }],
     warnings: ["old metadata"]
