@@ -76,7 +76,7 @@ Implications:
 - Roadmap should prioritise run metadata, artefact index, application services, and TUI implementation.
 - Web dashboard work is deferred and optional.
 - TUI design should focus on run inspection, phase flow, artefact preview, review findings, safety gates, and safe next actions.
-- TUI framework choice becomes a product architecture decision.
+- TUI implementation should use Ink as the accepted framework.
 
 ### D004: Local-first before hosted
 
@@ -195,43 +195,38 @@ Defer. The dashboard is optional and later than the TUI.
 
 ### D010: TUI framework choice
 
-Status: Open
+Status: Accepted
 
-Decision needed:
+Decision:
 
 ```txt
-Should the central TUI use Ink, OpenTUI/Solid, or another framework?
+The central TUI should use Ink.
 ```
 
-Default recommendation:
+Rationale:
 
-Spike Ink and OpenTUI/Solid with the same realistic screen before choosing. Include pane focus, phase flow, artefact preview, scrollable logs, keyboard shortcuts, and terminal resize in the spike.
+Ink is the best fit for the current implementation phase because MergeWright is already TypeScript/Node, the first TUI milestone is a read-only inspector, and the React-style component model is familiar enough to ship quickly. OpenTUI/Solid remains interesting, but its smaller ecosystem and higher debugging cost make it less suitable for the first central TUI implementation.
 
-Implications if Ink is chosen:
+Implications:
 
-- Faster MVP.
-- Lower ecosystem risk.
-- Potentially easier to outgrow if the TUI becomes a complex full-screen app.
-
-Implications if OpenTUI/Solid is chosen:
-
-- Better alignment with a serious full-screen terminal app direction.
-- Closer to OpenCode-style architecture.
-- Higher ecosystem risk and more source-code reading.
+- Add `ink` and `react` through a real package install so `package-lock.json` is generated correctly.
+- Build the first TUI as an Ink app shell over existing TUI read-model services.
+- Prioritise keyboard navigation, panes, simple vertical phase flow, artefact preview, and safe action display.
+- Keep TUI state limited to focus, selection, filters, scroll offsets, and modals.
+- Do not let Ink components own orchestration state or parse CLI output.
+- Revisit OpenTUI/Solid only if Ink becomes a blocker for pane layout, scrollback, live logs, or rendering stability.
 
 ## Open questions requiring maintainer input
 
 1. Should provider-agnostic execution be a committed product direction, or should the product stay Codex-specific for now?
 2. Should controlled local commits be a future product goal, or should MergeWright permanently leave commits to the user?
-3. Should the central TUI use Ink, OpenTUI/Solid, or another framework?
-4. Should hosted/team modes be excluded entirely to keep the product local-only?
-5. Should run metadata use a clean public schema even if it differs from current internal names, or should it mirror existing implementation names exactly?
+3. Should hosted/team modes be excluded entirely to keep the product local-only?
+4. Should run metadata use a clean public schema even if it differs from current internal names, or should it mirror existing implementation names exactly?
 
 ## Decision review cadence
 
 Review this file before starting any stage that affects:
 
-- TUI framework selection
 - provider support
 - run metadata schema
 - artefact schema
@@ -239,3 +234,4 @@ Review this file before starting any stage that affects:
 - commit automation
 - optional API/web/editor surfaces
 - release/distribution model
+- TUI framework assumptions
