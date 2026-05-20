@@ -9,6 +9,7 @@ import { formatKeyBinding, TUI_KEY_BINDINGS } from "./keymap.js";
 import { buildLayoutSummary } from "./layout-summary.js";
 import { createInfoNotice, formatNotice, type TuiNotice } from "./notice.js";
 import { moveSelection } from "./navigation.js";
+import { buildPhaseDetailLines } from "./phase-detail.js";
 import { buildRunContextLines } from "./run-context.js";
 import { buildRunWarningLines } from "./run-warnings.js";
 import type { TuiSpikeFixture } from "./spike-fixture.js";
@@ -18,12 +19,14 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [helpOpen, setHelpOpen] = useState(false);
   const [notice, setNotice] = useState<TuiNotice | null>(createInfoNotice("TUI is read-only. Actions are previews only."));
   const [selectedRunIndex, setSelectedRunIndex] = useState(0);
+  const [selectedPhaseIndex, setSelectedPhaseIndex] = useState(0);
   const [selectedActionIndex, setSelectedActionIndex] = useState(0);
   const [selectedArtefactIndex, setSelectedArtefactIndex] = useState(0);
   const selectedRun = useMemo(() => {
     const run = fixture.runs[selectedRunIndex];
     return run ? fixture.runDetailsById[run.id] ?? fixture.selectedRun : fixture.selectedRun;
   }, [fixture, selectedRunIndex]);
+  const selectedPhase = selectedRun.phases[selectedPhaseIndex];
   const selectedArtefact = selectedRun.artefacts[selectedArtefactIndex];
   const selectedAction = selectedRun.safeActions[selectedActionIndex];
   const evidenceLines = buildEvidencePreview({
@@ -33,6 +36,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   });
   const runContextLines = buildRunContextLines(selectedRun);
   const runWarningLines = buildRunWarningLines(selectedRun.warnings);
+  const phaseDetailLines = buildPhaseDetailLines(selectedPhase);
   const layoutSummary = buildLayoutSummary({ runs: fixture.runs, selectedRun });
 
   useInput((input, key) => {
@@ -54,15 +58,25 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
 
     if (focusedPane === "runs" && (input === "k" || key.upArrow)) {
       setSelectedRunIndex((currentIndex) => moveSelection({ currentIndex, itemCount: fixture.runs.length, direction: "up" }));
+      setSelectedPhaseIndex(0);
       setSelectedActionIndex(0);
       setSelectedArtefactIndex(0);
       setNotice(createInfoNotice("Selected run changed."));
     }
     if (focusedPane === "runs" && (input === "j" || key.downArrow)) {
       setSelectedRunIndex((currentIndex) => moveSelection({ currentIndex, itemCount: fixture.runs.length, direction: "down" }));
+      setSelectedPhaseIndex(0);
       setSelectedActionIndex(0);
       setSelectedArtefactIndex(0);
       setNotice(createInfoNotice("Selected run changed."));
+    }
+    if (focusedPane === "phases" && (input === "k" || key.upArrow)) {
+      setSelectedPhaseIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.phases.length, direction: "up" }));
+      setNotice(null);
+    }
+    if (focusedPane === "phases" && (input === "j" || key.downArrow)) {
+      setSelectedPhaseIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.phases.length, direction: "down" }));
+      setNotice(null);
     }
     if (focusedPane === "actions" && (input === "k" || key.upArrow)) {
       setSelectedActionIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.safeActions.length, direction: "up" }));
@@ -125,9 +139,15 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
             ))}
           </Box>
           <Box flexDirection="column" marginTop={1}>
-            <Text bold>Phase flow</Text>
-            {selectedRun.phases.length === 0 ? <Text dimColor>{getEmptyStateMessage("phases")}</Text> : selectedRun.phases.map((phase) => (
-              <Text key={phase.id}>{getStatusSymbol(phase.status)} {phase.label}</Text>
+            <Text bold>{getFocusedPaneTitle("Phase flow", focusedPane === "phases")}</Text>
+            {selectedRun.phases.length === 0 ? <Text dimColor>{getEmptyStateMessage("phases")}</Text> : selectedRun.phases.map((phase, index) => (
+              <Text key={phase.id} inverse={focusedPane === "phases" && index === selectedPhaseIndex}>{index === selectedPhaseIndex ? ">" : " "} {getStatusSymbol(phase.status)} {phase.label}</Text>
+            ))}
+          </Box>
+          <Box flexDirection="column" marginTop={1}>
+            <Text bold>Phase detail</Text>
+            {phaseDetailLines.map((line) => (
+              <Text key={line}>{line}</Text>
             ))}
           </Box>
         </Box>
