@@ -32,6 +32,7 @@ import { closeOverlay, isCommandPaletteOverlayOpen, isHelpOverlayOpen, isOverlay
 import { getNavigationDirection } from "./navigation-keys.js";
 import { getNavigationNoticeForFocusedPane, moveSelectionForFocusedPane } from "./navigation-state.js";
 import { moveSelection } from "./navigation.js";
+import { ArtefactListPane } from "./panes/ArtefactListPane.js";
 import { CurrentRunPane } from "./panes/CurrentRunPane.js";
 import { RunListPane } from "./panes/RunListPane.js";
 import { SafeActionPane } from "./panes/SafeActionPane.js";
@@ -185,12 +186,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
         <SafeActionPane actions={selectedRun.safeActions} selectedActionIndex={selection.actionIndex} focused={focusedPane === "actions"} blockedReason={selectedRun.blockedReason} />
       </Box>
       <Box flexDirection="row" marginTop={1}>
-        <Box flexDirection="column" width={46} borderStyle="round" paddingX={1} marginRight={1}>
-          <Text bold>{getFocusedPaneTitle(fileScopeLabel, focusedPane === "artefacts")}</Text>
-          {scopedArtifacts.length === 0 ? <Text dimColor>{getEmptyStateMessage("artefacts")}</Text> : scopedArtifacts.map((artefact, index) => (
-            <Text key={artefact.id} inverse={focusedPane === "artefacts" && index === selection.fileIndex}>{index === selection.fileIndex ? ">" : " "} {artefact.kind.padEnd(8)} {artefact.title}</Text>
-          ))}
-        </Box>
+        <ArtefactListPane artefacts={scopedArtifacts} selectedArtefactIndex={selection.fileIndex} focused={focusedPane === "artefacts"} title={fileScopeLabel} />
         <Box flexDirection="column" width={80} borderStyle="round" paddingX={1}>
           <Text bold>Evidence preview</Text>
           {evidenceLines.map((line, index) => (
