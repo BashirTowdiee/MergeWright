@@ -1,8 +1,20 @@
+export type CommandPaletteCommandId = "preview-action" | "toggle-file-scope" | "open-run-folder" | "generate-report";
+
 export interface CommandPaletteItem {
-  id: string;
+  id: CommandPaletteCommandId;
   label: string;
   description: string;
   enabled: boolean;
+}
+
+export interface CommandPreviewContext {
+  selectedSafeActionDescription: string;
+  currentFileScope: string;
+}
+
+export interface CommandPreviewResult {
+  handled: boolean;
+  message: string;
 }
 
 export function getCommandPaletteItems(): CommandPaletteItem[] {
@@ -72,4 +84,27 @@ export function describeCommandPaletteSelection(item: CommandPaletteItem | undef
   }
 
   return `Preview command: ${item.label}. ${item.description}`;
+}
+
+export function previewCommandPaletteSelection(input: {
+  item: CommandPaletteItem | undefined;
+  context: CommandPreviewContext;
+}): CommandPreviewResult {
+  if (!input.item) {
+    return { handled: false, message: "No command selected." };
+  }
+
+  if (!input.item.enabled) {
+    return { handled: false, message: describeCommandPaletteSelection(input.item) };
+  }
+
+  switch (input.item.id) {
+    case "preview-action":
+      return { handled: true, message: input.context.selectedSafeActionDescription };
+    case "toggle-file-scope":
+      return { handled: true, message: `Preview only: file scope would toggle from ${input.context.currentFileScope}.` };
+    case "open-run-folder":
+    case "generate-report":
+      return { handled: false, message: describeCommandPaletteSelection(input.item) };
+  }
 }
