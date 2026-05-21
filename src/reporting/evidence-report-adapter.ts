@@ -50,6 +50,14 @@ export function readEvidenceReportPostWriteReview(manifest: EvidenceManifest): C
   };
 }
 
+export function readEvidenceReportRisk(manifest: EvidenceManifest): Pick<ChangeReport, "risk" | "riskSignals"> {
+  const level = manifest.risk?.level;
+  return {
+    risk: level === "low" || level === "medium" || level === "high" ? level : "medium",
+    riskSignals: dedupeSort(manifest.risk?.reasons ?? [])
+  };
+}
+
 function mapIssues(issues: EvidenceIssueSummary[] | undefined): Array<{ severity: string; summary: string; files: string[] }> {
   return (issues ?? [])
     .map((issue) => ({
