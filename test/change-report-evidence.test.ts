@@ -6,6 +6,7 @@ import test from "node:test";
 import { createEvidenceManifest } from "../src/evidence/evidence-manifest.js";
 import { writeEvidenceManifest } from "../src/evidence/evidence-store.js";
 import { generateChangeReport } from "../src/change-report.js";
+import { collectReportInputs } from "../src/reporting/change-report-collector.js";
 
 async function createRunFixture(): Promise<string> {
   const runDir = await mkdtemp(path.join(os.tmpdir(), "change-report-evidence-"));
@@ -106,7 +107,7 @@ test("change report prefers evidence-backed safety and risk fields", async () =>
   assert.ok(report.riskSignals.includes("evidence risk"));
 });
 
-test("change report prefers evidence-backed reviewer and checks fields", async () => {
+test("collector prefers evidence-backed reviewer and checks fields", async () => {
   const runDir = await createRunFixture();
   const manifest = createEvidenceManifest({ runId: "run-123", workspace: "/tmp/workspace" });
   await writeEvidenceManifest(runDir, {
@@ -119,9 +120,9 @@ test("change report prefers evidence-backed reviewer and checks fields", async (
     checks: { status: "failed", failed: ["npm test"], skipped: [] }
   });
 
-  const report = await generateChangeReport({ runDir });
+  const collected = await collectReportInputs(runDir);
 
-  assert.equal(report.reviewer.verdict, "FAIL");
-  assert.equal(report.checks.state, "failed");
-  assert.deepEqual(report.checks.failedChecks, ["npm test"]);
+  assert.equal(collected.reviewer.verdict, "FAIL");
+  assert.equal(collected.checks.state, "failed");
+  assert.deepEqual(collected.checks.failedChecks, ["npm test"]);
 });
