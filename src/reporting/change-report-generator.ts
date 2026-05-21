@@ -91,6 +91,7 @@ export async function generateChangeReport(input: { runDir: string; policy?: Cha
     phases,
     changedFiles: collected.changedFiles,
     untrackedFiles: collected.untrackedFiles,
+    evidence: collected.evidence,
     reviewer: {
       verdict: collected.reviewer.verdict,
       blockingIssues: collected.reviewer.blockingIssues,

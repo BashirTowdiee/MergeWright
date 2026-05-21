@@ -9,6 +9,7 @@ export async function collectReportInputs(runDir: string): Promise<{
   stageText: string;
   changedFiles: string[];
   untrackedFiles: string[];
+  evidence: ChangeReport["evidence"];
   reviewer: {
     verdict: "PASS" | "FAIL" | "unavailable";
     blockingIssues: ReviewerIssue[];
@@ -24,7 +25,7 @@ export async function collectReportInputs(runDir: string): Promise<{
   const runJsonResult = await readOptionalJson<RunMetadataWithAutoChain>(`${runDir}/run.json`);
   const run = runJsonResult.value;
   const stageText = await readOptionalText(`${runDir}/01-stage-input.md`);
-  const evidence = await readEvidenceManifestIfExists(runDir);
+  const evidenceManifest = await readEvidenceManifestIfExists(runDir);
 
   const builderSummaryResult = await readOptionalJson<WriteAuditSummary>(`${runDir}/write-audit/builder/summary.json`);
   const fixSummaryResult = await readOptionalJson<WriteAuditSummary>(`${runDir}/write-audit/fix/summary.json`);
@@ -34,12 +35,12 @@ export async function collectReportInputs(runDir: string): Promise<{
   const changedFiles = dedupeSort([
     ...collectSummaryFiles(builderSummary),
     ...collectSummaryFiles(fixSummary),
-    ...(evidence?.git.changedFiles ?? [])
+    ...(evidenceManifest?.git.changedFiles ?? [])
   ]);
   const untrackedFiles = dedupeSort([
     ...collectSummaryUntracked(builderSummary),
     ...collectSummaryUntracked(fixSummary),
-    ...(evidence?.git.untrackedFiles ?? [])
+    ...(evidenceManifest?.git.untrackedFiles ?? [])
   ]);
 
   const reviewer = await parseReviewer(`${runDir}/reviewer-output-last-message.md`);
@@ -51,6 +52,17 @@ export async function collectReportInputs(runDir: string): Promise<{
     stageText,
     changedFiles,
     untrackedFiles,
+    evidence: evidenceManifest
+      ? {
+          available: true,
+          status: evidenceManifest.status,
+          completedAt: evidenceManifest.completedAt ?? null
+        }
+      : {
+          available: false,
+          status: "missing",
+          completedAt: null
+        },
     reviewer,
     checks: checksResult,
     checksMalformed: checksResult.malformed,
