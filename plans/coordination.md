@@ -237,3 +237,30 @@ CI status:
 
 Next action:
 - Open PR and check CI.
+
+## 2026-05-21T08:05:00Z
+
+Item: PR 66 merge-ready check.
+
+Scan:
+- Planning workspace exists.
+- Open PR: 66 Extract TUI overlay components.
+- CI: success on commit 39b88a5f7eda1b18325508894b21320a0d6612e6.
+- PR state: open and mergeable.
+
+Touched files:
+- plans/coordination.md
+- plans/workers/chatgpt.md
+
+PR:
+- 66
+
+CI status:
+- Success before this planning update.
+- Re-check required after this planning update.
+
+Blockers:
+- None.
+
+Next action:
+- Re-check CI on the updated PR 66 head, then merge if green.
