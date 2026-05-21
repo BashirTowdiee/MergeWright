@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
-import { Box, Text, useInput } from "ink";
+import { Box, useInput } from "ink";
 import { describeSafeActionIntent } from "./action-intent.js";
-import { formatStatusLegend } from "./components/status.js";
+import { AppChrome } from "./components/AppChrome.js";
 import {
   appendCommandPaletteQuery,
   backspaceCommandPaletteQuery,
@@ -40,6 +40,8 @@ import { buildRunContextLines } from "./run-context.js";
 import { buildRunWarningLines } from "./run-warnings.js";
 import { createInitialSelectionState, resetFileSelection } from "./selection-state.js";
 import type { TuiSpikeFixture } from "./spike-fixture.js";
+
+const HELP_LINE = "? help - p command palette - esc close overlay - s toggle file scope - tab focus pane - j/k select item - enter previews selected action - read-only - Ctrl+C to exit";
 
 export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [focusedPane, setFocusedPane] = useState<FocusedPane>("runs");
@@ -162,16 +164,14 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   }
 
   return (
-    <Box flexDirection="column" paddingX={1}>
-      <Box flexDirection="column">
-        <Box flexDirection="row">
-          <Text bold>MergeWright</Text>
-          <Text>  Branch: {selectedRun.branch ?? "unknown"}</Text>
-          <Text>  Mode: {selectedRun.mode}</Text>
-        </Box>
-        <Text dimColor>{layoutSummary}</Text>
-        <Text dimColor>{focusBreadcrumb}</Text>
-      </Box>
+    <AppChrome
+      branch={selectedRun.branch}
+      mode={selectedRun.mode}
+      layoutSummary={layoutSummary}
+      focusBreadcrumb={focusBreadcrumb}
+      notice={formatNotice(notice)}
+      helpLine={HELP_LINE}
+    >
       <Box flexDirection="row" marginTop={1}>
         <RunListPane runs={runs} selectedRunIndex={selection.runIndex} focused={focusedPane === "runs"} title={getFocusedPaneTitle("Runs", focusedPane === "runs")} />
         <CurrentRunPane
@@ -194,15 +194,6 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
           findingDetailLines={findingDetailLines}
         />
       </Box>
-      <Box marginTop={1}>
-        <Text>{formatNotice(notice)}</Text>
-      </Box>
-      <Box>
-        <Text dimColor>Status: {formatStatusLegend()}</Text>
-      </Box>
-      <Box>
-        <Text dimColor>? help - p command palette - esc close overlay - s toggle file scope - tab focus pane - j/k select item - enter previews selected action - read-only - Ctrl+C to exit</Text>
-      </Box>
-    </Box>
+    </AppChrome>
   );
 }
