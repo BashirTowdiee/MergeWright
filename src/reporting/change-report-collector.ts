@@ -2,6 +2,7 @@ import { readFile, stat } from "node:fs/promises";
 import { readEvidenceManifestIfExists } from "../evidence/evidence-store.js";
 import { parseReviewerOutput, type ReviewerIssue } from "../reviewer-output.js";
 import type { ChecksStatus, ChangeReport, OptionalJsonResult, RunMetadataWithAutoChain, WriteAuditSummary } from "./change-report-types.js";
+import { readEvidenceReportFiles, readEvidenceReportSummary } from "./evidence-report-adapter.js";
 
 export async function collectReportInputs(runDir: string): Promise<{
   run: RunMetadataWithAutoChain | null;
@@ -26,21 +27,18 @@ export async function collectReportInputs(runDir: string): Promise<{
   const run = runJsonResult.value;
   const stageText = await readOptionalText(`${runDir}/01-stage-input.md`);
   const evidenceManifest = await readEvidenceManifestIfExists(runDir);
+  const evidenceFiles = evidenceManifest ? readEvidenceReportFiles(evidenceManifest) : { changedFiles: [], untrackedFiles: [] };
 
   const builderSummaryResult = await readOptionalJson<WriteAuditSummary>(`${runDir}/write-audit/builder/summary.json`);
   const fixSummaryResult = await readOptionalJson<WriteAuditSummary>(`${runDir}/write-audit/fix/summary.json`);
   const builderSummary = builderSummaryResult.value;
   const fixSummary = fixSummaryResult.value;
 
-  const changedFiles = dedupeSort([
-    ...collectSummaryFiles(builderSummary),
-    ...collectSummaryFiles(fixSummary),
-    ...(evidenceManifest?.git.changedFiles ?? [])
-  ]);
+  const changedFiles = dedupeSort([...collectSummaryFiles(builderSummary), ...collectSummaryFiles(fixSummary), ...evidenceFiles.changedFiles]);
   const untrackedFiles = dedupeSort([
     ...collectSummaryUntracked(builderSummary),
     ...collectSummaryUntracked(fixSummary),
-    ...(evidenceManifest?.git.untrackedFiles ?? [])
+    ...evidenceFiles.untrackedFiles
   ]);
 
   const reviewer = await parseReviewer(`${runDir}/reviewer-output-last-message.md`);
@@ -53,11 +51,7 @@ export async function collectReportInputs(runDir: string): Promise<{
     changedFiles,
     untrackedFiles,
     evidence: evidenceManifest
-      ? {
-          available: true,
-          status: evidenceManifest.status,
-          completedAt: evidenceManifest.completedAt ?? null
-        }
+      ? readEvidenceReportSummary(evidenceManifest)
       : {
           available: false,
           status: "missing",
