@@ -5,9 +5,7 @@ import { formatStatusLegend } from "./components/status.js";
 import {
   appendCommandPaletteQuery,
   backspaceCommandPaletteQuery,
-  describeCommandPaletteSelection,
   filterCommandPaletteItems,
-  formatCommandPaletteLine,
   getCommandPaletteItems,
   previewCommandPaletteSelection
 } from "./command-palette.js";
@@ -24,13 +22,14 @@ import { formatFileScopeLabel, resolveScopedFiles, toggleFileScope, type FileSco
 import { buildFocusBreadcrumb } from "./focus-breadcrumb.js";
 import { getFocusedPaneTitle, moveFocus, type FocusedPane } from "./focus.js";
 import { useRuns } from "./hooks/useRuns.js";
-import { formatKeyBinding, TUI_KEY_BINDINGS } from "./keymap.js";
 import { buildLayoutSummary } from "./layout-summary.js";
 import { createInfoNotice, formatNotice, type TuiNotice } from "./notice.js";
 import { closeOverlay, isCommandPaletteOverlayOpen, isHelpOverlayOpen, isOverlayOpen, toggleOverlay, type TuiOverlay } from "./overlay-state.js";
 import { getNavigationDirection } from "./navigation-keys.js";
 import { getNavigationNoticeForFocusedPane, moveSelectionForFocusedPane } from "./navigation-state.js";
 import { moveSelection } from "./navigation.js";
+import { CommandPalettePreview } from "./overlays/CommandPalettePreview.js";
+import { HelpOverlay } from "./overlays/HelpOverlay.js";
 import { ArtefactListPane } from "./panes/ArtefactListPane.js";
 import { CurrentRunPane } from "./panes/CurrentRunPane.js";
 import { EvidenceReviewPane } from "./panes/EvidenceReviewPane.js";
@@ -203,53 +202,6 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       </Box>
       <Box>
         <Text dimColor>? help - p command palette - esc close overlay - s toggle file scope - tab focus pane - j/k select item - enter previews selected action - read-only - Ctrl+C to exit</Text>
-      </Box>
-    </Box>
-  );
-}
-
-function HelpOverlay() {
-  return (
-    <Box flexDirection="column" paddingX={1}>
-      <Text bold>MergeWright TUI Help</Text>
-      <Text dimColor>Press ? or Esc to close help.</Text>
-      <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
-        {TUI_KEY_BINDINGS.map((binding) => (
-          <Text key={`${binding.scope}-${binding.key}`}>{formatKeyBinding(binding)}</Text>
-        ))}
-      </Box>
-      <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
-        <Text bold>Status legend</Text>
-        <Text>{formatStatusLegend()}</Text>
-      </Box>
-    </Box>
-  );
-}
-
-function CommandPalettePreview({
-  query,
-  items,
-  selectedCommandIndex,
-  selectedCommand
-}: {
-  query: string;
-  items: ReturnType<typeof getCommandPaletteItems>;
-  selectedCommandIndex: number;
-  selectedCommand: ReturnType<typeof getCommandPaletteItems>[number] | undefined;
-}) {
-  return (
-    <Box flexDirection="column" paddingX={1}>
-      <Text bold>Command palette</Text>
-      <Text dimColor>Press p or Esc to close. Type to filter. Backspace edits. Use j/k and Enter to inspect.</Text>
-      <Text>Query: {query.length === 0 ? "none" : query}</Text>
-      <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
-        {items.length === 0 ? <Text dimColor>No matching commands.</Text> : items.map((item, index) => (
-          <Text key={item.id} inverse={index === selectedCommandIndex}>{index === selectedCommandIndex ? ">" : " "} {formatCommandPaletteLine(item)}</Text>
-        ))}
-      </Box>
-      <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
-        <Text bold>Selected command</Text>
-        <Text>{describeCommandPaletteSelection(selectedCommand)}</Text>
       </Box>
     </Box>
   );
