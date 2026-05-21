@@ -21,6 +21,8 @@ test("createEvidenceManifest creates stable defaults", () => {
   const manifest = createEvidenceManifest({
     runId: "run-123",
     stageId: "stage-01",
+    projectName: "MergeWright",
+    stageName: "Stage 01",
     workspace: "/tmp/workspace",
     startedAt: "2026-05-21T00:00:00.000Z"
   });
@@ -29,16 +31,31 @@ test("createEvidenceManifest creates stable defaults", () => {
     version: 1,
     runId: "run-123",
     stageId: "stage-01",
+    projectName: "MergeWright",
+    stageName: "Stage 01",
     status: "in_progress",
     workspace: "/tmp/workspace",
     startedAt: "2026-05-21T00:00:00.000Z",
     git: {
       changedFiles: [],
+      untrackedFiles: [],
       unexpectedFiles: []
     },
     commands: [],
     artefacts: []
   });
+  assert.equal(isEvidenceManifest(manifest), true);
+});
+
+test("createEvidenceManifest supports unknown status and null workspace", () => {
+  const manifest = createEvidenceManifest({
+    runId: "run-unknown",
+    status: "unknown",
+    startedAt: "2026-05-21T00:00:00.000Z"
+  });
+
+  assert.equal(manifest.status, "unknown");
+  assert.equal(manifest.workspace, null);
   assert.equal(isEvidenceManifest(manifest), true);
 });
 
@@ -140,6 +157,36 @@ test("readEvidenceManifest rejects malformed manifest content", async () => {
     await writeEvidenceManifest(runDir, createEvidenceManifest({ runId: "run-123", workspace: "/tmp/workspace" }));
     const manifestPath = path.join(runDir, EVIDENCE_MANIFEST_FILENAME);
     await import("node:fs/promises").then(({ writeFile }) => writeFile(manifestPath, "{}\n", "utf8"));
+
+    await assert.rejects(() => readEvidenceManifest(runDir), /Invalid evidence manifest/);
+  } finally {
+    await rm(runDir, { recursive: true, force: true });
+  }
+});
+
+test("readEvidenceManifest rejects manifests without untrackedFiles", async () => {
+  const runDir = await mkdtemp(path.join(os.tmpdir(), "evidence-manifest-invalid-git-"));
+  try {
+    const manifestPath = path.join(runDir, EVIDENCE_MANIFEST_FILENAME);
+    await import("node:fs/promises").then(({ writeFile }) =>
+      writeFile(
+        manifestPath,
+        JSON.stringify({
+          version: 1,
+          runId: "run-123",
+          status: "in_progress",
+          workspace: "/tmp/workspace",
+          startedAt: "2026-05-21T00:00:00.000Z",
+          git: {
+            changedFiles: [],
+            unexpectedFiles: []
+          },
+          commands: [],
+          artefacts: []
+        }) + "\n",
+        "utf8"
+      )
+    );
 
     await assert.rejects(() => readEvidenceManifest(runDir), /Invalid evidence manifest/);
   } finally {

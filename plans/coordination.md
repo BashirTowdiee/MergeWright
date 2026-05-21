@@ -373,3 +373,31 @@ Blockers:
 
 Next action:
 - Scan main and open PRs for the next unclaimed DH slice.
+
+## 2026-05-21T09:50:00Z
+
+Item: Evidence manifest schema alignment slice.
+
+Scan:
+- Planning workspace exists.
+- Open PRs before work: none.
+- Latest merged PR: 68 Add evidence manifest helpers.
+- Latest main commit used for branch: 811ae88bdec7210f617f0098e022a55d978fdd89.
+
+Touched files:
+- src/evidence/evidence-manifest.ts
+- test/evidence-manifest.test.ts
+- plans/coordination.md
+- plans/workers/chatgpt.md
+
+PR:
+- To be opened.
+
+CI status:
+- Not run yet from this environment.
+
+Blockers:
+- Local build/test could not be run from this environment; implementation used GitHub file operations only.
+
+Next action:
+- Open PR and check CI for the evidence manifest schema alignment slice.

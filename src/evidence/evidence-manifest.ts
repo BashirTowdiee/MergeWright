@@ -1,4 +1,4 @@
-export type EvidenceManifestStatus = "in_progress" | "needs_review" | "needs_fix" | "pass" | "fail";
+export type EvidenceManifestStatus = "in_progress" | "needs_review" | "needs_fix" | "pass" | "fail" | "unknown";
 export type EvidenceCommandStatus = "passed" | "failed" | "skipped";
 
 const EVIDENCE_MANIFEST_STATUSES = new Set<EvidenceManifestStatus>([
@@ -6,7 +6,8 @@ const EVIDENCE_MANIFEST_STATUSES = new Set<EvidenceManifestStatus>([
   "needs_review",
   "needs_fix",
   "pass",
-  "fail"
+  "fail",
+  "unknown"
 ]);
 
 export interface EvidenceCommand {
@@ -35,12 +36,21 @@ export interface EvidenceGitState {
   statusBefore?: string;
   statusAfter?: string;
   changedFiles: string[];
+  untrackedFiles: string[];
   unexpectedFiles: string[];
 }
 
 export interface EvidenceReviewSummary {
   verdict?: "PASS" | "FAIL" | "UNKNOWN";
   artefactPath?: string;
+  blockingIssues?: EvidenceIssueSummary[];
+  nonBlockingIssues?: EvidenceIssueSummary[];
+}
+
+export interface EvidenceIssueSummary {
+  summary: string;
+  severity?: "low" | "medium" | "high" | "critical";
+  files?: string[];
 }
 
 export interface EvidenceAcceptanceSummary {
@@ -57,27 +67,70 @@ export interface EvidenceRiskSummary {
   reasons: string[];
 }
 
+export interface EvidenceChecksSummary {
+  status?: "passed" | "failed" | "skipped" | "unknown";
+  failed: string[];
+  skipped: string[];
+}
+
+export interface EvidenceWriteSafetySummary {
+  status?: "passed" | "failed" | "missing" | "unknown";
+  artefactPath?: string;
+  warnings: string[];
+}
+
+export interface EvidencePostWriteReviewSummary {
+  status?: "passed" | "failed" | "missing" | "unknown";
+  artefactPath?: string;
+}
+
+export interface EvidenceStageContract {
+  objective?: string;
+  allowedPaths: string[];
+  forbiddenPaths: string[];
+  requiredCommands: string[];
+  requiredEvidence: string[];
+  acceptanceCriteria: string[];
+  reviewChecklist: string[];
+}
+
+export interface EvidenceReadinessSummary {
+  verdict?: "PASS" | "FAIL" | "UNKNOWN";
+  score?: number;
+  blockers: string[];
+  warnings: string[];
+}
+
 export interface EvidenceManifest {
   version: 1;
   runId: string;
   stageId?: string;
+  projectName?: string | null;
+  stageName?: string | null;
   status: EvidenceManifestStatus;
-  workspace: string;
+  workspace: string | null;
   startedAt: string;
   completedAt?: string;
   git: EvidenceGitState;
   commands: EvidenceCommand[];
   artefacts: EvidenceArtefact[];
-  review?: EvidenceReviewSummary;
+  reviewer?: EvidenceReviewSummary;
   acceptance?: EvidenceAcceptanceSummary;
+  checks?: EvidenceChecksSummary;
+  writeSafety?: EvidenceWriteSafetySummary;
+  postWriteReview?: EvidencePostWriteReviewSummary;
+  stageContract?: EvidenceStageContract;
+  readiness?: EvidenceReadinessSummary;
   risk?: EvidenceRiskSummary;
 }
 
 export interface CreateEvidenceManifestInput {
   runId: string;
   stageId?: string;
+  projectName?: string | null;
+  stageName?: string | null;
   status?: EvidenceManifestStatus;
-  workspace: string;
+  workspace?: string | null;
   startedAt?: Date | string;
 }
 
@@ -86,10 +139,11 @@ export function createEvidenceManifest(input: CreateEvidenceManifestInput): Evid
     version: 1,
     runId: input.runId,
     status: input.status ?? "in_progress",
-    workspace: input.workspace,
+    workspace: input.workspace ?? null,
     startedAt: toIsoString(input.startedAt ?? new Date()),
     git: {
       changedFiles: [],
+      untrackedFiles: [],
       unexpectedFiles: []
     },
     commands: [],
@@ -98,6 +152,12 @@ export function createEvidenceManifest(input: CreateEvidenceManifestInput): Evid
 
   if (input.stageId !== undefined) {
     manifest.stageId = input.stageId;
+  }
+  if (input.projectName !== undefined) {
+    manifest.projectName = input.projectName;
+  }
+  if (input.stageName !== undefined) {
+    manifest.stageName = input.stageName;
   }
 
   return manifest;
@@ -136,11 +196,12 @@ export function isEvidenceManifest(value: unknown): value is EvidenceManifest {
     candidate.version === 1 &&
     typeof candidate.runId === "string" &&
     isEvidenceManifestStatus(candidate.status) &&
-    typeof candidate.workspace === "string" &&
+    (candidate.workspace === null || typeof candidate.workspace === "string") &&
     typeof candidate.startedAt === "string" &&
     !!git &&
     typeof git === "object" &&
     Array.isArray(git.changedFiles) &&
+    Array.isArray(git.untrackedFiles) &&
     Array.isArray(git.unexpectedFiles) &&
     Array.isArray(candidate.commands) &&
     Array.isArray(candidate.artefacts)
