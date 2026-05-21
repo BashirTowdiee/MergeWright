@@ -19,7 +19,6 @@ import {
   updateCommandPaletteSelectedIndex
 } from "./command-palette-state.js";
 import { buildEvidencePreview } from "./evidence-preview.js";
-import { getEmptyStateMessage } from "./empty-state.js";
 import { buildFindingDetailLines } from "./finding-detail.js";
 import { formatFileScopeLabel, resolveScopedFiles, toggleFileScope, type FileScope } from "./file-scope.js";
 import { buildFocusBreadcrumb } from "./focus-breadcrumb.js";
@@ -34,6 +33,7 @@ import { getNavigationNoticeForFocusedPane, moveSelectionForFocusedPane } from "
 import { moveSelection } from "./navigation.js";
 import { ArtefactListPane } from "./panes/ArtefactListPane.js";
 import { CurrentRunPane } from "./panes/CurrentRunPane.js";
+import { EvidenceReviewPane } from "./panes/EvidenceReviewPane.js";
 import { RunListPane } from "./panes/RunListPane.js";
 import { SafeActionPane } from "./panes/SafeActionPane.js";
 import { buildPhaseDetailLines } from "./phase-detail.js";
@@ -187,24 +187,13 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       </Box>
       <Box flexDirection="row" marginTop={1}>
         <ArtefactListPane artefacts={scopedArtifacts} selectedArtefactIndex={selection.fileIndex} focused={focusedPane === "artefacts"} title={fileScopeLabel} />
-        <Box flexDirection="column" width={80} borderStyle="round" paddingX={1}>
-          <Text bold>Evidence preview</Text>
-          {evidenceLines.map((line, index) => (
-            <Text key={`${line}-${index}`}>{line}</Text>
-          ))}
-          <Box marginTop={1}>
-            <Text bold>{getFocusedPaneTitle("Review findings", focusedPane === "findings")}</Text>
-            {selectedRun.reviewerFindings.length === 0 ? <Text dimColor>{getEmptyStateMessage("findings")}</Text> : selectedRun.reviewerFindings.map((finding, index) => (
-              <Text key={`${finding.severity}-${index}`} inverse={focusedPane === "findings" && index === selection.findingIndex}>{index === selection.findingIndex ? ">" : " "} {finding.severity.toUpperCase()}: {finding.message}</Text>
-            ))}
-          </Box>
-          <Box marginTop={1}>
-            <Text bold>Finding detail</Text>
-            {findingDetailLines.map((line) => (
-              <Text key={line}>{line}</Text>
-            ))}
-          </Box>
-        </Box>
+        <EvidenceReviewPane
+          evidenceLines={evidenceLines}
+          findings={selectedRun.reviewerFindings}
+          selectedFindingIndex={selection.findingIndex}
+          findingsFocused={focusedPane === "findings"}
+          findingDetailLines={findingDetailLines}
+        />
       </Box>
       <Box marginTop={1}>
         <Text>{formatNotice(notice)}</Text>
