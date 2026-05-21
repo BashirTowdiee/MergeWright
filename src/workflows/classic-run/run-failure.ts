@@ -1,6 +1,7 @@
 import type { ProgressLogger } from "../../progress-logger.js";
 import { markRunFailure, type RunMetadata, type RunPhaseName } from "../../run-metadata.js";
 import { finaliseClassicRunEvidence } from "./run-evidence-finalisation.js";
+import { refreshClassicRunEvidence } from "./run-evidence-refresh.js";
 
 export async function finaliseClassicRunFailure(input: {
   error: unknown;
@@ -12,6 +13,7 @@ export async function finaliseClassicRunFailure(input: {
 }): Promise<never> {
   markRunFailure(input.metadata, input.error, input.failedPhase);
   try {
+    await refreshClassicRunEvidence(input.runDir);
     await finaliseClassicRunEvidence({ runDir: input.runDir, status: "fail" });
   } catch {
     // Preserve the original run failure as the primary failure.
