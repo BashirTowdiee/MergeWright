@@ -1,4 +1,5 @@
 import type { EvidenceIssueSummary, EvidenceManifest } from "../evidence/evidence-manifest.js";
+import type { ReviewerIssue } from "../reviewer-output.js";
 import type { ChangeReport } from "./change-report-types.js";
 
 export function readEvidenceReportFiles(manifest: EvidenceManifest): Pick<ChangeReport, "changedFiles" | "untrackedFiles"> {
@@ -69,10 +70,10 @@ export function readEvidenceReportRisk(manifest: EvidenceManifest): Pick<ChangeR
   };
 }
 
-function mapIssues(issues: EvidenceIssueSummary[] | undefined): NonNullable<ChangeReport["reviewer"]>["blockingIssues"] {
+function mapIssues(issues: EvidenceIssueSummary[] | undefined): ReviewerIssue[] {
   return (issues ?? [])
     .map((issue) => ({
-      severity: issue.severity,
+      severity: issue.severity === "low" || issue.severity === "medium" || issue.severity === "high" ? issue.severity : "high",
       summary: issue.summary,
       files: dedupeSort(issue.files ?? [])
     }))
