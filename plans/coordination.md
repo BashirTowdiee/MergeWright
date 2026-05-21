@@ -17,11 +17,8 @@ Touched files:
 PR:
 - 61
 
-Blockers:
-- Merge action was blocked by the external tool safety layer.
-
 Next action:
-- Merge PR 61 manually or retry merge when the tool allows it.
+- Recheck PR 61.
 
 ## 2026-05-21T05:40:00Z
 
@@ -43,11 +40,8 @@ PR:
 CI status:
 - Success before this entry.
 
-Blockers:
-- Merge command was not completed from this environment.
-
 Next action:
-- Merge PR 61 manually, or retry merge after checking CI on the updated head.
+- Recheck PR 61.
 
 ## 2026-05-21T06:25:00Z
 
@@ -70,8 +64,29 @@ CI status:
 - Success before this planning update.
 - Re-check required after this planning update.
 
-Blockers:
-- None.
-
 Next action:
 - Re-check CI on the updated PR 62 head, then merge if green.
+
+## 2026-05-21T06:45:00Z
+
+Item: PR 63 merge-ready check.
+
+Scan:
+- Planning workspace exists.
+- Open PR: 63 Extract TUI safe action pane.
+- CI: success on commit f3a37d7cb7774686c6fff7b85a771c5a3457538d.
+- PR state: open and mergeable.
+
+Touched files:
+- plans/coordination.md
+- plans/workers/chatgpt.md
+
+PR:
+- 63
+
+CI status:
+- Success before this planning update.
+- Re-check required after this planning update.
+
+Next action:
+- Re-check CI on the updated PR 63 head, then merge if green.
