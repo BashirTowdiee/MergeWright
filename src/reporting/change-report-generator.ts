@@ -20,9 +20,9 @@ export async function generateChangeReport(input: { runDir: string; policy?: Cha
   const collected = await collectReportInputs(runDir);
   const run = collected.run;
 
-  const writeSafetyState = run?.writeSafety?.state ?? "unknown";
-  const postWriteReviewRequired = run?.postWriteReview?.required ?? false;
-  const postWriteReviewStatus = run?.postWriteReview?.status ?? "unknown";
+  const writeSafetyState = collected.writeSafety?.state ?? run?.writeSafety?.state ?? "unknown";
+  const postWriteReviewRequired = collected.postWriteReview?.required ?? run?.postWriteReview?.required ?? false;
+  const postWriteReviewStatus = collected.postWriteReview?.status ?? run?.postWriteReview?.status ?? "unknown";
 
   const scopeDriftWarnings = buildScopeDriftWarnings({
     stageText: collected.stageText,
