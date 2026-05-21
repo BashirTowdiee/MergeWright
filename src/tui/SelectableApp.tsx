@@ -27,6 +27,7 @@ import { getFocusedPaneTitle, moveFocus, type FocusedPane } from "./focus.js";
 import { formatKeyBinding, TUI_KEY_BINDINGS } from "./keymap.js";
 import { buildLayoutSummary } from "./layout-summary.js";
 import { createInfoNotice, formatNotice, type TuiNotice } from "./notice.js";
+import { closeOverlay, isCommandPaletteOverlayOpen, isHelpOverlayOpen, isOverlayOpen, toggleOverlay, type TuiOverlay } from "./overlay-state.js";
 import { moveSelection } from "./navigation.js";
 import { buildPhaseDetailLines } from "./phase-detail.js";
 import { buildRunContextLines } from "./run-context.js";
@@ -36,7 +37,7 @@ import type { TuiSpikeFixture } from "./spike-fixture.js";
 export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [focusedPane, setFocusedPane] = useState<FocusedPane>("runs");
   const [fileScope, setFileScope] = useState<FileScope>("phase");
-  const [helpOpen, setHelpOpen] = useState(false);
+  const [overlay, setOverlay] = useState<TuiOverlay>("none");
   const [commandPaletteState, setCommandPaletteState] = useState(createClosedCommandPaletteState());
   const [notice, setNotice] = useState<TuiNotice | null>(createInfoNotice("TUI is read-only. Actions are previews only."));
   const [selectedRunIndex, setSelectedRunIndex] = useState(0);
@@ -72,27 +73,25 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
 
   useInput((input, key) => {
     if (key.escape) {
-      if (helpOpen) {
-        setHelpOpen(false);
-        return;
-      }
-      if (commandPaletteState.open) {
+      if (isOverlayOpen(overlay)) {
+        setOverlay(closeOverlay());
         setCommandPaletteState(closeCommandPaletteState());
         return;
       }
     }
     if (input === "?") {
-      setHelpOpen((current) => !current);
+      setOverlay((current) => toggleOverlay(current, "help"));
       return;
     }
     if (input === "p") {
+      setOverlay((current) => toggleOverlay(current, "command-palette"));
       setCommandPaletteState((current) => toggleCommandPaletteState(current));
       return;
     }
-    if (helpOpen) {
+    if (isHelpOverlayOpen(overlay)) {
       return;
     }
-    if (commandPaletteState.open) {
+    if (isCommandPaletteOverlayOpen(overlay)) {
       if (key.backspace || key.delete) {
         setCommandPaletteState((current) => updateCommandPaletteQuery(current, backspaceCommandPaletteQuery(current.query)));
         return;
@@ -186,11 +185,11 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
     }
   });
 
-  if (helpOpen) {
+  if (isHelpOverlayOpen(overlay)) {
     return <HelpOverlay />;
   }
 
-  if (commandPaletteState.open) {
+  if (isCommandPaletteOverlayOpen(overlay)) {
     return <CommandPalettePreview query={commandPaletteState.query} items={filteredCommandItems} selectedCommandIndex={commandPaletteState.selectedIndex} selectedCommand={selectedCommand} />;
   }
 
