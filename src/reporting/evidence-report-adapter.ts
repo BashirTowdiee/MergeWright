@@ -45,6 +45,10 @@ export function readAvailableEvidenceReportReviewer(manifest: EvidenceManifest):
   };
 }
 
+export function hasEvidenceReviewer(manifest: EvidenceManifest): boolean {
+  return manifest.reviewer !== undefined;
+}
+
 export function readEvidenceReportWriteSafety(manifest: EvidenceManifest): ChangeReport["writeSafety"] {
   return { state: manifest.writeSafety?.status ?? "unknown" };
 }
