@@ -90,3 +90,26 @@ CI status:
 
 Next action:
 - Re-check CI on the updated PR 63 head, then merge if green.
+
+## 2026-05-21T07:00:00Z
+
+Item: ArtefactListPane implementation slice.
+
+Scan:
+- Planning workspace exists.
+- Open PRs before work: none.
+- Latest merged PR: 63 Extract TUI safe action pane.
+
+Touched files:
+- src/tui/panes/ArtefactListPane.tsx
+- src/tui/SelectableApp.tsx
+- plans/coordination.md
+
+PR:
+- To be opened.
+
+CI status:
+- Not run yet.
+
+Next action:
+- Open PR and check CI.
