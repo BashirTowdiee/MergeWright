@@ -34,6 +34,7 @@ import { getNavigationNoticeForFocusedPane, moveSelectionForFocusedPane } from "
 import { moveSelection } from "./navigation.js";
 import { CurrentRunPane } from "./panes/CurrentRunPane.js";
 import { RunListPane } from "./panes/RunListPane.js";
+import { SafeActionPane } from "./panes/SafeActionPane.js";
 import { buildPhaseDetailLines } from "./phase-detail.js";
 import { buildRunContextLines } from "./run-context.js";
 import { buildRunWarningLines } from "./run-warnings.js";
@@ -181,14 +182,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
           runWarningLines={runWarningLines}
           phaseDetailLines={phaseDetailLines}
         />
-        <Box flexDirection="column" width={42} borderStyle="round" paddingX={1}>
-          <Text bold>{getFocusedPaneTitle("Safe action", focusedPane === "actions")}</Text>
-          <Text>{selectedRun.blockedReason ?? "No blocker recorded."}</Text>
-          {selectedRun.safeActions.length === 0 ? <Text dimColor>{getEmptyStateMessage("actions")}</Text> : selectedRun.safeActions.map((action, index) => (
-            <Text key={action.id} inverse={focusedPane === "actions" && index === selection.actionIndex}>{index === selection.actionIndex ? ">" : " "} {action.enabled ? "ok" : "blocked"} {action.label}</Text>
-          ))}
-          {selectedAction ? <Text dimColor>Selected: {selectedAction.label}{selectedAction.blockedReason ? ` - ${selectedAction.blockedReason}` : ""}</Text> : null}
-        </Box>
+        <SafeActionPane actions={selectedRun.safeActions} selectedActionIndex={selection.actionIndex} focused={focusedPane === "actions"} blockedReason={selectedRun.blockedReason} />
       </Box>
       <Box flexDirection="row" marginTop={1}>
         <Box flexDirection="column" width={46} borderStyle="round" paddingX={1} marginRight={1}>
