@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { describeSafeActionIntent } from "./action-intent.js";
-import { formatStatusLegend, getStatusSymbol } from "./components/status.js";
+import { formatStatusLegend } from "./components/status.js";
 import {
   appendCommandPaletteQuery,
   backspaceCommandPaletteQuery,
@@ -32,6 +32,7 @@ import { closeOverlay, isCommandPaletteOverlayOpen, isHelpOverlayOpen, isOverlay
 import { getNavigationDirection } from "./navigation-keys.js";
 import { getNavigationNoticeForFocusedPane, moveSelectionForFocusedPane } from "./navigation-state.js";
 import { moveSelection } from "./navigation.js";
+import { CurrentRunPane } from "./panes/CurrentRunPane.js";
 import { RunListPane } from "./panes/RunListPane.js";
 import { buildPhaseDetailLines } from "./phase-detail.js";
 import { buildRunContextLines } from "./run-context.js";
@@ -172,35 +173,14 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       </Box>
       <Box flexDirection="row" marginTop={1}>
         <RunListPane runs={runs} selectedRunIndex={selection.runIndex} focused={focusedPane === "runs"} title={getFocusedPaneTitle("Runs", focusedPane === "runs")} />
-        <Box flexDirection="column" width={52} borderStyle="round" paddingX={1} marginRight={1}>
-          <Text bold>Current run</Text>
-          <Text bold>{selectedRun.title}</Text>
-          <Text>{selectedRun.goal ?? "No goal recorded."}</Text>
-          <Box flexDirection="column" marginTop={1}>
-            <Text bold>Run context</Text>
-            {runContextLines.map((line) => (
-              <Text key={line}>{line}</Text>
-            ))}
-          </Box>
-          <Box flexDirection="column" marginTop={1}>
-            <Text bold>Warnings</Text>
-            {runWarningLines.map((line) => (
-              <Text key={line} dimColor={line === "No warnings recorded."}>{line}</Text>
-            ))}
-          </Box>
-          <Box flexDirection="column" marginTop={1}>
-            <Text bold>{getFocusedPaneTitle("Phase flow", focusedPane === "phases")}</Text>
-            {selectedRun.phases.length === 0 ? <Text dimColor>{getEmptyStateMessage("phases")}</Text> : selectedRun.phases.map((phase, index) => (
-              <Text key={phase.id} inverse={focusedPane === "phases" && index === selection.phaseIndex}>{index === selection.phaseIndex ? ">" : " "} {getStatusSymbol(phase.status)} {phase.label}</Text>
-            ))}
-          </Box>
-          <Box flexDirection="column" marginTop={1}>
-            <Text bold>Phase detail</Text>
-            {phaseDetailLines.map((line) => (
-              <Text key={line}>{line}</Text>
-            ))}
-          </Box>
-        </Box>
+        <CurrentRunPane
+          run={selectedRun}
+          selectedPhaseIndex={selection.phaseIndex}
+          focusedPane={focusedPane}
+          runContextLines={runContextLines}
+          runWarningLines={runWarningLines}
+          phaseDetailLines={phaseDetailLines}
+        />
         <Box flexDirection="column" width={42} borderStyle="round" paddingX={1}>
           <Text bold>{getFocusedPaneTitle("Safe action", focusedPane === "actions")}</Text>
           <Text>{selectedRun.blockedReason ?? "No blocker recorded."}</Text>
