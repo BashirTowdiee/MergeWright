@@ -113,7 +113,7 @@ test("change report prefers evidence-backed reviewer and checks fields", async (
     ...manifest,
     reviewer: {
       verdict: "FAIL",
-      blockingIssues: [{ severity: "critical", summary: "evidence blocker", files: ["src/blocker.ts"] }],
+      blockingIssues: [{ severity: "high", summary: "evidence blocker", files: ["src/blocker.ts"] }],
       nonBlockingIssues: []
     },
     checks: { status: "failed", failed: ["npm test"], skipped: [] }
