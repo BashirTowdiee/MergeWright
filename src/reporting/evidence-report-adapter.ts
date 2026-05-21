@@ -1,4 +1,4 @@
-import type { EvidenceManifest } from "../evidence/evidence-manifest.js";
+import type { EvidenceIssueSummary, EvidenceManifest } from "../evidence/evidence-manifest.js";
 import type { ChangeReport } from "./change-report-types.js";
 
 export function readEvidenceReportFiles(manifest: EvidenceManifest): Pick<ChangeReport, "changedFiles" | "untrackedFiles"> {
@@ -27,6 +27,25 @@ export function readEvidenceReportChecks(manifest: EvidenceManifest): ChangeRepo
     return { state: "skipped", failedChecks: [] };
   }
   return { state: "unknown", failedChecks: [] };
+}
+
+export function readEvidenceReportReviewer(manifest: EvidenceManifest): ChangeReport["reviewer"] {
+  const verdict = manifest.reviewer?.verdict;
+  return {
+    verdict: verdict === "PASS" || verdict === "FAIL" ? verdict : "unavailable",
+    blockingIssues: mapIssues(manifest.reviewer?.blockingIssues),
+    nonBlockingIssues: mapIssues(manifest.reviewer?.nonBlockingIssues)
+  };
+}
+
+function mapIssues(issues: EvidenceIssueSummary[] | undefined): Array<{ severity: string; summary: string; files: string[] }> {
+  return (issues ?? [])
+    .map((issue) => ({
+      severity: issue.severity ?? "medium",
+      summary: issue.summary,
+      files: dedupeSort(issue.files ?? [])
+    }))
+    .sort((a, b) => `${a.severity}\u0000${a.summary}`.localeCompare(`${b.severity}\u0000${b.summary}`));
 }
 
 function dedupeSort(values: string[]): string[] {
