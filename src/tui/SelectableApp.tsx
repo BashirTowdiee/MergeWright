@@ -28,7 +28,7 @@ import { formatKeyBinding, TUI_KEY_BINDINGS } from "./keymap.js";
 import { buildLayoutSummary } from "./layout-summary.js";
 import { createInfoNotice, formatNotice, type TuiNotice } from "./notice.js";
 import { closeOverlay, isCommandPaletteOverlayOpen, isHelpOverlayOpen, isOverlayOpen, toggleOverlay, type TuiOverlay } from "./overlay-state.js";
-import { moveSelectionForFocusedPane } from "./navigation-state.js";
+import { getNavigationNoticeForFocusedPane, moveSelectionForFocusedPane } from "./navigation-state.js";
 import { moveSelection } from "./navigation.js";
 import { buildPhaseDetailLines } from "./phase-detail.js";
 import { buildRunContextLines } from "./run-context.js";
@@ -75,6 +75,12 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const phaseDetailLines = buildPhaseDetailLines(selectedPhase);
   const layoutSummary = buildLayoutSummary({ runs: fixture.runs, selectedRun });
   const fileScopeLabel = formatFileScopeLabel({ scope: fileScope, selectedPhase });
+
+  function applyNavigation(direction: "up" | "down") {
+    setSelection((current) => moveSelectionForFocusedPane({ focusedPane, selection: current, counts: navigationCounts, direction }));
+    const message = getNavigationNoticeForFocusedPane(focusedPane);
+    setNotice(message ? createInfoNotice(message) : null);
+  }
 
   useInput((input, key) => {
     if (key.escape) {
@@ -139,21 +145,11 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
     }
 
     if (input === "k" || key.upArrow) {
-      setSelection((current) => moveSelectionForFocusedPane({ focusedPane, selection: current, counts: navigationCounts, direction: "up" }));
-      if (focusedPane === "runs") {
-        setNotice(createInfoNotice("Selected run changed."));
-      } else {
-        setNotice(null);
-      }
+      applyNavigation("up");
       return;
     }
     if (input === "j" || key.downArrow) {
-      setSelection((current) => moveSelectionForFocusedPane({ focusedPane, selection: current, counts: navigationCounts, direction: "down" }));
-      if (focusedPane === "runs") {
-        setNotice(createInfoNotice("Selected run changed."));
-      } else {
-        setNotice(null);
-      }
+      applyNavigation("down");
     }
   });
 
