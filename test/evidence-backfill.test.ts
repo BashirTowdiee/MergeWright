@@ -4,7 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { backfillEvidenceFromRunArtefacts } from "../src/evidence/evidence-backfill.js";
-import { readEvidenceManifest } from "../src/evidence/evidence-store.js";
+import { createEvidenceManifest } from "../src/evidence/evidence-manifest.js";
+import { readEvidenceManifest, writeEvidenceManifest } from "../src/evidence/evidence-store.js";
 
 async function createRunDir(): Promise<string> {
   return mkdtemp(path.join(os.tmpdir(), "evidence-backfill-"));
@@ -78,6 +79,43 @@ test("backfillEvidenceFromRunArtefacts populates manifest from existing artefact
 
     const saved = await readEvidenceManifest(runDir);
     assert.deepEqual(saved, result.manifest);
+  } finally {
+    await rm(runDir, { recursive: true, force: true });
+  }
+});
+
+test("backfillEvidenceFromRunArtefacts backfills unknown existing manifest status from run metadata", async () => {
+  const runDir = await createRunDir();
+  try {
+    await writeEvidenceManifest(
+      runDir,
+      createEvidenceManifest({
+        runId: "run-existing",
+        status: "unknown",
+        workspace: "/workspace/project",
+        startedAt: "2026-05-21T00:00:00.000Z"
+      })
+    );
+    await writeJson(path.join(runDir, "run.json"), {
+      version: 1,
+      runId: "run-existing",
+      projectName: "MergeWright",
+      stageName: "Existing manifest",
+      workspaceRoot: "/workspace/project",
+      startedAt: "2026-05-21T01:00:00.000Z",
+      completedAt: "2026-05-21T01:01:00.000Z",
+      status: "success",
+      artefacts: [],
+      phases: {},
+      resolvedOptions: {},
+      postWriteReview: { required: false, status: "not-required", reason: "none", requiredByPhases: [], artefacts: [] },
+      error: null
+    });
+
+    const result = await backfillEvidenceFromRunArtefacts(runDir, { write: false });
+
+    assert.equal(result.manifest.status, "pass");
+    assert.equal(result.manifest.completedAt, "2026-05-21T01:01:00.000Z");
   } finally {
     await rm(runDir, { recursive: true, force: true });
   }
