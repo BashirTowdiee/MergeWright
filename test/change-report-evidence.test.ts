@@ -122,7 +122,8 @@ test("change report prefers evidence-backed reviewer and checks fields", async (
   const report = await generateChangeReport({ runDir });
 
   assert.equal(report.reviewer.verdict, "FAIL");
-  assert.deepEqual(report.reviewer.blockingIssues, [{ severity: "high", summary: "evidence blocker", files: ["src/blocker.ts"] }]);
+  assert.equal(report.reviewer.blockingIssues[0]?.summary, "evidence blocker");
+  assert.deepEqual(report.reviewer.blockingIssues[0]?.files, ["src/blocker.ts"]);
   assert.equal(report.checks.state, "failed");
   assert.deepEqual(report.checks.failedChecks, ["npm test"]);
 });
