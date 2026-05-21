@@ -8,7 +8,8 @@ import {
   describeCommandPaletteSelection,
   filterCommandPaletteItems,
   formatCommandPaletteLine,
-  getCommandPaletteItems
+  getCommandPaletteItems,
+  previewCommandPaletteSelection
 } from "./command-palette.js";
 import { buildEvidencePreview } from "./evidence-preview.js";
 import { getEmptyStateMessage } from "./empty-state.js";
@@ -50,6 +51,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const selectedArtefact = scopedArtifacts[selectedArtefactIndex];
   const selectedAction = selectedRun.safeActions[selectedActionIndex];
   const selectedFinding = selectedRun.reviewerFindings[selectedFindingIndex];
+  const selectedSafeActionDescription = describeSafeActionIntent(selectedAction);
   const evidenceLines = buildEvidencePreview({
     artefact: selectedArtefact,
     findings: selectedRun.reviewerFindings,
@@ -90,7 +92,11 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
         return;
       }
       if (key.return) {
-        setNotice(createInfoNotice(describeCommandPaletteSelection(selectedCommand)));
+        const result = previewCommandPaletteSelection({
+          item: selectedCommand,
+          context: { selectedSafeActionDescription, currentFileScope: fileScope }
+        });
+        setNotice(createInfoNotice(result.message));
         return;
       }
       const nextQuery = appendCommandPaletteQuery(commandPaletteQuery, input);
@@ -107,7 +113,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       return;
     }
     if (key.return && focusedPane === "actions") {
-      setNotice(createInfoNotice(describeSafeActionIntent(selectedAction)));
+      setNotice(createInfoNotice(selectedSafeActionDescription));
       return;
     }
     if (input === "\t" || key.tab) {
