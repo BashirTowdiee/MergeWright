@@ -2,7 +2,7 @@ import { readFile, stat } from "node:fs/promises";
 import { readEvidenceManifestIfExists } from "../evidence/evidence-store.js";
 import { parseReviewerOutput, type ReviewerIssue } from "../reviewer-output.js";
 import type { ChecksStatus, ChangeReport, OptionalJsonResult, RunMetadataWithAutoChain, WriteAuditSummary } from "./change-report-types.js";
-import { readEvidenceReportFiles, readEvidenceReportSummary } from "./evidence-report-adapter.js";
+import { readEvidenceReportChecks, readEvidenceReportFiles, readEvidenceReportSummary } from "./evidence-report-adapter.js";
 
 export async function collectReportInputs(runDir: string): Promise<{
   run: RunMetadataWithAutoChain | null;
@@ -42,7 +42,9 @@ export async function collectReportInputs(runDir: string): Promise<{
   ]);
 
   const reviewer = await parseReviewer(`${runDir}/reviewer-output-last-message.md`);
-  const checksResult = await parseChecks(`${runDir}/checks-status.json`);
+  const checksResult = evidenceManifest?.checks
+    ? { ...readEvidenceReportChecks(evidenceManifest), malformed: false }
+    : await parseChecks(`${runDir}/checks-status.json`);
 
   return {
     run,
