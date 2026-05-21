@@ -34,8 +34,8 @@ async function createRunFixture(): Promise<string> {
           executeFix: false,
           runChecks: true
         },
-        writeSafety: { state: "passed", allowWrites: true },
-        postWriteReview: { required: false, status: "completed" },
+        writeSafety: { state: "unknown", allowWrites: true },
+        postWriteReview: { required: false, status: "unknown" },
         phases: {},
         artefacts: [],
         error: null
@@ -80,4 +80,28 @@ test("change report includes changed and untracked files from evidence manifest"
 
   assert.deepEqual(report.changedFiles, ["src/from-audit.ts", "src/from-evidence.ts"]);
   assert.deepEqual(report.untrackedFiles, ["tmp/from-audit.txt", "tmp/from-evidence.txt"]);
+});
+
+test("change report prefers evidence-backed safety and risk fields", async () => {
+  const runDir = await createRunFixture();
+  const manifest = createEvidenceManifest({ runId: "run-123", workspace: "/tmp/workspace" });
+  await writeEvidenceManifest(runDir, {
+    ...manifest,
+    git: {
+      ...manifest.git,
+      changedFiles: ["src/from-evidence.ts"],
+      untrackedFiles: [],
+      unexpectedFiles: []
+    },
+    writeSafety: { status: "passed", warnings: [] },
+    postWriteReview: { status: "passed" },
+    risk: { level: "high", reasons: ["evidence risk"] }
+  });
+
+  const report = await generateChangeReport({ runDir });
+
+  assert.equal(report.writeSafety.state, "passed");
+  assert.deepEqual(report.postWriteReview, { required: true, status: "passed" });
+  assert.equal(report.risk, "high");
+  assert.ok(report.riskSignals.includes("evidence risk"));
 });
