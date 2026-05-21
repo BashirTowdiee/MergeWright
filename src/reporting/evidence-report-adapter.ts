@@ -38,6 +38,18 @@ export function readEvidenceReportReviewer(manifest: EvidenceManifest): ChangeRe
   };
 }
 
+export function readEvidenceReportWriteSafety(manifest: EvidenceManifest): ChangeReport["writeSafety"] {
+  return { state: manifest.writeSafety?.status ?? "unknown" };
+}
+
+export function readEvidenceReportPostWriteReview(manifest: EvidenceManifest): ChangeReport["postWriteReview"] {
+  const status = manifest.postWriteReview?.status ?? "missing";
+  return {
+    required: status !== "missing",
+    status
+  };
+}
+
 function mapIssues(issues: EvidenceIssueSummary[] | undefined): Array<{ severity: string; summary: string; files: string[] }> {
   return (issues ?? [])
     .map((issue) => ({
