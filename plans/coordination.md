@@ -161,3 +161,54 @@ CI status:
 
 Next action:
 - Re-check CI on the updated PR 64 head, then merge if green.
+
+## 2026-05-21T07:15:00Z
+
+Item: EvidenceReviewPane implementation slice.
+
+Scan:
+- Planning workspace exists.
+- Open PRs before work: none.
+- Latest merged PR: 64 Extract TUI artifact list pane.
+
+Touched files:
+- src/tui/panes/EvidenceReviewPane.tsx
+- src/tui/SelectableApp.tsx
+- plans/coordination.md
+- plans/workers/chatgpt.md
+
+PR:
+- To be opened.
+
+CI status:
+- Not run yet.
+
+Next action:
+- Open PR and check CI.
+
+## 2026-05-21T07:30:00Z
+
+Item: PR 65 merge-ready check.
+
+Scan:
+- Planning workspace exists.
+- Open PR: 65 Extract TUI evidence review pane.
+- CI: success on commit d00fe59a5c4016c0fb85e4539f010835f39cb81b.
+- PR state: open and mergeable.
+
+Touched files:
+- plans/coordination.md
+- plans/workers/chatgpt.md
+
+PR:
+- 65
+
+CI status:
+- Success before this planning update.
+- Re-check required after this planning update.
+
+Blockers:
+- None.
+
+Next action:
+- Re-check CI on the updated PR 65 head, then merge if green.
