@@ -11,7 +11,13 @@ export function parseCommandPositionals(argv: string[], parsed: ParsedArgs): Com
     parsed.stageName = firstArg && !firstArg.startsWith("-") ? firstArg : undefined;
   } else if (command === "init-project") {
     parsed.projectName = firstArg && !firstArg.startsWith("-") ? firstArg : undefined;
-  } else if (command === "show-run" || command === "open-run" || command === "continue-run" || command === "report-run") {
+  } else if (
+    command === "show-run" ||
+    command === "open-run" ||
+    command === "continue-run" ||
+    command === "report-run" ||
+    command === "backfill-evidence"
+  ) {
     parsed.runId = firstArg && !firstArg.startsWith("-") ? firstArg : undefined;
   } else if (command === "run-stage" || command === "accept-stage" || command === "fix-stage") {
     parsed.stageId = firstArg && !firstArg.startsWith("-") ? firstArg : undefined;
@@ -22,7 +28,11 @@ export function parseCommandPositionals(argv: string[], parsed: ParsedArgs): Com
       ? firstArg && firstArg.startsWith("-")
         ? [firstArg, ...tail]
         : tail
-      : command === "show-run" || command === "open-run" || command === "continue-run" || command === "report-run"
+      : command === "show-run" ||
+          command === "open-run" ||
+          command === "continue-run" ||
+          command === "report-run" ||
+          command === "backfill-evidence"
         ? firstArg && firstArg.startsWith("-")
           ? [firstArg, ...tail]
           : tail

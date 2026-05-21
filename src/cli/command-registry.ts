@@ -1,4 +1,5 @@
 import type { CommandHandler } from "./command-context.js";
+import { handleBackfillEvidenceCommand } from "./commands/backfill-evidence.command.js";
 import { handleInitProjectCommand } from "./commands/init-project.command.js";
 import { handleImportStagePlanCommand } from "./commands/import-stage-plan.command.js";
 import { handleProbeOpenCodeCommand } from "./commands/probe-opencode.command.js";
@@ -23,6 +24,7 @@ export const commandHandlers = {
   "import-stage-plan": handleImportStagePlanCommand,
   "probe-opencode": handleProbeOpenCodeCommand,
   "check-write-safety": handleCheckWriteSafetyCommand,
+  "backfill-evidence": handleBackfillEvidenceCommand,
   "run": handleRunCommand,
   "continue-run": handleContinueRunCommand,
   "list-runs": handleListRunsCommand,
