@@ -69,10 +69,10 @@ export function readEvidenceReportRisk(manifest: EvidenceManifest): Pick<ChangeR
   };
 }
 
-function mapIssues(issues: EvidenceIssueSummary[] | undefined): Array<{ severity: string; summary: string; files: string[] }> {
+function mapIssues(issues: EvidenceIssueSummary[] | undefined): NonNullable<ChangeReport["reviewer"]>["blockingIssues"] {
   return (issues ?? [])
     .map((issue) => ({
-      severity: issue.severity ?? "medium",
+      severity: issue.severity,
       summary: issue.summary,
       files: dedupeSort(issue.files ?? [])
     }))
