@@ -28,6 +28,7 @@ import { formatKeyBinding, TUI_KEY_BINDINGS } from "./keymap.js";
 import { buildLayoutSummary } from "./layout-summary.js";
 import { createInfoNotice, formatNotice, type TuiNotice } from "./notice.js";
 import { closeOverlay, isCommandPaletteOverlayOpen, isHelpOverlayOpen, isOverlayOpen, toggleOverlay, type TuiOverlay } from "./overlay-state.js";
+import { getNavigationDirection } from "./navigation-keys.js";
 import { getNavigationNoticeForFocusedPane, moveSelectionForFocusedPane } from "./navigation-state.js";
 import { moveSelection } from "./navigation.js";
 import { buildPhaseDetailLines } from "./phase-detail.js";
@@ -107,12 +108,9 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
         setCommandPaletteState((current) => updateCommandPaletteQuery(current, backspaceCommandPaletteQuery(current.query)));
         return;
       }
-      if (input === "k" || key.upArrow) {
-        setCommandPaletteState((current) => updateCommandPaletteSelectedIndex(current, moveSelection({ currentIndex: current.selectedIndex, itemCount: filteredCommandItems.length, direction: "up" })));
-        return;
-      }
-      if (input === "j" || key.downArrow) {
-        setCommandPaletteState((current) => updateCommandPaletteSelectedIndex(current, moveSelection({ currentIndex: current.selectedIndex, itemCount: filteredCommandItems.length, direction: "down" })));
+      const paletteDirection = getNavigationDirection(input, key);
+      if (paletteDirection) {
+        setCommandPaletteState((current) => updateCommandPaletteSelectedIndex(current, moveSelection({ currentIndex: current.selectedIndex, itemCount: filteredCommandItems.length, direction: paletteDirection })));
         return;
       }
       if (key.return) {
@@ -144,12 +142,9 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       return;
     }
 
-    if (input === "k" || key.upArrow) {
-      applyNavigation("up");
-      return;
-    }
-    if (input === "j" || key.downArrow) {
-      applyNavigation("down");
+    const direction = getNavigationDirection(input, key);
+    if (direction) {
+      applyNavigation(direction);
     }
   });
 
