@@ -33,6 +33,11 @@ export function buildEvidencePreview(input: {
 }
 
 export function createEvidenceSnippet(input: { artefactId: string; content: string; maxLines?: number; maxLineLength?: number }): EvidenceSnippet {
+  const evidenceLines = createEvidenceManifestSummary(input.content);
+  if (evidenceLines) {
+    return { artefactId: input.artefactId, lines: evidenceLines };
+  }
+
   const maxLines = input.maxLines ?? 8;
   const maxLineLength = input.maxLineLength ?? 120;
   const lines = input.content
@@ -40,6 +45,58 @@ export function createEvidenceSnippet(input: { artefactId: string; content: stri
     .slice(0, maxLines)
     .map((line) => truncateLine(line, maxLineLength));
   return { artefactId: input.artefactId, lines };
+}
+
+function createEvidenceManifestSummary(content: string): string[] | null {
+  try {
+    const parsed = JSON.parse(content) as unknown;
+    if (!isEvidenceManifestLike(parsed)) {
+      return null;
+    }
+    const lines = [
+      `Evidence status: ${parsed.status}`,
+      `Run: ${parsed.runId}`,
+      `Stage: ${parsed.stageName ?? "unknown"}`,
+      `Workspace: ${parsed.workspace ?? "unknown"}`,
+      `Commands: ${parsed.commands.length}`,
+      `Artefacts: ${parsed.artefacts.length}`
+    ];
+    if (typeof parsed.completedAt === "string") {
+      lines.splice(1, 0, `Completed at: ${parsed.completedAt}`);
+    }
+    return lines;
+  } catch {
+    return null;
+  }
+}
+
+function isEvidenceManifestLike(value: unknown): value is {
+  version: 1;
+  runId: string;
+  status: string;
+  stageName?: string | null;
+  workspace?: string | null;
+  completedAt?: string;
+  commands: unknown[];
+  artefacts: unknown[];
+} {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const candidate = value as {
+    version?: unknown;
+    runId?: unknown;
+    status?: unknown;
+    commands?: unknown;
+    artefacts?: unknown;
+  };
+  return (
+    candidate.version === 1 &&
+    typeof candidate.runId === "string" &&
+    typeof candidate.status === "string" &&
+    Array.isArray(candidate.commands) &&
+    Array.isArray(candidate.artefacts)
+  );
 }
 
 function truncateLine(line: string, maxLength: number): string {
