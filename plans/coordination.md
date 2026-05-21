@@ -48,3 +48,30 @@ Blockers:
 
 Next action:
 - Merge PR 61 manually, or retry merge after checking CI on the updated head.
+
+## 2026-05-21T06:25:00Z
+
+Item: PR 62 merge-ready check.
+
+Scan:
+- Planning workspace exists.
+- Open PR: 62 Extract TUI current run pane.
+- CI: success on commit 8032c42ec42c3343ebc957318318bb772d8a0c49.
+- PR state: open and mergeable.
+
+Touched files:
+- plans/coordination.md
+- plans/workers/chatgpt.md
+
+PR:
+- 62
+
+CI status:
+- Success before this planning update.
+- Re-check required after this planning update.
+
+Blockers:
+- None.
+
+Next action:
+- Re-check CI on the updated PR 62 head, then merge if green.
