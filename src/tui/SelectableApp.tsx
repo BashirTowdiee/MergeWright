@@ -24,6 +24,7 @@ import { buildFindingDetailLines } from "./finding-detail.js";
 import { formatFileScopeLabel, resolveScopedFiles, toggleFileScope, type FileScope } from "./file-scope.js";
 import { buildFocusBreadcrumb } from "./focus-breadcrumb.js";
 import { getFocusedPaneTitle, moveFocus, type FocusedPane } from "./focus.js";
+import { useRuns } from "./hooks/useRuns.js";
 import { formatKeyBinding, TUI_KEY_BINDINGS } from "./keymap.js";
 import { buildLayoutSummary } from "./layout-summary.js";
 import { createInfoNotice, formatNotice, type TuiNotice } from "./notice.js";
@@ -31,6 +32,7 @@ import { closeOverlay, isCommandPaletteOverlayOpen, isHelpOverlayOpen, isOverlay
 import { getNavigationDirection } from "./navigation-keys.js";
 import { getNavigationNoticeForFocusedPane, moveSelectionForFocusedPane } from "./navigation-state.js";
 import { moveSelection } from "./navigation.js";
+import { RunListPane } from "./panes/RunListPane.js";
 import { buildPhaseDetailLines } from "./phase-detail.js";
 import { buildRunContextLines } from "./run-context.js";
 import { buildRunWarningLines } from "./run-warnings.js";
@@ -44,13 +46,14 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [commandPaletteState, setCommandPaletteState] = useState(createClosedCommandPaletteState());
   const [notice, setNotice] = useState<TuiNotice | null>(createInfoNotice("TUI is read-only. Actions are previews only."));
   const [selection, setSelection] = useState(createInitialSelectionState());
+  const runs = useRuns({ runs: fixture.runs });
   const commandItems = getCommandPaletteItems();
   const filteredCommandItems = filterCommandPaletteItems(commandItems, commandPaletteState.query);
   const selectedCommand = filteredCommandItems[commandPaletteState.selectedIndex];
   const selectedRun = useMemo(() => {
-    const run = fixture.runs[selection.runIndex];
+    const run = runs[selection.runIndex];
     return run ? fixture.runDetailsById[run.id] ?? fixture.selectedRun : fixture.selectedRun;
-  }, [fixture, selection.runIndex]);
+  }, [fixture, runs, selection.runIndex]);
   const selectedPhase = selectedRun.phases[selection.phaseIndex];
   const scopedArtifacts = resolveScopedFiles({ scope: fileScope, files: selectedRun.artefacts, selectedPhase });
   const selectedArtefact = scopedArtifacts[selection.fileIndex];
@@ -58,7 +61,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const selectedFinding = selectedRun.reviewerFindings[selection.findingIndex];
   const selectedSafeActionDescription = describeSafeActionIntent(selectedAction);
   const navigationCounts = {
-    runs: fixture.runs.length,
+    runs: runs.length,
     phases: selectedRun.phases.length,
     actions: selectedRun.safeActions.length,
     files: scopedArtifacts.length,
@@ -74,7 +77,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const runContextLines = buildRunContextLines(selectedRun);
   const runWarningLines = buildRunWarningLines(selectedRun.warnings);
   const phaseDetailLines = buildPhaseDetailLines(selectedPhase);
-  const layoutSummary = buildLayoutSummary({ runs: fixture.runs, selectedRun });
+  const layoutSummary = buildLayoutSummary({ runs, selectedRun });
   const fileScopeLabel = formatFileScopeLabel({ scope: fileScope, selectedPhase });
 
   function applyNavigation(direction: "up" | "down") {
@@ -168,17 +171,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
         <Text dimColor>{focusBreadcrumb}</Text>
       </Box>
       <Box flexDirection="row" marginTop={1}>
-        <Box flexDirection="column" width={30} borderStyle="round" paddingX={1} marginRight={1}>
-          <Text bold>{getFocusedPaneTitle("Runs", focusedPane === "runs")}</Text>
-          {fixture.runs.length === 0 ? <Text dimColor>{getEmptyStateMessage("runs")}</Text> : fixture.runs.map((run, index) => (
-            <Box key={run.id} flexDirection="column" marginBottom={1}>
-              <Text inverse={focusedPane === "runs" && index === selection.runIndex}>
-                {index === selection.runIndex ? ">" : " "} {getStatusSymbol(run.status)} {run.title}
-              </Text>
-              <Text dimColor>   {run.subtitle}</Text>
-            </Box>
-          ))}
-        </Box>
+        <RunListPane runs={runs} selectedRunIndex={selection.runIndex} focused={focusedPane === "runs"} title={getFocusedPaneTitle("Runs", focusedPane === "runs")} />
         <Box flexDirection="column" width={52} borderStyle="round" paddingX={1} marginRight={1}>
           <Text bold>Current run</Text>
           <Text bold>{selectedRun.title}</Text>
