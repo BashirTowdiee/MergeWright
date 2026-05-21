@@ -1,6 +1,14 @@
 export type EvidenceManifestStatus = "in_progress" | "needs_review" | "needs_fix" | "pass" | "fail";
 export type EvidenceCommandStatus = "passed" | "failed" | "skipped";
 
+const EVIDENCE_MANIFEST_STATUSES = new Set<EvidenceManifestStatus>([
+  "in_progress",
+  "needs_review",
+  "needs_fix",
+  "pass",
+  "fail"
+]);
+
 export interface EvidenceCommand {
   id: string;
   label: string;
@@ -74,10 +82,9 @@ export interface CreateEvidenceManifestInput {
 }
 
 export function createEvidenceManifest(input: CreateEvidenceManifestInput): EvidenceManifest {
-  return {
+  const manifest: EvidenceManifest = {
     version: 1,
     runId: input.runId,
-    stageId: input.stageId,
     status: input.status ?? "in_progress",
     workspace: input.workspace,
     startedAt: toIsoString(input.startedAt ?? new Date()),
@@ -88,12 +95,21 @@ export function createEvidenceManifest(input: CreateEvidenceManifestInput): Evid
     commands: [],
     artefacts: []
   };
+
+  if (input.stageId !== undefined) {
+    manifest.stageId = input.stageId;
+  }
+
+  return manifest;
 }
 
 export function appendEvidenceCommand(manifest: EvidenceManifest, command: EvidenceCommand): EvidenceManifest {
+  const commands = manifest.commands.filter((existing) => existing.id !== command.id);
+  commands.push(command);
+  commands.sort((a, b) => a.id.localeCompare(b.id));
   return {
     ...manifest,
-    commands: [...manifest.commands.filter((existing) => existing.id !== command.id), command].sort((a, b) => a.id.localeCompare(b.id))
+    commands
   };
 }
 
@@ -112,16 +128,20 @@ export function isEvidenceManifest(value: unknown): value is EvidenceManifest {
   if (!value || typeof value !== "object") {
     return false;
   }
+
   const candidate = value as Partial<EvidenceManifest>;
+  const git = candidate.git;
+
   return (
     candidate.version === 1 &&
     typeof candidate.runId === "string" &&
-    typeof candidate.status === "string" &&
+    isEvidenceManifestStatus(candidate.status) &&
     typeof candidate.workspace === "string" &&
     typeof candidate.startedAt === "string" &&
-    !!candidate.git &&
-    Array.isArray(candidate.git.changedFiles) &&
-    Array.isArray(candidate.git.unexpectedFiles) &&
+    !!git &&
+    typeof git === "object" &&
+    Array.isArray(git.changedFiles) &&
+    Array.isArray(git.unexpectedFiles) &&
     Array.isArray(candidate.commands) &&
     Array.isArray(candidate.artefacts)
   );
@@ -132,6 +152,10 @@ function normalizeArtefact(artefact: EvidenceArtefact): EvidenceArtefact {
     ...artefact,
     path: artefact.path.replace(/\\/g, "/").replace(/^\.\//, "")
   };
+}
+
+function isEvidenceManifestStatus(value: unknown): value is EvidenceManifestStatus {
+  return typeof value === "string" && EVIDENCE_MANIFEST_STATUSES.has(value as EvidenceManifestStatus);
 }
 
 function toIsoString(value: Date | string): string {
