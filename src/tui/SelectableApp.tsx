@@ -32,6 +32,15 @@ import { moveSelection } from "./navigation.js";
 import { buildPhaseDetailLines } from "./phase-detail.js";
 import { buildRunContextLines } from "./run-context.js";
 import { buildRunWarningLines } from "./run-warnings.js";
+import {
+  createInitialSelectionState,
+  resetFileSelection,
+  selectAction,
+  selectFile,
+  selectFinding,
+  selectPhase,
+  selectRun
+} from "./selection-state.js";
 import type { TuiSpikeFixture } from "./spike-fixture.js";
 
 export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
@@ -40,23 +49,19 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [overlay, setOverlay] = useState<TuiOverlay>("none");
   const [commandPaletteState, setCommandPaletteState] = useState(createClosedCommandPaletteState());
   const [notice, setNotice] = useState<TuiNotice | null>(createInfoNotice("TUI is read-only. Actions are previews only."));
-  const [selectedRunIndex, setSelectedRunIndex] = useState(0);
-  const [selectedPhaseIndex, setSelectedPhaseIndex] = useState(0);
-  const [selectedActionIndex, setSelectedActionIndex] = useState(0);
-  const [selectedArtefactIndex, setSelectedArtefactIndex] = useState(0);
-  const [selectedFindingIndex, setSelectedFindingIndex] = useState(0);
+  const [selection, setSelection] = useState(createInitialSelectionState());
   const commandItems = getCommandPaletteItems();
   const filteredCommandItems = filterCommandPaletteItems(commandItems, commandPaletteState.query);
   const selectedCommand = filteredCommandItems[commandPaletteState.selectedIndex];
   const selectedRun = useMemo(() => {
-    const run = fixture.runs[selectedRunIndex];
+    const run = fixture.runs[selection.runIndex];
     return run ? fixture.runDetailsById[run.id] ?? fixture.selectedRun : fixture.selectedRun;
-  }, [fixture, selectedRunIndex]);
-  const selectedPhase = selectedRun.phases[selectedPhaseIndex];
+  }, [fixture, selection.runIndex]);
+  const selectedPhase = selectedRun.phases[selection.phaseIndex];
   const scopedArtifacts = resolveScopedFiles({ scope: fileScope, files: selectedRun.artefacts, selectedPhase });
-  const selectedArtefact = scopedArtifacts[selectedArtefactIndex];
-  const selectedAction = selectedRun.safeActions[selectedActionIndex];
-  const selectedFinding = selectedRun.reviewerFindings[selectedFindingIndex];
+  const selectedArtefact = scopedArtifacts[selection.fileIndex];
+  const selectedAction = selectedRun.safeActions[selection.actionIndex];
+  const selectedFinding = selectedRun.reviewerFindings[selection.findingIndex];
   const selectedSafeActionDescription = describeSafeActionIntent(selectedAction);
   const evidenceLines = buildEvidencePreview({
     artefact: selectedArtefact,
@@ -120,7 +125,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
     }
     if (input === "s") {
       setFileScope((current) => toggleFileScope(current));
-      setSelectedArtefactIndex(0);
+      setSelection((current) => resetFileSelection(current));
       setNotice(createInfoNotice("File scope changed."));
       return;
     }
@@ -134,53 +139,43 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
     }
 
     if (focusedPane === "runs" && (input === "k" || key.upArrow)) {
-      setSelectedRunIndex((currentIndex) => moveSelection({ currentIndex, itemCount: fixture.runs.length, direction: "up" }));
-      setSelectedPhaseIndex(0);
-      setSelectedActionIndex(0);
-      setSelectedArtefactIndex(0);
-      setSelectedFindingIndex(0);
+      setSelection((current) => selectRun(current, moveSelection({ currentIndex: current.runIndex, itemCount: fixture.runs.length, direction: "up" })));
       setNotice(createInfoNotice("Selected run changed."));
     }
     if (focusedPane === "runs" && (input === "j" || key.downArrow)) {
-      setSelectedRunIndex((currentIndex) => moveSelection({ currentIndex, itemCount: fixture.runs.length, direction: "down" }));
-      setSelectedPhaseIndex(0);
-      setSelectedActionIndex(0);
-      setSelectedArtefactIndex(0);
-      setSelectedFindingIndex(0);
+      setSelection((current) => selectRun(current, moveSelection({ currentIndex: current.runIndex, itemCount: fixture.runs.length, direction: "down" })));
       setNotice(createInfoNotice("Selected run changed."));
     }
     if (focusedPane === "phases" && (input === "k" || key.upArrow)) {
-      setSelectedPhaseIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.phases.length, direction: "up" }));
-      setSelectedArtefactIndex(0);
+      setSelection((current) => selectPhase(current, moveSelection({ currentIndex: current.phaseIndex, itemCount: selectedRun.phases.length, direction: "up" })));
       setNotice(null);
     }
     if (focusedPane === "phases" && (input === "j" || key.downArrow)) {
-      setSelectedPhaseIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.phases.length, direction: "down" }));
-      setSelectedArtefactIndex(0);
+      setSelection((current) => selectPhase(current, moveSelection({ currentIndex: current.phaseIndex, itemCount: selectedRun.phases.length, direction: "down" })));
       setNotice(null);
     }
     if (focusedPane === "actions" && (input === "k" || key.upArrow)) {
-      setSelectedActionIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.safeActions.length, direction: "up" }));
+      setSelection((current) => selectAction(current, moveSelection({ currentIndex: current.actionIndex, itemCount: selectedRun.safeActions.length, direction: "up" })));
       setNotice(null);
     }
     if (focusedPane === "actions" && (input === "j" || key.downArrow)) {
-      setSelectedActionIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.safeActions.length, direction: "down" }));
+      setSelection((current) => selectAction(current, moveSelection({ currentIndex: current.actionIndex, itemCount: selectedRun.safeActions.length, direction: "down" })));
       setNotice(null);
     }
     if (focusedPane === "artefacts" && (input === "k" || key.upArrow)) {
-      setSelectedArtefactIndex((currentIndex) => moveSelection({ currentIndex, itemCount: scopedArtifacts.length, direction: "up" }));
+      setSelection((current) => selectFile(current, moveSelection({ currentIndex: current.fileIndex, itemCount: scopedArtifacts.length, direction: "up" })));
       setNotice(null);
     }
     if (focusedPane === "artefacts" && (input === "j" || key.downArrow)) {
-      setSelectedArtefactIndex((currentIndex) => moveSelection({ currentIndex, itemCount: scopedArtifacts.length, direction: "down" }));
+      setSelection((current) => selectFile(current, moveSelection({ currentIndex: current.fileIndex, itemCount: scopedArtifacts.length, direction: "down" })));
       setNotice(null);
     }
     if (focusedPane === "findings" && (input === "k" || key.upArrow)) {
-      setSelectedFindingIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.reviewerFindings.length, direction: "up" }));
+      setSelection((current) => selectFinding(current, moveSelection({ currentIndex: current.findingIndex, itemCount: selectedRun.reviewerFindings.length, direction: "up" })));
       setNotice(null);
     }
     if (focusedPane === "findings" && (input === "j" || key.downArrow)) {
-      setSelectedFindingIndex((currentIndex) => moveSelection({ currentIndex, itemCount: selectedRun.reviewerFindings.length, direction: "down" }));
+      setSelection((current) => selectFinding(current, moveSelection({ currentIndex: current.findingIndex, itemCount: selectedRun.reviewerFindings.length, direction: "down" })));
       setNotice(null);
     }
   });
@@ -209,8 +204,8 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
           <Text bold>{getFocusedPaneTitle("Runs", focusedPane === "runs")}</Text>
           {fixture.runs.length === 0 ? <Text dimColor>{getEmptyStateMessage("runs")}</Text> : fixture.runs.map((run, index) => (
             <Box key={run.id} flexDirection="column" marginBottom={1}>
-              <Text inverse={focusedPane === "runs" && index === selectedRunIndex}>
-                {index === selectedRunIndex ? ">" : " "} {getStatusSymbol(run.status)} {run.title}
+              <Text inverse={focusedPane === "runs" && index === selection.runIndex}>
+                {index === selection.runIndex ? ">" : " "} {getStatusSymbol(run.status)} {run.title}
               </Text>
               <Text dimColor>   {run.subtitle}</Text>
             </Box>
@@ -235,7 +230,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
           <Box flexDirection="column" marginTop={1}>
             <Text bold>{getFocusedPaneTitle("Phase flow", focusedPane === "phases")}</Text>
             {selectedRun.phases.length === 0 ? <Text dimColor>{getEmptyStateMessage("phases")}</Text> : selectedRun.phases.map((phase, index) => (
-              <Text key={phase.id} inverse={focusedPane === "phases" && index === selectedPhaseIndex}>{index === selectedPhaseIndex ? ">" : " "} {getStatusSymbol(phase.status)} {phase.label}</Text>
+              <Text key={phase.id} inverse={focusedPane === "phases" && index === selection.phaseIndex}>{index === selection.phaseIndex ? ">" : " "} {getStatusSymbol(phase.status)} {phase.label}</Text>
             ))}
           </Box>
           <Box flexDirection="column" marginTop={1}>
@@ -249,7 +244,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
           <Text bold>{getFocusedPaneTitle("Safe action", focusedPane === "actions")}</Text>
           <Text>{selectedRun.blockedReason ?? "No blocker recorded."}</Text>
           {selectedRun.safeActions.length === 0 ? <Text dimColor>{getEmptyStateMessage("actions")}</Text> : selectedRun.safeActions.map((action, index) => (
-            <Text key={action.id} inverse={focusedPane === "actions" && index === selectedActionIndex}>{index === selectedActionIndex ? ">" : " "} {action.enabled ? "ok" : "blocked"} {action.label}</Text>
+            <Text key={action.id} inverse={focusedPane === "actions" && index === selection.actionIndex}>{index === selection.actionIndex ? ">" : " "} {action.enabled ? "ok" : "blocked"} {action.label}</Text>
           ))}
           {selectedAction ? <Text dimColor>Selected: {selectedAction.label}{selectedAction.blockedReason ? ` - ${selectedAction.blockedReason}` : ""}</Text> : null}
         </Box>
@@ -258,7 +253,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
         <Box flexDirection="column" width={46} borderStyle="round" paddingX={1} marginRight={1}>
           <Text bold>{getFocusedPaneTitle(fileScopeLabel, focusedPane === "artefacts")}</Text>
           {scopedArtifacts.length === 0 ? <Text dimColor>{getEmptyStateMessage("artefacts")}</Text> : scopedArtifacts.map((artefact, index) => (
-            <Text key={artefact.id} inverse={focusedPane === "artefacts" && index === selectedArtefactIndex}>{index === selectedArtefactIndex ? ">" : " "} {artefact.kind.padEnd(8)} {artefact.title}</Text>
+            <Text key={artefact.id} inverse={focusedPane === "artefacts" && index === selection.fileIndex}>{index === selection.fileIndex ? ">" : " "} {artefact.kind.padEnd(8)} {artefact.title}</Text>
           ))}
         </Box>
         <Box flexDirection="column" width={80} borderStyle="round" paddingX={1}>
@@ -269,7 +264,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
           <Box marginTop={1}>
             <Text bold>{getFocusedPaneTitle("Review findings", focusedPane === "findings")}</Text>
             {selectedRun.reviewerFindings.length === 0 ? <Text dimColor>{getEmptyStateMessage("findings")}</Text> : selectedRun.reviewerFindings.map((finding, index) => (
-              <Text key={`${finding.severity}-${index}`} inverse={focusedPane === "findings" && index === selectedFindingIndex}>{index === selectedFindingIndex ? ">" : " "} {finding.severity.toUpperCase()}: {finding.message}</Text>
+              <Text key={`${finding.severity}-${index}`} inverse={focusedPane === "findings" && index === selection.findingIndex}>{index === selection.findingIndex ? ">" : " "} {finding.severity.toUpperCase()}: {finding.message}</Text>
             ))}
           </Box>
           <Box marginTop={1}>
