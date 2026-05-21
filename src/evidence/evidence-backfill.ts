@@ -74,7 +74,7 @@ export async function backfillEvidenceFromRunArtefacts(
     workspace: manifest.workspace ?? run?.workspaceRoot ?? null,
     startedAt: manifest.startedAt || run?.startedAt || new Date(0).toISOString(),
     completedAt: manifest.completedAt ?? run?.completedAt ?? undefined,
-    status: manifest.status === "in_progress" && run?.status ? mapRunStatus(run.status) : manifest.status,
+    status: run?.status && (manifest.status === "in_progress" || manifest.status === "unknown") ? mapRunStatus(run.status) : manifest.status,
     git: {
       ...manifest.git,
       changedFiles,
