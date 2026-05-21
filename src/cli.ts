@@ -186,6 +186,22 @@ function renderHelpText(command?: string): string {
     ].join("\n");
   }
 
+  if (command === "backfill-evidence") {
+    return [
+      "Usage: agent-stage backfill-evidence <run-id> --config <config-path> [--dry-run] [--verbose]",
+      "",
+      "Backfills evidence.json for an existing run from existing run artefacts.",
+      "  --config <config-path>   Required. No implicit default is used.",
+      "  --dry-run                Preview the evidence manifest without writing evidence.json.",
+      "",
+      "Notes:",
+      "  - Does not execute Codex.",
+      "  - Does not run checks.",
+      "  - Does not mutate target workspace.",
+      "  - Writes only evidence.json inside the selected run directory unless --dry-run is used."
+    ].join("\n");
+  }
+
   if (command === "init-project") {
     return [
       "Usage: agent-stage init-project <name> --workspace <path> [--force] [--verbose]",
@@ -375,6 +391,7 @@ function renderHelpText(command?: string): string {
     "  show-run <run-id> --config <config-path>",
     "  open-run <run-id> --config <config-path>",
     "  report-run <run-id> --config <config-path> [--json] [--pr-summary] [--stdout-only] [--force] [--verbose]",
+    "  backfill-evidence <run-id> --config <config-path> [--dry-run] [--verbose]",
     "  init-project <name> --workspace <path> [--force] [--verbose]",
     "  check-write-safety --config <config-path>",
     "  probe-opencode [--config <config-path>] [--backend <name>] [--command <command>] [--json] [--validate-readonly-contract]",
