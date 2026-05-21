@@ -84,6 +84,29 @@ test("backfillEvidenceFromRunArtefacts populates manifest from existing artefact
   }
 });
 
+test("backfillEvidenceFromRunArtefacts backfills failed checks from existing artefacts", async () => {
+  const runDir = await createRunDir();
+  try {
+    await writeJson(path.join(runDir, "checks-status.json"), {
+      state: "failed",
+      failedChecks: ["npm test"],
+      failures: ["npm run lint"],
+      error: "npm run build"
+    });
+
+    const result = await backfillEvidenceFromRunArtefacts(runDir, { write: false });
+
+    assert.deepEqual(result.manifest.checks, {
+      status: "failed",
+      failed: ["npm run build", "npm run lint", "npm test"],
+      skipped: []
+    });
+    assert.deepEqual(result.diagnostics.malformedArtefacts, []);
+  } finally {
+    await rm(runDir, { recursive: true, force: true });
+  }
+});
+
 test("backfillEvidenceFromRunArtefacts backfills unknown existing manifest status from run metadata", async () => {
   const runDir = await createRunDir();
   try {
