@@ -212,3 +212,55 @@ Blockers:
 
 Next action:
 - Re-check CI on the updated PR 65 head, then merge if green.
+
+## 2026-05-21T07:40:00Z
+
+Item: TUI overlay extraction slice.
+
+Scan:
+- Planning workspace exists.
+- Open PRs before work: none.
+- Latest merged PR: 65 Extract TUI evidence review pane.
+
+Touched files:
+- src/tui/overlays/HelpOverlay.tsx
+- src/tui/overlays/CommandPalettePreview.tsx
+- src/tui/SelectableApp.tsx
+- plans/coordination.md
+- plans/workers/chatgpt.md
+
+PR:
+- To be opened.
+
+CI status:
+- Not run yet.
+
+Next action:
+- Open PR and check CI.
+
+## 2026-05-21T08:05:00Z
+
+Item: PR 66 merge-ready check.
+
+Scan:
+- Planning workspace exists.
+- Open PR: 66 Extract TUI overlay components.
+- CI: success on commit 39b88a5f7eda1b18325508894b21320a0d6612e6.
+- PR state: open and mergeable.
+
+Touched files:
+- plans/coordination.md
+- plans/workers/chatgpt.md
+
+PR:
+- 66
+
+CI status:
+- Success before this planning update.
+- Re-check required after this planning update.
+
+Blockers:
+- None.
+
+Next action:
+- Re-check CI on the updated PR 66 head, then merge if green.
