@@ -105,3 +105,23 @@ test("change report prefers evidence-backed safety and risk fields", async () =>
   assert.equal(report.risk, "high");
   assert.ok(report.riskSignals.includes("evidence risk"));
 });
+
+test("change report prefers evidence-backed reviewer and checks fields", async () => {
+  const runDir = await createRunFixture();
+  const manifest = createEvidenceManifest({ runId: "run-123", workspace: "/tmp/workspace" });
+  await writeEvidenceManifest(runDir, {
+    ...manifest,
+    reviewer: {
+      verdict: "FAIL",
+      blockingIssues: [{ severity: "critical", summary: "evidence blocker", files: ["src/blocker.ts"] }],
+      nonBlockingIssues: []
+    },
+    checks: { status: "failed", failed: ["npm test"], skipped: [] }
+  });
+
+  const report = await generateChangeReport({ runDir });
+
+  assert.equal(report.reviewer.verdict, "FAIL");
+  assert.deepEqual(report.reviewer.blockingIssues, [{ severity: "high", summary: "evidence blocker", files: ["src/blocker.ts"] }]);
+  assert.deepEqual(report.checks, { state: "failed", failedChecks: ["npm test"] });
+});
