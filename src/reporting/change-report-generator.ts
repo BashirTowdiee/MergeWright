@@ -99,7 +99,7 @@ export async function generateChangeReport(input: { runDir: string; policy?: Cha
       blockingIssues: collected.reviewer.blockingIssues,
       nonBlockingIssues: collected.reviewer.nonBlockingIssues
     },
-    checks: collected.checks as ChangeReport["checks"],
+    checks: collected.checks,
     writeSafety: { state: writeSafetyState },
     postWriteReview: {
       required: postWriteReviewRequired,
