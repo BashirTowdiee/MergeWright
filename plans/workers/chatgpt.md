@@ -304,3 +304,31 @@ Blockers:
 
 Next action:
 - Scan main and open PRs for the next unclaimed DH slice.
+
+## 2026-05-21T10:35:00Z
+
+Action selected:
+- Optional evidence manifest reader slice.
+
+Remote state:
+- Planning workspace exists.
+- Open PRs before work: none.
+- Recent merged PRs scanned: 69, 68, 67.
+
+Touched files:
+- src/evidence/evidence-store.ts
+- test/evidence-manifest.test.ts
+- plans/coordination.md
+- plans/workers/chatgpt.md
+
+PR:
+- To be opened.
+
+CI status:
+- Not run yet from this environment.
+
+Blockers:
+- Local build/test could not be run from this environment; implementation used GitHub file operations only.
+
+Next action:
+- Open PR and check CI for the optional evidence reader slice.
