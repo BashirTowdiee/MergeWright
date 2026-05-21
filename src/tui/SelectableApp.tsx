@@ -28,6 +28,7 @@ import { formatKeyBinding, TUI_KEY_BINDINGS } from "./keymap.js";
 import { buildLayoutSummary } from "./layout-summary.js";
 import { createInfoNotice, formatNotice, type TuiNotice } from "./notice.js";
 import { closeOverlay, isCommandPaletteOverlayOpen, isHelpOverlayOpen, isOverlayOpen, toggleOverlay, type TuiOverlay } from "./overlay-state.js";
+import { getNavigationDirection } from "./navigation-keys.js";
 import { getNavigationNoticeForFocusedPane, moveSelectionForFocusedPane } from "./navigation-state.js";
 import { moveSelection } from "./navigation.js";
 import { buildPhaseDetailLines } from "./phase-detail.js";
@@ -107,12 +108,9 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
         setCommandPaletteState((current) => updateCommandPaletteQuery(current, backspaceCommandPaletteQuery(current.query)));
         return;
       }
-      if (input === "k" || key.upArrow) {
-        setCommandPaletteState((current) => updateCommandPaletteSelectedIndex(current, moveSelection({ currentIndex: current.selectedIndex, itemCount: filteredCommandItems.length, direction: "up" })));
-        return;
-      }
-      if (input === "j" || key.downArrow) {
-        setCommandPaletteState((current) => updateCommandPaletteSelectedIndex(current, moveSelection({ currentIndex: current.selectedIndex, itemCount: filteredCommandItems.length, direction: "down" })));
+      const paletteDirection = getNavigationDirection(input, key);
+      if (paletteDirection) {
+        setCommandPaletteState((current) => updateCommandPaletteSelectedIndex(current, moveSelection({ currentIndex: current.selectedIndex, itemCount: filteredCommandItems.length, direction: paletteDirection })));
         return;
       }
       if (key.return) {
@@ -144,12 +142,9 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       return;
     }
 
-    if (input === "k" || key.upArrow) {
-      applyNavigation("up");
-      return;
-    }
-    if (input === "j" || key.downArrow) {
-      applyNavigation("down");
+    const direction = getNavigationDirection(input, key);
+    if (direction) {
+      applyNavigation(direction);
     }
   });
 
@@ -264,17 +259,10 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
 function HelpOverlay() {
   return (
     <Box flexDirection="column" paddingX={1}>
-      <Text bold>MergeWright TUI Help</Text>
-      <Text dimColor>Press ? or Esc to close help.</Text>
-      <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
-        {TUI_KEY_BINDINGS.map((binding) => (
-          <Text key={`${binding.scope}-${binding.key}`}>{formatKeyBinding(binding)}</Text>
-        ))}
-      </Box>
-      <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
-        <Text bold>Status legend</Text>
-        <Text>{formatStatusLegend()}</Text>
-      </Box>
+      <Text bold>MergeWright TUI help</Text>
+      {TUI_KEY_BINDINGS.map((binding) => (
+        <Text key={binding.keys.join("|")}>{formatKeyBinding(binding)}</Text>
+      ))}
     </Box>
   );
 }
@@ -290,19 +278,20 @@ function CommandPalettePreview({
   selectedCommandIndex: number;
   selectedCommand: ReturnType<typeof getCommandPaletteItems>[number] | undefined;
 }) {
+  const selectionLines = describeCommandPaletteSelection(selectedCommand);
+
   return (
     <Box flexDirection="column" paddingX={1}>
       <Text bold>Command palette</Text>
-      <Text dimColor>Press p or Esc to close. Type to filter. Backspace edits. Use j/k and Enter to inspect.</Text>
-      <Text>Query: {query.length === 0 ? "none" : query}</Text>
-      <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
-        {items.length === 0 ? <Text dimColor>No matching commands.</Text> : items.map((item, index) => (
-          <Text key={item.id} inverse={index === selectedCommandIndex}>{index === selectedCommandIndex ? ">" : " "} {formatCommandPaletteLine(item)}</Text>
-        ))}
-      </Box>
-      <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
+      <Text dimColor>Query: {query || "(empty)"}</Text>
+      {items.length === 0 ? <Text dimColor>{getEmptyStateMessage("commandPalette")}</Text> : items.map((item, index) => (
+        <Text key={item.id} inverse={index === selectedCommandIndex}>{index === selectedCommandIndex ? ">" : " "} {formatCommandPaletteLine(item)}</Text>
+      ))}
+      <Box flexDirection="column" marginTop={1}>
         <Text bold>Selected command</Text>
-        <Text>{describeCommandPaletteSelection(selectedCommand)}</Text>
+        {selectionLines.map((line) => (
+          <Text key={line}>{line}</Text>
+        ))}
       </Box>
     </Box>
   );
