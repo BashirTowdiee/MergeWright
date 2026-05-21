@@ -289,3 +289,32 @@ Blockers:
 
 Next action:
 - Confirm planning files no longer delete prior history, then open PR for AppChrome.
+
+## 2026-05-21T09:00:00Z
+
+Item: DH-1 evidence manifest foundation slice.
+
+Scan:
+- Planning workspace exists.
+- Open PRs before work: none.
+- Latest merged PR: 67 Extract TUI app chrome.
+- Latest main commit scanned: 51ea4a424ac81ed79400599792b3c9f9adbe2d67.
+
+Touched files:
+- src/evidence/evidence-manifest.ts
+- src/evidence/evidence-store.ts
+- test/evidence-manifest.test.ts
+- plans/coordination.md
+- plans/workers/chatgpt.md
+
+PR:
+- To be opened.
+
+CI status:
+- Not run yet from this environment.
+
+Blockers:
+- Local build/test could not be run from this environment; implementation used GitHub file operations only.
+
+Next action:
+- Open PR and check CI for the evidence manifest helper slice.
