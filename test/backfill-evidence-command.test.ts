@@ -39,6 +39,79 @@ async function writeJson(filePath: string, value: unknown): Promise<void> {
   await writeFile(filePath, JSON.stringify(value, null, 2) + "\n", "utf8");
 }
 
+async function createBackfillFixture(): Promise<{ orchestratorRoot: string; runId: string; runDir: string }> {
+  const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "backfill-command-"));
+  const workspaceRoot = path.join(orchestratorRoot, "workspace");
+  const runsDir = path.join(orchestratorRoot, "runs");
+  const runId = "20260521-010000-example";
+  const runDir = path.join(runsDir, runId);
+
+  await mkdir(workspaceRoot, { recursive: true });
+  await mkdir(runDir, { recursive: true });
+  await writeJson(path.join(orchestratorRoot, "config.json"), {
+    version: 1,
+    projectName: "MergeWright",
+    workspaceRoot,
+    paths: {
+      stagesDir: "stages",
+      promptsDir: "prompts",
+      runsDir: "runs"
+    },
+    executionBackends: {
+      codex: { type: "codex-cli" }
+    },
+    agents: {
+      planner: { backend: "codex", model: "gpt-5.5", reasoningEffort: "medium" },
+      builder: { backend: "codex", model: "gpt-5.5", reasoningEffort: "medium" },
+      reviewer: { backend: "codex", model: "gpt-5.5", reasoningEffort: "medium" }
+    },
+    pipeline: {
+      finalReview: true,
+      maxFixLoops: 1
+    },
+    commands: {
+      checks: []
+    },
+    safety: {
+      requireGitRepo: false,
+      requireCleanStart: false,
+      manualCommit: true,
+      forbidAutoCommit: true,
+      forbidAutoPush: true
+    },
+    writeSafety: {
+      enabled: false,
+      allowedBranches: [],
+      blockedPaths: [],
+      requireCleanWorkingTree: false,
+      requireExplicitAllowWrites: true,
+      captureDiffBeforeAfter: false,
+      requireReviewAfterWrites: true,
+      autoCommit: false,
+      autoPush: false
+    }
+  });
+  await writeJson(path.join(runDir, "run.json"), {
+    version: 1,
+    runId,
+    projectName: "MergeWright",
+    stageName: "Example",
+    workspaceRoot,
+    orchestratorRoot,
+    configPath: path.join(orchestratorRoot, "config.json"),
+    startedAt: "2026-05-21T01:00:00.000Z",
+    completedAt: "2026-05-21T01:01:00.000Z",
+    status: "success",
+    resolvedOptions: {},
+    phases: {},
+    artefacts: [],
+    postWriteReview: { required: false, status: "not-required", reason: "none", requiredByPhases: [], artefacts: [] },
+    error: null
+  });
+
+  return { orchestratorRoot, runId, runDir };
+}
+
 test("handleBackfillEvidenceCommand rejects missing config", async () => {
   await assert.rejects(
     () => runBackfillCommand(baseArgs({ runId: "run-123" })),
@@ -54,76 +127,9 @@ test("handleBackfillEvidenceCommand rejects missing run id", async () => {
 });
 
 test("handleBackfillEvidenceCommand previews dry-run output without writing evidence", async () => {
-  const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "backfill-command-"));
+  const { orchestratorRoot, runId, runDir } = await createBackfillFixture();
   try {
-    const workspaceRoot = path.join(orchestratorRoot, "workspace");
-    const runsDir = path.join(orchestratorRoot, "runs");
-    const runId = "20260521-010000-example";
-    const runDir = path.join(runsDir, runId);
     const output: string[] = [];
-
-    await mkdir(workspaceRoot, { recursive: true });
-    await mkdir(runDir, { recursive: true });
-    await writeJson(path.join(orchestratorRoot, "config.json"), {
-      version: 1,
-      projectName: "MergeWright",
-      workspaceRoot,
-      paths: {
-        stagesDir: "stages",
-        promptsDir: "prompts",
-        runsDir: "runs"
-      },
-      executionBackends: {
-        codex: { type: "codex-cli" }
-      },
-      agents: {
-        planner: { backend: "codex", model: "gpt-5.5", reasoningEffort: "medium" },
-        builder: { backend: "codex", model: "gpt-5.5", reasoningEffort: "medium" },
-        reviewer: { backend: "codex", model: "gpt-5.5", reasoningEffort: "medium" }
-      },
-      pipeline: {
-        finalReview: true,
-        maxFixLoops: 1
-      },
-      commands: {
-        checks: []
-      },
-      safety: {
-        requireGitRepo: false,
-        requireCleanStart: false,
-        manualCommit: true,
-        forbidAutoCommit: true,
-        forbidAutoPush: true
-      },
-      writeSafety: {
-        enabled: false,
-        allowedBranches: [],
-        blockedPaths: [],
-        requireCleanWorkingTree: false,
-        requireExplicitAllowWrites: true,
-        captureDiffBeforeAfter: false,
-        requireReviewAfterWrites: true,
-        autoCommit: false,
-        autoPush: false
-      }
-    });
-    await writeJson(path.join(runDir, "run.json"), {
-      version: 1,
-      runId,
-      projectName: "MergeWright",
-      stageName: "Example",
-      workspaceRoot,
-      orchestratorRoot,
-      configPath: path.join(orchestratorRoot, "config.json"),
-      startedAt: "2026-05-21T01:00:00.000Z",
-      completedAt: "2026-05-21T01:01:00.000Z",
-      status: "success",
-      resolvedOptions: {},
-      phases: {},
-      artefacts: [],
-      postWriteReview: { required: false, status: "not-required", reason: "none", requiredByPhases: [], artefacts: [] },
-      error: null
-    });
 
     await runBackfillCommand(
       baseArgs({ configArg: "config.json", runId, dryRun: true }),
@@ -139,6 +145,29 @@ test("handleBackfillEvidenceCommand previews dry-run output without writing evid
       "Malformed artefacts: 0"
     ]);
     await assert.rejects(() => readFile(path.join(runDir, "evidence.json"), "utf8"));
+  } finally {
+    await rm(orchestratorRoot, { recursive: true, force: true });
+  }
+});
+
+test("handleBackfillEvidenceCommand writes evidence in run directory", async () => {
+  const { orchestratorRoot, runId, runDir } = await createBackfillFixture();
+  try {
+    const output: string[] = [];
+
+    await runBackfillCommand(baseArgs({ configArg: "config.json", runId }), { orchestratorRoot, output });
+
+    assert.deepEqual(output, [
+      `Evidence backfill written: ${runId}`,
+      "Status: pass",
+      "Changed files: 0",
+      "Untracked files: 0",
+      "Missing artefacts: 4",
+      "Malformed artefacts: 0"
+    ]);
+    const evidence = JSON.parse(await readFile(path.join(runDir, "evidence.json"), "utf8")) as { runId: string; status: string };
+    assert.equal(evidence.runId, runId);
+    assert.equal(evidence.status, "pass");
   } finally {
     await rm(orchestratorRoot, { recursive: true, force: true });
   }
