@@ -7,6 +7,7 @@ import {
   readEvidenceReportChecks,
   readEvidenceReportFiles,
   readEvidenceReportPostWriteReview,
+  readEvidenceReportRisk,
   readEvidenceReportSummary,
   readEvidenceReportWriteSafety
 } from "./evidence-report-adapter.js";
@@ -22,6 +23,7 @@ export async function collectReportInputs(runDir: string): Promise<{
   checks: ChangeReport["checks"] & { malformed: boolean };
   writeSafety: ChangeReport["writeSafety"] | null;
   postWriteReview: ChangeReport["postWriteReview"] | null;
+  evidenceRisk: Pick<ChangeReport, "risk" | "riskSignals"> | null;
   checksMalformed: boolean;
   writeAuditMalformed: boolean;
 }> {
@@ -69,6 +71,7 @@ export async function collectReportInputs(runDir: string): Promise<{
     checks: checksResult,
     writeSafety: evidenceManifest?.writeSafety ? readEvidenceReportWriteSafety(evidenceManifest) : null,
     postWriteReview: evidenceManifest?.postWriteReview ? readEvidenceReportPostWriteReview(evidenceManifest) : null,
+    evidenceRisk: evidenceManifest?.risk ? readEvidenceReportRisk(evidenceManifest) : null,
     checksMalformed: checksResult.malformed,
     writeAuditMalformed: builderSummaryResult.malformed || fixSummaryResult.malformed
   };

@@ -30,7 +30,7 @@ export async function generateChangeReport(input: { runDir: string; policy?: Cha
     untrackedFiles: collected.untrackedFiles,
     policy
   });
-  const riskSignals = buildRiskSignals({
+  const computedRiskSignals = buildRiskSignals({
     reviewerVerdict: collected.reviewer.verdict,
     reviewerAvailable: collected.reviewer.available,
     checksState: collected.checks.state,
@@ -43,7 +43,8 @@ export async function generateChangeReport(input: { runDir: string; policy?: Cha
     writeAuditMalformed: collected.writeAuditMalformed
   });
 
-  const risk = classifyRisk({ changedFiles: collected.changedFiles, writeSafetyState, postWriteReviewStatus, policy });
+  const computedRisk = classifyRisk({ changedFiles: collected.changedFiles, writeSafetyState, postWriteReviewStatus, policy });
+  const risk = collected.evidenceRisk?.risk ?? computedRisk;
   const score = computeScore({
     runStatus: run?.status ?? "unknown",
     reviewerVerdict: collected.reviewer.verdict,
@@ -78,6 +79,7 @@ export async function generateChangeReport(input: { runDir: string; policy?: Cha
   });
   const suggestedCommitMessage = suggestCommitMessage(run?.stageName ?? null);
   const phases = flattenPhases(run);
+  const riskSignals = dedupeSort([...(collected.evidenceRisk?.riskSignals ?? []), ...computedRiskSignals]);
 
   const report: ChangeReport = {
     version: 1,
@@ -128,4 +130,8 @@ function readOptionalString(value: unknown): string | undefined {
 
 function readOptionalNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function dedupeSort(values: string[]): string[] {
+  return Array.from(new Set(values.filter((value) => value.trim().length > 0))).sort((a, b) => a.localeCompare(b));
 }
