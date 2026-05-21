@@ -16,12 +16,7 @@ export async function collectReportInputs(runDir: string): Promise<{
   changedFiles: string[];
   untrackedFiles: string[];
   evidence: ChangeReport["evidence"];
-  reviewer: {
-    verdict: "PASS" | "FAIL" | "unavailable";
-    blockingIssues: ReviewerIssue[];
-    nonBlockingIssues: ReviewerIssue[];
-    available: boolean;
-  };
+  reviewer: ChangeReport["reviewer"] & { available: boolean };
   checks: ChangeReport["checks"] & { malformed: boolean };
   checksMalformed: boolean;
   writeAuditMalformed: boolean;
