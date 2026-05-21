@@ -44,6 +44,11 @@ export interface ChangeReport {
   phases: Record<string, string>;
   changedFiles: string[];
   untrackedFiles: string[];
+  evidence: {
+    available: boolean;
+    status: string;
+    completedAt: string | null;
+  };
   reviewer: {
     verdict: "PASS" | "FAIL" | "unavailable";
     blockingIssues: Array<{ severity: string; summary: string; files: string[] }>;
