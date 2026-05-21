@@ -87,7 +87,8 @@ test("classic run setup writes evidence.json", async () => {
   assert.equal(evidence.projectName, "Acme");
   assert.equal(evidence.stageName, "example-stage");
   assert.equal(evidence.workspace, workspaceRoot);
-  assert.equal(evidence.status, "in_progress");
+  assert.equal(evidence.status, "pass");
+  assert.equal(typeof evidence.completedAt, "string");
   assert.deepEqual(evidence.git, {
     changedFiles: [],
     untrackedFiles: [],

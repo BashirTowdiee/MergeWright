@@ -1,6 +1,7 @@
 import { writePlanHtmlFromRun } from "../../plan-html.js";
 import type { ProgressLogger } from "../../progress-logger.js";
 import { addRunArtefact, markRunSuccess, toRunRelativePath, type RunMetadata } from "../../run-metadata.js";
+import { finaliseClassicRunEvidence } from "./run-evidence-finalisation.js";
 
 export async function finaliseClassicRunSuccess(input: {
   runDir: string;
@@ -25,6 +26,7 @@ export async function finaliseClassicRunSuccess(input: {
     addRunArtefact(input.metadata, toRunRelativePath(input.runDir, artefact));
   }
   markRunSuccess(input.metadata);
+  await finaliseClassicRunEvidence({ runDir: input.runDir, status: "pass" });
   await input.persistMetadata();
   return written;
 }
