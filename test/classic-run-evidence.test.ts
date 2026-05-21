@@ -32,15 +32,30 @@ function makeContext(): ClassicRunContext {
         manualCommit: true,
         forbidAutoCommit: true,
         forbidAutoPush: true
+      },
+      writeSafety: {
+        enabled: true,
+        allowedBranches: [],
+        blockedPaths: [],
+        requireCleanWorkingTree: true,
+        requireExplicitAllowWrites: true,
+        captureDiffBeforeAfter: true,
+        requireReviewAfterWrites: true,
+        autoCommit: false,
+        autoPush: false
       }
     },
     executor: async () => ({
+      command: "codex",
+      args: [],
+      cwd: "/repo/workspace",
       stdout: "",
       stderr: "",
       exitCode: 0,
       signal: null,
       durationMs: 0,
       outputLastMessagePath: "",
+      outputLastMessage: "",
       skipped: true,
       success: true
     }),
