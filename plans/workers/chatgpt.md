@@ -110,3 +110,56 @@ Blockers:
 
 Next action:
 - Open PR and check CI.
+
+## 2026-05-21T08:20:00Z
+
+Action selected:
+- AppChrome implementation slice.
+
+Remote state:
+- Planning workspace exists.
+- Open PRs before work: none.
+- Latest merged PR: 66 Extract TUI overlay components.
+
+Touched files:
+- src/tui/components/AppChrome.tsx
+- src/tui/SelectableApp.tsx
+- plans/coordination.md
+- plans/workers/chatgpt.md
+
+PR:
+- To be opened.
+
+CI status:
+- Not run yet.
+
+Blockers:
+- None.
+
+Next action:
+- Open PR and check CI.
+
+## 2026-05-21T08:30:00Z
+
+Action selected:
+- Restore ChatGPT worker planning history.
+
+Remote state:
+- Planning workspace exists.
+- Open PRs before work: none.
+- Branch tui-app-chrome was ahead of main with destructive worker planning-file deletions.
+
+Touched files:
+- plans/workers/chatgpt.md
+
+PR:
+- To be opened after branch diff is clean.
+
+CI status:
+- Not run yet.
+
+Blockers:
+- None.
+
+Next action:
+- Confirm planning files no longer delete prior history, then open PR for AppChrome.

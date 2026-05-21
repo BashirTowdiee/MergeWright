@@ -264,3 +264,28 @@ Blockers:
 
 Next action:
 - Re-check CI on the updated PR 66 head, then merge if green.
+
+## 2026-05-21T08:25:00Z
+
+Item: Restore AppChrome planning history.
+
+Scan:
+- Planning workspace exists.
+- Open PRs before work: none.
+- Branch tui-app-chrome was ahead of main with destructive planning-file deletions.
+
+Touched files:
+- plans/coordination.md
+- plans/workers/chatgpt.md
+
+PR:
+- To be opened after branch diff is clean.
+
+CI status:
+- Not run yet.
+
+Blockers:
+- None.
+
+Next action:
+- Confirm planning files no longer delete prior history, then open PR for AppChrome.
