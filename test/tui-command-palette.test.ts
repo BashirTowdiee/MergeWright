@@ -6,7 +6,8 @@ import {
   describeCommandPaletteSelection,
   filterCommandPaletteItems,
   formatCommandPaletteLine,
-  getCommandPaletteItems
+  getCommandPaletteItems,
+  previewCommandPaletteSelection
 } from "../src/tui/command-palette.js";
 
 test("getCommandPaletteItems returns enabled and disabled preview commands", () => {
@@ -33,7 +34,7 @@ test("backspaceCommandPaletteQuery removes final character", () => {
 
 test("formatCommandPaletteLine includes status label", () => {
   assert.equal(
-    formatCommandPaletteLine({ id: "sample", label: "Preview command", description: "Preview only.", enabled: false }),
+    formatCommandPaletteLine({ id: "preview-action", label: "Preview command", description: "Preview only.", enabled: false }),
     "disabled Preview command - Preview only."
   );
 });
@@ -44,14 +45,51 @@ test("describeCommandPaletteSelection handles missing item", () => {
 
 test("describeCommandPaletteSelection describes enabled command", () => {
   assert.equal(
-    describeCommandPaletteSelection({ id: "sample", label: "Preview command", description: "Preview only.", enabled: true }),
+    describeCommandPaletteSelection({ id: "preview-action", label: "Preview command", description: "Preview only.", enabled: true }),
     "Preview command: Preview command. Preview only."
   );
 });
 
 test("describeCommandPaletteSelection describes disabled command", () => {
   assert.equal(
-    describeCommandPaletteSelection({ id: "sample", label: "Preview command", description: "Not ready.", enabled: false }),
+    describeCommandPaletteSelection({ id: "generate-report", label: "Preview command", description: "Not ready.", enabled: false }),
     "Disabled command: Preview command. Not ready."
+  );
+});
+
+test("previewCommandPaletteSelection handles missing item", () => {
+  assert.deepEqual(
+    previewCommandPaletteSelection({ item: undefined, context: { selectedSafeActionDescription: "action", currentFileScope: "phase" } }),
+    { handled: false, message: "No command selected." }
+  );
+});
+
+test("previewCommandPaletteSelection previews selected safe action", () => {
+  assert.deepEqual(
+    previewCommandPaletteSelection({
+      item: { id: "preview-action", label: "Preview selected safe action", description: "Preview.", enabled: true },
+      context: { selectedSafeActionDescription: "Preview only: Generate report would run later.", currentFileScope: "phase" }
+    }),
+    { handled: true, message: "Preview only: Generate report would run later." }
+  );
+});
+
+test("previewCommandPaletteSelection previews file scope toggle", () => {
+  assert.deepEqual(
+    previewCommandPaletteSelection({
+      item: { id: "toggle-file-scope", label: "Toggle file scope", description: "Preview.", enabled: true },
+      context: { selectedSafeActionDescription: "action", currentFileScope: "phase" }
+    }),
+    { handled: true, message: "Preview only: file scope would toggle from phase." }
+  );
+});
+
+test("previewCommandPaletteSelection describes disabled command", () => {
+  assert.deepEqual(
+    previewCommandPaletteSelection({
+      item: { id: "generate-report", label: "Generate report", description: "Not ready.", enabled: false },
+      context: { selectedSafeActionDescription: "action", currentFileScope: "phase" }
+    }),
+    { handled: false, message: "Disabled command: Generate report. Not ready." }
   );
 });
