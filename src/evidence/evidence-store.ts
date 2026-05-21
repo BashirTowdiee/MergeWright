@@ -18,6 +18,17 @@ export async function readEvidenceManifest(runDir: string): Promise<EvidenceMani
   return parsed;
 }
 
+export async function readEvidenceManifestIfExists(runDir: string): Promise<EvidenceManifest | null> {
+  try {
+    return await readEvidenceManifest(runDir);
+  } catch (error) {
+    if (isMissingEvidenceManifestError(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 export async function writeEvidenceManifest(runDir: string, manifest: EvidenceManifest): Promise<void> {
   const manifestPath = resolveEvidenceManifestPath(runDir);
   const temporaryPath = manifestPath + ".tmp";
@@ -34,4 +45,13 @@ export async function updateEvidenceManifest(
   const updated = update(current) ?? current;
   await writeEvidenceManifest(runDir, updated);
   return updated;
+}
+
+function isMissingEvidenceManifestError(error: unknown): boolean {
+  return (
+    !!error &&
+    typeof error === "object" &&
+    "code" in error &&
+    (error as NodeJS.ErrnoException).code === "ENOENT"
+  );
 }
