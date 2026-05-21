@@ -26,3 +26,30 @@ Blockers:
 
 Next action:
 - Merge PR 61 manually or retry merge after checking CI on the updated head.
+
+## 2026-05-21T05:40:00Z
+
+Action selected:
+- Merge-ready check for PR 61.
+
+Remote state:
+- Planning workspace exists on the PR branch.
+- Open PR scanned: 61 Add TUI run list pane.
+- Latest CI scanned: success on commit f01bc0b9c30ae30c22f21db3ab25281b26f01d29.
+- PR mergeable: true.
+
+Touched files:
+- plans/coordination.md
+- plans/workers/chatgpt.md
+
+PR:
+- 61
+
+CI status:
+- Success before this worker update.
+
+Blockers:
+- Merge command was not completed from this environment.
+
+Next action:
+- Re-check CI on the updated PR 61 head, then merge manually or retry merge if allowed.
