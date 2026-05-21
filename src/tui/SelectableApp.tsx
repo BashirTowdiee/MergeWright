@@ -259,10 +259,17 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
 function HelpOverlay() {
   return (
     <Box flexDirection="column" paddingX={1}>
-      <Text bold>MergeWright TUI help</Text>
-      {TUI_KEY_BINDINGS.map((binding) => (
-        <Text key={binding.keys.join("|")}>{formatKeyBinding(binding)}</Text>
-      ))}
+      <Text bold>MergeWright TUI Help</Text>
+      <Text dimColor>Press ? or Esc to close help.</Text>
+      <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
+        {TUI_KEY_BINDINGS.map((binding) => (
+          <Text key={`${binding.scope}-${binding.key}`}>{formatKeyBinding(binding)}</Text>
+        ))}
+      </Box>
+      <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
+        <Text bold>Status legend</Text>
+        <Text>{formatStatusLegend()}</Text>
+      </Box>
     </Box>
   );
 }
@@ -278,20 +285,19 @@ function CommandPalettePreview({
   selectedCommandIndex: number;
   selectedCommand: ReturnType<typeof getCommandPaletteItems>[number] | undefined;
 }) {
-  const selectionLines = describeCommandPaletteSelection(selectedCommand);
-
   return (
     <Box flexDirection="column" paddingX={1}>
       <Text bold>Command palette</Text>
-      <Text dimColor>Query: {query || "(empty)"}</Text>
-      {items.length === 0 ? <Text dimColor>{getEmptyStateMessage("commandPalette")}</Text> : items.map((item, index) => (
-        <Text key={item.id} inverse={index === selectedCommandIndex}>{index === selectedCommandIndex ? ">" : " "} {formatCommandPaletteLine(item)}</Text>
-      ))}
-      <Box flexDirection="column" marginTop={1}>
-        <Text bold>Selected command</Text>
-        {selectionLines.map((line) => (
-          <Text key={line}>{line}</Text>
+      <Text dimColor>Press p or Esc to close. Type to filter. Backspace edits. Use j/k and Enter to inspect.</Text>
+      <Text>Query: {query.length === 0 ? "none" : query}</Text>
+      <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
+        {items.length === 0 ? <Text dimColor>No matching commands.</Text> : items.map((item, index) => (
+          <Text key={item.id} inverse={index === selectedCommandIndex}>{index === selectedCommandIndex ? ">" : " "} {formatCommandPaletteLine(item)}</Text>
         ))}
+      </Box>
+      <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
+        <Text bold>Selected command</Text>
+        <Text>{describeCommandPaletteSelection(selectedCommand)}</Text>
       </Box>
     </Box>
   );
