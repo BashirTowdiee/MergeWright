@@ -51,3 +51,7 @@ export function moveSelectionForFocusedPane(input: {
       );
   }
 }
+
+export function getNavigationNoticeForFocusedPane(focusedPane: FocusedPane): string | null {
+  return focusedPane === "runs" ? "Selected run changed." : null;
+}
