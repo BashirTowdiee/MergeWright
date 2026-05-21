@@ -66,6 +66,16 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const fileScopeLabel = formatFileScopeLabel({ scope: fileScope, selectedPhase });
 
   useInput((input, key) => {
+    if (key.escape) {
+      if (helpOpen) {
+        setHelpOpen(false);
+        return;
+      }
+      if (commandPaletteOpen) {
+        setCommandPaletteOpen(false);
+        return;
+      }
+    }
     if (input === "?") {
       setHelpOpen((current) => !current);
       return;
@@ -275,7 +285,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
         <Text dimColor>Status: {formatStatusLegend()}</Text>
       </Box>
       <Box>
-        <Text dimColor>? help - p command palette - s toggle file scope - tab focus pane - j/k select item - enter previews selected action - read-only - Ctrl+C to exit</Text>
+        <Text dimColor>? help - p command palette - esc close overlay - s toggle file scope - tab focus pane - j/k select item - enter previews selected action - read-only - Ctrl+C to exit</Text>
       </Box>
     </Box>
   );
@@ -285,7 +295,7 @@ function HelpOverlay() {
   return (
     <Box flexDirection="column" paddingX={1}>
       <Text bold>MergeWright TUI Help</Text>
-      <Text dimColor>Press ? to close help.</Text>
+      <Text dimColor>Press ? or Esc to close help.</Text>
       <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
         {TUI_KEY_BINDINGS.map((binding) => (
           <Text key={`${binding.scope}-${binding.key}`}>{formatKeyBinding(binding)}</Text>
@@ -313,7 +323,7 @@ function CommandPalettePreview({
   return (
     <Box flexDirection="column" paddingX={1}>
       <Text bold>Command palette</Text>
-      <Text dimColor>Press p to close. Type to filter. Backspace edits. Use j/k and Enter to inspect.</Text>
+      <Text dimColor>Press p or Esc to close. Type to filter. Backspace edits. Use j/k and Enter to inspect.</Text>
       <Text>Query: {query.length === 0 ? "none" : query}</Text>
       <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
         {items.length === 0 ? <Text dimColor>No matching commands.</Text> : items.map((item, index) => (
