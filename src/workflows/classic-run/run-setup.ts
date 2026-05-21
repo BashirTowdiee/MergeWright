@@ -1,5 +1,6 @@
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
+import { writeEvidenceManifest } from "../../evidence/evidence-store.js";
 import { createAgentExecutor } from "../../execution-backends/agent-executor.js";
 import { loadPromptTemplates } from "../../prompts.js";
 import { loadAndValidateConfig, resolveConfigPath, validateWorkspaceSafety } from "../../config.js";
@@ -15,6 +16,7 @@ import {
   type ClassicRunContext,
   type ClassicRunExecutionOptions
 } from "./run-context.js";
+import { createInitialClassicRunEvidenceManifest } from "./run-evidence.js";
 
 export async function prepareClassicRunContext(
   options: RunOptions,
@@ -56,7 +58,6 @@ export async function prepareClassicRunContext(
   const runDir = path.resolve(runsBaseDir, runId);
   progressLogger.phaseStart("setup", "creating run directory");
   await mkdir(runDir, { recursive: true });
-  progressLogger.phaseComplete("setup", `run directory: ${runDir}`);
 
   const variables = buildTemplateVariables({
     stageName: options.stageName,
@@ -66,7 +67,7 @@ export async function prepareClassicRunContext(
     runDir
   });
 
-  return {
+  const context: ClassicRunContext = {
     orchestratorRoot,
     configPath,
     config,
@@ -83,6 +84,11 @@ export async function prepareClassicRunContext(
     runDir,
     variables
   };
+
+  await writeEvidenceManifest(runDir, createInitialClassicRunEvidenceManifest(context));
+  progressLogger.phaseComplete("setup", `run directory: ${runDir}`);
+
+  return context;
 }
 
 export function createInitialClassicRunMetadata(input: {
