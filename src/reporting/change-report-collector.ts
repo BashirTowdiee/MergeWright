@@ -2,7 +2,12 @@ import { readFile, stat } from "node:fs/promises";
 import { readEvidenceManifestIfExists } from "../evidence/evidence-store.js";
 import { parseReviewerOutput, type ReviewerIssue } from "../reviewer-output.js";
 import type { ChecksStatus, ChangeReport, OptionalJsonResult, RunMetadataWithAutoChain, WriteAuditSummary } from "./change-report-types.js";
-import { readEvidenceReportChecks, readEvidenceReportFiles, readEvidenceReportSummary } from "./evidence-report-adapter.js";
+import {
+  readAvailableEvidenceReportReviewer,
+  readEvidenceReportChecks,
+  readEvidenceReportFiles,
+  readEvidenceReportSummary
+} from "./evidence-report-adapter.js";
 
 export async function collectReportInputs(runDir: string): Promise<{
   run: RunMetadataWithAutoChain | null;
@@ -11,12 +16,7 @@ export async function collectReportInputs(runDir: string): Promise<{
   changedFiles: string[];
   untrackedFiles: string[];
   evidence: ChangeReport["evidence"];
-  reviewer: {
-    verdict: "PASS" | "FAIL" | "unavailable";
-    blockingIssues: ReviewerIssue[];
-    nonBlockingIssues: ReviewerIssue[];
-    available: boolean;
-  };
+  reviewer: ChangeReport["reviewer"] & { available: boolean };
   checks: ChangeReport["checks"] & { malformed: boolean };
   checksMalformed: boolean;
   writeAuditMalformed: boolean;
@@ -41,7 +41,9 @@ export async function collectReportInputs(runDir: string): Promise<{
     ...evidenceFiles.untrackedFiles
   ]);
 
-  const reviewer = await parseReviewer(`${runDir}/reviewer-output-last-message.md`);
+  const reviewer = evidenceManifest?.reviewer
+    ? readAvailableEvidenceReportReviewer(evidenceManifest)
+    : await parseReviewer(`${runDir}/reviewer-output-last-message.md`);
   const checksResult = evidenceManifest?.checks
     ? { ...readEvidenceReportChecks(evidenceManifest), malformed: false }
     : await parseChecks(`${runDir}/checks-status.json`);
