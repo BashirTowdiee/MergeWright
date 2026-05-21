@@ -289,3 +289,60 @@ Blockers:
 
 Next action:
 - Confirm planning files no longer delete prior history, then open PR for AppChrome.
+
+## 2026-05-21T09:00:00Z
+
+Item: DH-1 evidence manifest foundation slice.
+
+Scan:
+- Planning workspace exists.
+- Open PRs before work: none.
+- Latest merged PR: 67 Extract TUI app chrome.
+- Latest main commit scanned: 51ea4a424ac81ed79400599792b3c9f9adbe2d67.
+
+Touched files:
+- src/evidence/evidence-manifest.ts
+- src/evidence/evidence-store.ts
+- test/evidence-manifest.test.ts
+- plans/coordination.md
+- plans/workers/chatgpt.md
+
+PR:
+- To be opened.
+
+CI status:
+- Not run yet from this environment.
+
+Blockers:
+- Local build/test could not be run from this environment; implementation used GitHub file operations only.
+
+Next action:
+- Open PR and check CI for the evidence manifest helper slice.
+
+## 2026-05-21T09:20:00Z
+
+Item: PR 68 CI fix.
+
+Scan:
+- Planning workspace exists.
+- Open PR: 68 Add evidence manifest helpers.
+- CI failed on run 219 for commit 6bf84385d9a4913207f613ea23d1ffc5fb9afc13.
+- Latest PR head after fix: e9f1c4ef2a0b38af9834d2f629f1ef2b1030ce1b.
+- PR state: open and mergeable.
+
+Touched files:
+- src/evidence/evidence-manifest.ts
+- plans/coordination.md
+- plans/workers/chatgpt.md
+
+PR:
+- 68
+
+CI status:
+- Success on run 220 for commit e9f1c4ef2a0b38af9834d2f629f1ef2b1030ce1b.
+
+Blockers:
+- None.
+
+Next action:
+- Merge-ready check PR 68, then merge if no new signal appears.
