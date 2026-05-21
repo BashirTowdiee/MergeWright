@@ -28,19 +28,12 @@ import { formatKeyBinding, TUI_KEY_BINDINGS } from "./keymap.js";
 import { buildLayoutSummary } from "./layout-summary.js";
 import { createInfoNotice, formatNotice, type TuiNotice } from "./notice.js";
 import { closeOverlay, isCommandPaletteOverlayOpen, isHelpOverlayOpen, isOverlayOpen, toggleOverlay, type TuiOverlay } from "./overlay-state.js";
+import { moveSelectionForFocusedPane } from "./navigation-state.js";
 import { moveSelection } from "./navigation.js";
 import { buildPhaseDetailLines } from "./phase-detail.js";
 import { buildRunContextLines } from "./run-context.js";
 import { buildRunWarningLines } from "./run-warnings.js";
-import {
-  createInitialSelectionState,
-  resetFileSelection,
-  selectAction,
-  selectFile,
-  selectFinding,
-  selectPhase,
-  selectRun
-} from "./selection-state.js";
+import { createInitialSelectionState, resetFileSelection } from "./selection-state.js";
 import type { TuiSpikeFixture } from "./spike-fixture.js";
 
 export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
@@ -63,6 +56,13 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const selectedAction = selectedRun.safeActions[selection.actionIndex];
   const selectedFinding = selectedRun.reviewerFindings[selection.findingIndex];
   const selectedSafeActionDescription = describeSafeActionIntent(selectedAction);
+  const navigationCounts = {
+    runs: fixture.runs.length,
+    phases: selectedRun.phases.length,
+    actions: selectedRun.safeActions.length,
+    files: scopedArtifacts.length,
+    findings: selectedRun.reviewerFindings.length
+  };
   const evidenceLines = buildEvidencePreview({
     artefact: selectedArtefact,
     findings: selectedRun.reviewerFindings,
@@ -138,45 +138,22 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       return;
     }
 
-    if (focusedPane === "runs" && (input === "k" || key.upArrow)) {
-      setSelection((current) => selectRun(current, moveSelection({ currentIndex: current.runIndex, itemCount: fixture.runs.length, direction: "up" })));
-      setNotice(createInfoNotice("Selected run changed."));
+    if (input === "k" || key.upArrow) {
+      setSelection((current) => moveSelectionForFocusedPane({ focusedPane, selection: current, counts: navigationCounts, direction: "up" }));
+      if (focusedPane === "runs") {
+        setNotice(createInfoNotice("Selected run changed."));
+      } else {
+        setNotice(null);
+      }
+      return;
     }
-    if (focusedPane === "runs" && (input === "j" || key.downArrow)) {
-      setSelection((current) => selectRun(current, moveSelection({ currentIndex: current.runIndex, itemCount: fixture.runs.length, direction: "down" })));
-      setNotice(createInfoNotice("Selected run changed."));
-    }
-    if (focusedPane === "phases" && (input === "k" || key.upArrow)) {
-      setSelection((current) => selectPhase(current, moveSelection({ currentIndex: current.phaseIndex, itemCount: selectedRun.phases.length, direction: "up" })));
-      setNotice(null);
-    }
-    if (focusedPane === "phases" && (input === "j" || key.downArrow)) {
-      setSelection((current) => selectPhase(current, moveSelection({ currentIndex: current.phaseIndex, itemCount: selectedRun.phases.length, direction: "down" })));
-      setNotice(null);
-    }
-    if (focusedPane === "actions" && (input === "k" || key.upArrow)) {
-      setSelection((current) => selectAction(current, moveSelection({ currentIndex: current.actionIndex, itemCount: selectedRun.safeActions.length, direction: "up" })));
-      setNotice(null);
-    }
-    if (focusedPane === "actions" && (input === "j" || key.downArrow)) {
-      setSelection((current) => selectAction(current, moveSelection({ currentIndex: current.actionIndex, itemCount: selectedRun.safeActions.length, direction: "down" })));
-      setNotice(null);
-    }
-    if (focusedPane === "artefacts" && (input === "k" || key.upArrow)) {
-      setSelection((current) => selectFile(current, moveSelection({ currentIndex: current.fileIndex, itemCount: scopedArtifacts.length, direction: "up" })));
-      setNotice(null);
-    }
-    if (focusedPane === "artefacts" && (input === "j" || key.downArrow)) {
-      setSelection((current) => selectFile(current, moveSelection({ currentIndex: current.fileIndex, itemCount: scopedArtifacts.length, direction: "down" })));
-      setNotice(null);
-    }
-    if (focusedPane === "findings" && (input === "k" || key.upArrow)) {
-      setSelection((current) => selectFinding(current, moveSelection({ currentIndex: current.findingIndex, itemCount: selectedRun.reviewerFindings.length, direction: "up" })));
-      setNotice(null);
-    }
-    if (focusedPane === "findings" && (input === "j" || key.downArrow)) {
-      setSelection((current) => selectFinding(current, moveSelection({ currentIndex: current.findingIndex, itemCount: selectedRun.reviewerFindings.length, direction: "down" })));
-      setNotice(null);
+    if (input === "j" || key.downArrow) {
+      setSelection((current) => moveSelectionForFocusedPane({ focusedPane, selection: current, counts: navigationCounts, direction: "down" }));
+      if (focusedPane === "runs") {
+        setNotice(createInfoNotice("Selected run changed."));
+      } else {
+        setNotice(null);
+      }
     }
   });
 
