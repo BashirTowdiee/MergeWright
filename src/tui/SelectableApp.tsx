@@ -2,7 +2,14 @@ import React, { useMemo, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { describeSafeActionIntent } from "./action-intent.js";
 import { formatStatusLegend, getStatusSymbol } from "./components/status.js";
-import { describeCommandPaletteSelection, formatCommandPaletteLine, getCommandPaletteItems } from "./command-palette.js";
+import {
+  appendCommandPaletteQuery,
+  backspaceCommandPaletteQuery,
+  describeCommandPaletteSelection,
+  filterCommandPaletteItems,
+  formatCommandPaletteLine,
+  getCommandPaletteItems
+} from "./command-palette.js";
 import { buildEvidencePreview } from "./evidence-preview.js";
 import { getEmptyStateMessage } from "./empty-state.js";
 import { buildFindingDetailLines } from "./finding-detail.js";
@@ -23,6 +30,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [fileScope, setFileScope] = useState<FileScope>("phase");
   const [helpOpen, setHelpOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [commandPaletteQuery, setCommandPaletteQuery] = useState("");
   const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
   const [notice, setNotice] = useState<TuiNotice | null>(createInfoNotice("TUI is read-only. Actions are previews only."));
   const [selectedRunIndex, setSelectedRunIndex] = useState(0);
@@ -31,7 +39,8 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [selectedArtefactIndex, setSelectedArtefactIndex] = useState(0);
   const [selectedFindingIndex, setSelectedFindingIndex] = useState(0);
   const commandItems = getCommandPaletteItems();
-  const selectedCommand = commandItems[selectedCommandIndex];
+  const filteredCommandItems = filterCommandPaletteItems(commandItems, commandPaletteQuery);
+  const selectedCommand = filteredCommandItems[selectedCommandIndex];
   const selectedRun = useMemo(() => {
     const run = fixture.runs[selectedRunIndex];
     return run ? fixture.runDetailsById[run.id] ?? fixture.selectedRun : fixture.selectedRun;
@@ -67,17 +76,27 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       return;
     }
     if (commandPaletteOpen) {
+      if (key.backspace || key.delete) {
+        setCommandPaletteQuery((current) => backspaceCommandPaletteQuery(current));
+        setSelectedCommandIndex(0);
+        return;
+      }
       if (input === "k" || key.upArrow) {
-        setSelectedCommandIndex((currentIndex) => moveSelection({ currentIndex, itemCount: commandItems.length, direction: "up" }));
+        setSelectedCommandIndex((currentIndex) => moveSelection({ currentIndex, itemCount: filteredCommandItems.length, direction: "up" }));
         return;
       }
       if (input === "j" || key.downArrow) {
-        setSelectedCommandIndex((currentIndex) => moveSelection({ currentIndex, itemCount: commandItems.length, direction: "down" }));
+        setSelectedCommandIndex((currentIndex) => moveSelection({ currentIndex, itemCount: filteredCommandItems.length, direction: "down" }));
         return;
       }
       if (key.return) {
         setNotice(createInfoNotice(describeCommandPaletteSelection(selectedCommand)));
         return;
+      }
+      const nextQuery = appendCommandPaletteQuery(commandPaletteQuery, input);
+      if (nextQuery !== commandPaletteQuery) {
+        setCommandPaletteQuery(nextQuery);
+        setSelectedCommandIndex(0);
       }
       return;
     }
@@ -153,7 +172,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   }
 
   if (commandPaletteOpen) {
-    return <CommandPalettePreview selectedCommandIndex={selectedCommandIndex} selectedCommand={selectedCommand} />;
+    return <CommandPalettePreview query={commandPaletteQuery} items={filteredCommandItems} selectedCommandIndex={selectedCommandIndex} selectedCommand={selectedCommand} />;
   }
 
   return (
@@ -274,13 +293,24 @@ function HelpOverlay() {
   );
 }
 
-function CommandPalettePreview({ selectedCommandIndex, selectedCommand }: { selectedCommandIndex: number; selectedCommand: ReturnType<typeof getCommandPaletteItems>[number] | undefined }) {
+function CommandPalettePreview({
+  query,
+  items,
+  selectedCommandIndex,
+  selectedCommand
+}: {
+  query: string;
+  items: ReturnType<typeof getCommandPaletteItems>;
+  selectedCommandIndex: number;
+  selectedCommand: ReturnType<typeof getCommandPaletteItems>[number] | undefined;
+}) {
   return (
     <Box flexDirection="column" paddingX={1}>
       <Text bold>Command palette</Text>
-      <Text dimColor>Press p to close. Commands are preview-only. Use j/k and Enter to inspect.</Text>
+      <Text dimColor>Press p to close. Type to filter. Backspace edits. Use j/k and Enter to inspect.</Text>
+      <Text>Query: {query.length === 0 ? "none" : query}</Text>
       <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
-        {getCommandPaletteItems().map((item, index) => (
+        {items.length === 0 ? <Text dimColor>No matching commands.</Text> : items.map((item, index) => (
           <Text key={item.id} inverse={index === selectedCommandIndex}>{index === selectedCommandIndex ? ">" : " "} {formatCommandPaletteLine(item)}</Text>
         ))}
       </Box>
