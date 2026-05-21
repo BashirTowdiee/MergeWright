@@ -38,6 +38,13 @@ export function readEvidenceReportReviewer(manifest: EvidenceManifest): ChangeRe
   };
 }
 
+export function readAvailableEvidenceReportReviewer(manifest: EvidenceManifest): ChangeReport["reviewer"] & { available: boolean } {
+  return {
+    ...readEvidenceReportReviewer(manifest),
+    available: manifest.reviewer !== undefined
+  };
+}
+
 export function readEvidenceReportWriteSafety(manifest: EvidenceManifest): ChangeReport["writeSafety"] {
   return { state: manifest.writeSafety?.status ?? "unknown" };
 }
