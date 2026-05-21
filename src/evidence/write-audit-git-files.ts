@@ -1,6 +1,17 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+
 export interface WriteAuditGitFiles {
   changedFiles: string[];
   untrackedFiles: string[];
+}
+
+export async function readWriteAuditGitFiles(runDir: string): Promise<WriteAuditGitFiles> {
+  const [builderSummary, fixSummary] = await Promise.all([
+    readOptionalJson(path.join(runDir, "write-audit", "builder", "summary.json")),
+    readOptionalJson(path.join(runDir, "write-audit", "fix", "summary.json"))
+  ]);
+  return collectWriteAuditGitFiles(builderSummary, fixSummary);
 }
 
 export function collectWriteAuditGitFiles(...summaries: unknown[]): WriteAuditGitFiles {
@@ -24,6 +35,15 @@ export function collectWriteAuditGitFiles(...summaries: unknown[]): WriteAuditGi
     changedFiles: dedupeSort(changedFiles),
     untrackedFiles: dedupeSort(untrackedFiles)
   };
+}
+
+async function readOptionalJson(filePath: string): Promise<unknown | null> {
+  try {
+    const raw = await readFile(filePath, "utf8");
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
 }
 
 function coerceStringArray(value: unknown): string[] {
