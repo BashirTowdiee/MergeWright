@@ -81,3 +81,32 @@ Blockers:
 
 Next action:
 - Open PR and check CI.
+
+## 2026-05-21T07:40:00Z
+
+Action selected:
+- TUI overlay extraction slice.
+
+Remote state:
+- Planning workspace exists.
+- Open PRs before work: none.
+- Latest merged PR: 65 Extract TUI evidence review pane.
+
+Touched files:
+- src/tui/overlays/HelpOverlay.tsx
+- src/tui/overlays/CommandPalettePreview.tsx
+- src/tui/SelectableApp.tsx
+- plans/coordination.md
+- plans/workers/chatgpt.md
+
+PR:
+- To be opened.
+
+CI status:
+- Not run yet.
+
+Blockers:
+- None.
+
+Next action:
+- Open PR and check CI.
