@@ -11,6 +11,13 @@ import {
   getCommandPaletteItems,
   previewCommandPaletteSelection
 } from "./command-palette.js";
+import {
+  closeCommandPaletteState,
+  createClosedCommandPaletteState,
+  toggleCommandPaletteState,
+  updateCommandPaletteQuery,
+  updateCommandPaletteSelectedIndex
+} from "./command-palette-state.js";
 import { buildEvidencePreview } from "./evidence-preview.js";
 import { getEmptyStateMessage } from "./empty-state.js";
 import { buildFindingDetailLines } from "./finding-detail.js";
@@ -30,9 +37,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [focusedPane, setFocusedPane] = useState<FocusedPane>("runs");
   const [fileScope, setFileScope] = useState<FileScope>("phase");
   const [helpOpen, setHelpOpen] = useState(false);
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-  const [commandPaletteQuery, setCommandPaletteQuery] = useState("");
-  const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
+  const [commandPaletteState, setCommandPaletteState] = useState(createClosedCommandPaletteState());
   const [notice, setNotice] = useState<TuiNotice | null>(createInfoNotice("TUI is read-only. Actions are previews only."));
   const [selectedRunIndex, setSelectedRunIndex] = useState(0);
   const [selectedPhaseIndex, setSelectedPhaseIndex] = useState(0);
@@ -40,8 +45,8 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [selectedArtefactIndex, setSelectedArtefactIndex] = useState(0);
   const [selectedFindingIndex, setSelectedFindingIndex] = useState(0);
   const commandItems = getCommandPaletteItems();
-  const filteredCommandItems = filterCommandPaletteItems(commandItems, commandPaletteQuery);
-  const selectedCommand = filteredCommandItems[selectedCommandIndex];
+  const filteredCommandItems = filterCommandPaletteItems(commandItems, commandPaletteState.query);
+  const selectedCommand = filteredCommandItems[commandPaletteState.selectedIndex];
   const selectedRun = useMemo(() => {
     const run = fixture.runs[selectedRunIndex];
     return run ? fixture.runDetailsById[run.id] ?? fixture.selectedRun : fixture.selectedRun;
@@ -71,8 +76,8 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
         setHelpOpen(false);
         return;
       }
-      if (commandPaletteOpen) {
-        setCommandPaletteOpen(false);
+      if (commandPaletteState.open) {
+        setCommandPaletteState(closeCommandPaletteState());
         return;
       }
     }
@@ -81,24 +86,23 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       return;
     }
     if (input === "p") {
-      setCommandPaletteOpen((current) => !current);
+      setCommandPaletteState((current) => toggleCommandPaletteState(current));
       return;
     }
     if (helpOpen) {
       return;
     }
-    if (commandPaletteOpen) {
+    if (commandPaletteState.open) {
       if (key.backspace || key.delete) {
-        setCommandPaletteQuery((current) => backspaceCommandPaletteQuery(current));
-        setSelectedCommandIndex(0);
+        setCommandPaletteState((current) => updateCommandPaletteQuery(current, backspaceCommandPaletteQuery(current.query)));
         return;
       }
       if (input === "k" || key.upArrow) {
-        setSelectedCommandIndex((currentIndex) => moveSelection({ currentIndex, itemCount: filteredCommandItems.length, direction: "up" }));
+        setCommandPaletteState((current) => updateCommandPaletteSelectedIndex(current, moveSelection({ currentIndex: current.selectedIndex, itemCount: filteredCommandItems.length, direction: "up" })));
         return;
       }
       if (input === "j" || key.downArrow) {
-        setSelectedCommandIndex((currentIndex) => moveSelection({ currentIndex, itemCount: filteredCommandItems.length, direction: "down" }));
+        setCommandPaletteState((current) => updateCommandPaletteSelectedIndex(current, moveSelection({ currentIndex: current.selectedIndex, itemCount: filteredCommandItems.length, direction: "down" })));
         return;
       }
       if (key.return) {
@@ -109,10 +113,9 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
         setNotice(createInfoNotice(result.message));
         return;
       }
-      const nextQuery = appendCommandPaletteQuery(commandPaletteQuery, input);
-      if (nextQuery !== commandPaletteQuery) {
-        setCommandPaletteQuery(nextQuery);
-        setSelectedCommandIndex(0);
+      const nextQuery = appendCommandPaletteQuery(commandPaletteState.query, input);
+      if (nextQuery !== commandPaletteState.query) {
+        setCommandPaletteState((current) => updateCommandPaletteQuery(current, nextQuery));
       }
       return;
     }
@@ -187,8 +190,8 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
     return <HelpOverlay />;
   }
 
-  if (commandPaletteOpen) {
-    return <CommandPalettePreview query={commandPaletteQuery} items={filteredCommandItems} selectedCommandIndex={selectedCommandIndex} selectedCommand={selectedCommand} />;
+  if (commandPaletteState.open) {
+    return <CommandPalettePreview query={commandPaletteState.query} items={filteredCommandItems} selectedCommandIndex={commandPaletteState.selectedIndex} selectedCommand={selectedCommand} />;
   }
 
   return (
