@@ -137,3 +137,27 @@ CI status:
 
 Next action:
 - Re-check CI on the updated PR 64 head, then merge if green.
+
+## 2026-05-21T07:10:00Z
+
+Item: PR 64 merge check.
+
+Scan:
+- Planning workspace exists.
+- Open PR: 64 Extract TUI artifact list pane.
+- CI: success on commit e34fc5c19f77d907a08241a62c627c65c2273af5.
+- PR state: open and mergeable.
+
+Touched files:
+- plans/coordination.md
+- plans/workers/chatgpt.md
+
+PR:
+- 64
+
+CI status:
+- Success before this planning update.
+- Re-check required after this planning update.
+
+Next action:
+- Re-check CI on the updated PR 64 head, then merge if green.
