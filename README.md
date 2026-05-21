@@ -1,6 +1,6 @@
 # MergeWright
 
-`agent-stage` is a standalone CLI delivery harness for controlled AI-assisted engineering workflows. It turns agent-generated code changes into staged, reviewable, auditable delivery evidence.
+`mergewright` is a standalone CLI delivery harness for controlled AI-assisted engineering workflows. It turns agent-generated code changes into staged, reviewable, auditable delivery evidence.
 
 It supports Planner -> Builder -> Reviewer workflows, bounded fix loops, write-safety gates, run artefacts, AI Change Reports, and Stage Plans for human-gated multi-stage delivery.
 
@@ -69,20 +69,20 @@ Install dependencies and check the CLI:
 ```bash
 npm install
 npm run build
-npm run agent -- --help
+npm run mergewright -- --help
 ```
 
 Create project scaffolding:
 
 ```bash
-npm run agent -- init-project "My App" \
+npm run mergewright -- init-project "My App" \
   --workspace /path/to/repo
 ```
 
 Validate write readiness:
 
 ```bash
-npm run agent -- check-write-safety \
+npm run mergewright -- check-write-safety \
   --config configs/my-app.json
 ```
 
@@ -91,7 +91,7 @@ npm run agent -- check-write-safety \
 ### Preview a classic stage
 
 ```bash
-npm run agent -- run stage-01-example \
+npm run mergewright -- run stage-01-example \
   --config configs/my-app.json \
   --preset plan \
   --dry-run
@@ -100,7 +100,7 @@ npm run agent -- run stage-01-example \
 ### Run a classic stage with bounded fixes
 
 ```bash
-npm run agent -- run stage-01-example \
+npm run mergewright -- run stage-01-example \
   --config configs/my-app.json \
   --auto-chain \
   --allow-writes \
@@ -110,7 +110,7 @@ npm run agent -- run stage-01-example \
 ### Continue an existing run
 
 ```bash
-npm run agent -- continue-run <run-id> \
+npm run mergewright -- continue-run <run-id> \
   --config configs/my-app.json \
   --execute-reviewer \
   --run-checks
@@ -119,20 +119,20 @@ npm run agent -- continue-run <run-id> \
 ### Inspect run artefacts
 
 ```bash
-npm run agent -- list-runs \
+npm run mergewright -- list-runs \
   --config configs/my-app.json
 
-npm run agent -- show-run <run-id> \
+npm run mergewright -- show-run <run-id> \
   --config configs/my-app.json
 
-npm run agent -- open-run <run-id> \
+npm run mergewright -- open-run <run-id> \
   --config configs/my-app.json
 ```
 
 ### Generate an AI Change Report
 
 ```bash
-npm run agent -- report-run <run-id> \
+npm run mergewright -- report-run <run-id> \
   --config configs/my-app.json \
   --pr-summary
 ```
@@ -144,7 +144,7 @@ Use Stage Plans when you want to turn an implementation plan into reviewable sta
 ### Import a stage plan
 
 ```bash
-npm run agent -- import-stage-plan \
+npm run mergewright -- import-stage-plan \
   --from docs/examples/stage-plan.example.json \
   --out .artifacts/runs/provider-switching
 ```
@@ -152,7 +152,7 @@ npm run agent -- import-stage-plan \
 ### Run the next stage and stop for review
 
 ```bash
-npm run agent -- run-stages \
+npm run mergewright -- run-stages \
   --stage-plan .artifacts/runs/provider-switching/stage-plan.json \
   --stop-after-each-stage \
   --config configs/my-app.json \
@@ -162,7 +162,7 @@ npm run agent -- run-stages \
 ### Fix a stage using human feedback
 
 ```bash
-npm run agent -- fix-stage stage-01-provider-contract \
+npm run mergewright -- fix-stage stage-01-provider-contract \
   --stage-plan .artifacts/runs/provider-switching/stage-plan.json \
   --config configs/my-app.json \
   --feedback "The provider contract still leaks vendor-specific message shapes." \
@@ -172,14 +172,14 @@ npm run agent -- fix-stage stage-01-provider-contract \
 ### Accept a reviewed stage
 
 ```bash
-npm run agent -- accept-stage stage-01-provider-contract \
+npm run mergewright -- accept-stage stage-01-provider-contract \
   --stage-plan .artifacts/runs/provider-switching/stage-plan.json
 ```
 
 ### Accept and commit a reviewed stage
 
 ```bash
-npm run agent -- accept-stage stage-01-provider-contract \
+npm run mergewright -- accept-stage stage-01-provider-contract \
   --stage-plan .artifacts/runs/provider-switching/stage-plan.json \
   --auto-commit
 ```
@@ -187,7 +187,7 @@ npm run agent -- accept-stage stage-01-provider-contract \
 ### Reassess downstream stages
 
 ```bash
-npm run agent -- reassess-stage-plan \
+npm run mergewright -- reassess-stage-plan \
   --stage-plan .artifacts/runs/provider-switching/stage-plan.json \
   --from stage-01-provider-contract \
   --config configs/my-app.json
@@ -196,7 +196,7 @@ npm run agent -- reassess-stage-plan \
 ### Continue after gates pass
 
 ```bash
-npm run agent -- continue-stages \
+npm run mergewright -- continue-stages \
   --stage-plan .artifacts/runs/provider-switching/stage-plan.json \
   --config configs/my-app.json \
   --allow-writes
