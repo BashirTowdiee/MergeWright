@@ -1,4 +1,5 @@
 import { readFile, stat } from "node:fs/promises";
+import { readEvidenceManifestIfExists } from "../evidence/evidence-store.js";
 import { parseReviewerOutput, type ReviewerIssue } from "../reviewer-output.js";
 import type { ChecksStatus, ChangeReport, OptionalJsonResult, RunMetadataWithAutoChain, WriteAuditSummary } from "./change-report-types.js";
 
@@ -23,14 +24,23 @@ export async function collectReportInputs(runDir: string): Promise<{
   const runJsonResult = await readOptionalJson<RunMetadataWithAutoChain>(`${runDir}/run.json`);
   const run = runJsonResult.value;
   const stageText = await readOptionalText(`${runDir}/01-stage-input.md`);
+  const evidence = await readEvidenceManifestIfExists(runDir);
 
   const builderSummaryResult = await readOptionalJson<WriteAuditSummary>(`${runDir}/write-audit/builder/summary.json`);
   const fixSummaryResult = await readOptionalJson<WriteAuditSummary>(`${runDir}/write-audit/fix/summary.json`);
   const builderSummary = builderSummaryResult.value;
   const fixSummary = fixSummaryResult.value;
 
-  const changedFiles = dedupeSort([...collectSummaryFiles(builderSummary), ...collectSummaryFiles(fixSummary)]);
-  const untrackedFiles = dedupeSort([...collectSummaryUntracked(builderSummary), ...collectSummaryUntracked(fixSummary)]);
+  const changedFiles = dedupeSort([
+    ...collectSummaryFiles(builderSummary),
+    ...collectSummaryFiles(fixSummary),
+    ...(evidence?.git.changedFiles ?? [])
+  ]);
+  const untrackedFiles = dedupeSort([
+    ...collectSummaryUntracked(builderSummary),
+    ...collectSummaryUntracked(fixSummary),
+    ...(evidence?.git.untrackedFiles ?? [])
+  ]);
 
   const reviewer = await parseReviewer(`${runDir}/reviewer-output-last-message.md`);
   const checksResult = await parseChecks(`${runDir}/checks-status.json`);
