@@ -34,6 +34,30 @@ export function getCommandPaletteItems(): CommandPaletteItem[] {
   ];
 }
 
+export function filterCommandPaletteItems(items: CommandPaletteItem[], query: string): CommandPaletteItem[] {
+  const normalisedQuery = query.trim().toLowerCase();
+  if (normalisedQuery.length === 0) {
+    return items;
+  }
+
+  return items.filter((item) => {
+    const searchable = `${item.id} ${item.label} ${item.description}`.toLowerCase();
+    return searchable.includes(normalisedQuery);
+  });
+}
+
+export function appendCommandPaletteQuery(query: string, input: string): string {
+  if (input.length !== 1) {
+    return query;
+  }
+
+  return `${query}${input}`;
+}
+
+export function backspaceCommandPaletteQuery(query: string): string {
+  return query.slice(0, -1);
+}
+
 export function formatCommandPaletteLine(item: CommandPaletteItem): string {
   return `${item.enabled ? "ok" : "disabled"} ${item.label} - ${item.description}`;
 }
