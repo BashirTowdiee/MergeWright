@@ -5,6 +5,7 @@ export const knownCommands = new Set([
   "show-run",
   "open-run",
   "report-run",
+  "backfill-evidence",
   "tui",
   "tui-spike",
   "init-project",
