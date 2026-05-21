@@ -12,6 +12,7 @@ import {
 import {
   EVIDENCE_MANIFEST_FILENAME,
   readEvidenceManifest,
+  readEvidenceManifestIfExists,
   resolveEvidenceManifestPath,
   updateEvidenceManifest,
   writeEvidenceManifest
@@ -136,6 +137,7 @@ test("evidence store writes, reads, and updates evidence.json", async () => {
 
     const read = await readEvidenceManifest(runDir);
     assert.deepEqual(read, manifest);
+    assert.deepEqual(await readEvidenceManifestIfExists(runDir), manifest);
 
     const updated = await updateEvidenceManifest(runDir, (current) => ({
       ...current,
@@ -151,6 +153,15 @@ test("evidence store writes, reads, and updates evidence.json", async () => {
   }
 });
 
+test("readEvidenceManifestIfExists returns null when evidence.json is missing", async () => {
+  const runDir = await mkdtemp(path.join(os.tmpdir(), "evidence-manifest-missing-"));
+  try {
+    assert.equal(await readEvidenceManifestIfExists(runDir), null);
+  } finally {
+    await rm(runDir, { recursive: true, force: true });
+  }
+});
+
 test("readEvidenceManifest rejects malformed manifest content", async () => {
   const runDir = await mkdtemp(path.join(os.tmpdir(), "evidence-manifest-invalid-"));
   try {
@@ -159,6 +170,7 @@ test("readEvidenceManifest rejects malformed manifest content", async () => {
     await import("node:fs/promises").then(({ writeFile }) => writeFile(manifestPath, "{}\n", "utf8"));
 
     await assert.rejects(() => readEvidenceManifest(runDir), /Invalid evidence manifest/);
+    await assert.rejects(() => readEvidenceManifestIfExists(runDir), /Invalid evidence manifest/);
   } finally {
     await rm(runDir, { recursive: true, force: true });
   }
