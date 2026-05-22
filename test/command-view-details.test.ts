@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import type { AppCommand } from "../src/application/commands/app-command.js";
 import type { CommandDescription } from "../src/application/commands/command-description.js";
 import { showCommandPreview, createIdleCommandPreviewState } from "../src/tui/command-preview-state.js";
-import { buildCommandViewDetails, buildCommandViewRows, COMMAND_VIEW_ROW_LABELS } from "../src/tui/command-view-details.js";
+import { buildCommandViewDetails, buildCommandViewRows, COMMAND_VIEW_LIST_SEPARATOR, COMMAND_VIEW_ROW_LABELS } from "../src/tui/command-view-details.js";
 import { previewCommandIntent, type TuiCommandIntent } from "../src/tui/write-model.js";
 
 const command: AppCommand = {
@@ -44,6 +44,10 @@ test("command view row labels are stable", () => {
     effects: "Effects",
     reason: "Reason"
   });
+});
+
+test("command view list separator is stable", () => {
+  assert.equal(COMMAND_VIEW_LIST_SEPARATOR, " | ");
 });
 
 test("command view details are absent when idle", () => {

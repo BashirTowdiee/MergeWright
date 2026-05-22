@@ -1,6 +1,6 @@
 import type { TuiCommandPreviewState } from "./command-preview-state.js";
 
-const COMMAND_VIEW_LIST_SEPARATOR = " | ";
+export const COMMAND_VIEW_LIST_SEPARATOR = " | ";
 export const COMMAND_VIEW_ROW_LABELS = {
   title: "Command",
   summary: "Summary",
