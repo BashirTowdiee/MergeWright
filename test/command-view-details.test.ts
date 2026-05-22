@@ -72,8 +72,8 @@ test("command view rows format optional details", () => {
 
   assert.ok(details);
   assert.deepEqual(buildCommandViewRows(details), [
-    "Continue run (continue-run)",
-    "Continues an existing run through the command boundary.",
+    "Command: Continue run (continue-run)",
+    "Summary: Continues an existing run through the command boundary.",
     "Risk: medium",
     "Confirmation: required",
     "State: blocked",
@@ -95,8 +95,8 @@ test("command view rows omit optional detail rows when empty", () => {
       effects: []
     }),
     [
-      "Continue run (continue-run)",
-      "Continues an existing run through the command boundary.",
+      "Command: Continue run (continue-run)",
+      "Summary: Continues an existing run through the command boundary.",
       "Risk: low",
       "Confirmation: not required",
       "State: ready"
