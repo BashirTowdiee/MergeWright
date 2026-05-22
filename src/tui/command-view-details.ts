@@ -40,6 +40,10 @@ export function buildCommandViewDetails(state: TuiCommandPreviewState): CommandV
   };
 }
 
+export function joinCommandViewListValues(values: readonly string[]): string {
+  return values.join(COMMAND_VIEW_LIST_SEPARATOR);
+}
+
 export function buildCommandViewRows(details: CommandViewDetails): readonly string[] {
   const rows = [
     `${COMMAND_VIEW_ROW_LABELS.title}: ${details.title}`,
@@ -50,11 +54,11 @@ export function buildCommandViewRows(details: CommandViewDetails): readonly stri
   ];
 
   if (details.preconditions.length > 0) {
-    rows.push(`${COMMAND_VIEW_ROW_LABELS.preconditions}: ${details.preconditions.join(COMMAND_VIEW_LIST_SEPARATOR)}`);
+    rows.push(`${COMMAND_VIEW_ROW_LABELS.preconditions}: ${joinCommandViewListValues(details.preconditions)}`);
   }
 
   if (details.effects.length > 0) {
-    rows.push(`${COMMAND_VIEW_ROW_LABELS.effects}: ${details.effects.join(COMMAND_VIEW_LIST_SEPARATOR)}`);
+    rows.push(`${COMMAND_VIEW_ROW_LABELS.effects}: ${joinCommandViewListValues(details.effects)}`);
   }
 
   if (details.reason) {
