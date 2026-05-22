@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import type { AppCommand } from "../src/application/commands/app-command.js";
 import type { CommandDescription } from "../src/application/commands/command-description.js";
 import { showCommandPreview, createIdleCommandPreviewState } from "../src/tui/command-preview-state.js";
-import { buildCommandViewDetails, buildCommandViewRows } from "../src/tui/command-view-details.js";
+import { buildCommandViewDetails, buildCommandViewRows, COMMAND_VIEW_ROW_LABELS } from "../src/tui/command-view-details.js";
 import { previewCommandIntent, type TuiCommandIntent } from "../src/tui/write-model.js";
 
 const command: AppCommand = {
@@ -32,6 +32,19 @@ const description: CommandDescription = {
   effects: ["Updates run state."],
   blockedReason: "continue-run requires confirmation because its risk is medium."
 };
+
+test("command view row labels are stable", () => {
+  assert.deepEqual(COMMAND_VIEW_ROW_LABELS, {
+    title: "Command",
+    summary: "Summary",
+    risk: "Risk",
+    confirmation: "Confirmation",
+    state: "State",
+    preconditions: "Preconditions",
+    effects: "Effects",
+    reason: "Reason"
+  });
+});
 
 test("command view details are absent when idle", () => {
   assert.equal(buildCommandViewDetails(createIdleCommandPreviewState()), undefined);
