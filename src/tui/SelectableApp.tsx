@@ -60,6 +60,7 @@ function renderCommandPreviewSection(state: TuiCommandPreviewState) {
       <Text>{details.summary}</Text>
       <Text>Risk: {details.risk}</Text>
       <Text>Confirmation: {details.confirmation}</Text>
+      <Text>State: {details.state}</Text>
     </Box>
   );
 }
