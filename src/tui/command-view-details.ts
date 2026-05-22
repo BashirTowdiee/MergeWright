@@ -6,6 +6,7 @@ export type CommandViewDetails = {
   readonly risk: string;
   readonly confirmation: string;
   readonly state: "ready" | "blocked";
+  readonly reason?: string;
 };
 
 export function buildCommandViewDetails(state: TuiCommandPreviewState): CommandViewDetails | undefined {
@@ -18,6 +19,7 @@ export function buildCommandViewDetails(state: TuiCommandPreviewState): CommandV
     summary: state.preview.description.summary,
     risk: state.preview.risk,
     confirmation: state.preview.requiresConfirmation ? "required" : "not required",
-    state: state.preview.canSubmit ? "ready" : "blocked"
+    state: state.preview.canSubmit ? "ready" : "blocked",
+    reason: state.preview.blockedReason
   };
 }
