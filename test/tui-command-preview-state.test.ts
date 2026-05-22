@@ -45,3 +45,16 @@ test("command preview state formats selected preview", () => {
   assert.equal(state.status, "previewing");
   assert.equal(formatCommandPreviewNotice(state), "Preview: Continue run (continue-run) is medium-risk and blocked; confirmation required. Blocked: continue-run requires confirmation because its risk is medium.");
 });
+
+test("command preview state formats submit-ready preview", () => {
+  const readyDescription: CommandDescription = {
+    ...description,
+    risk: "low",
+    requiresConfirmation: false,
+    blockedReason: undefined
+  };
+  const preview = previewCommandIntent(intent, readyDescription);
+  const state = showCommandPreview(intent, preview);
+
+  assert.equal(formatCommandPreviewNotice(state), "Preview: Continue run (continue-run) is low-risk and submit-ready; no confirmation required.");
+});
