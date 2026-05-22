@@ -142,6 +142,21 @@ test("command view rows omit optional detail rows when empty", () => {
   );
 });
 
+test("command view rows omit empty reason rows", () => {
+  const rows = buildCommandViewRows({
+    title: "A",
+    summary: "B",
+    risk: "low",
+    confirmation: "not required",
+    state: "ready",
+    preconditions: [],
+    effects: [],
+    reason: ""
+  });
+
+  assert.deepEqual(rows, ["Command: A", "Summary: B", "Risk: low", "Confirmation: not required", "State: ready"]);
+});
+
 test("command view rows keep detail order", () => {
   const rows = buildCommandViewRows({
     title: "A",
