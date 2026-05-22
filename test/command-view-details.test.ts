@@ -103,3 +103,18 @@ test("command view rows omit optional detail rows when empty", () => {
     ]
   );
 });
+
+test("command view rows keep detail order", () => {
+  const rows = buildCommandViewRows({
+    title: "A",
+    summary: "B",
+    risk: "low",
+    confirmation: "not required",
+    state: "ready",
+    preconditions: ["C"],
+    effects: ["D"],
+    reason: "E"
+  });
+
+  assert.deepEqual(rows.slice(5), ["Preconditions: C", "Effects: D", "Reason: E"]);
+});
