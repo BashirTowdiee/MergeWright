@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Box, Text, useInput } from "ink";
+import { Box, useInput } from "ink";
 import { describeSafeActionIntent } from "./action-intent.js";
 import { AppChrome } from "./components/AppChrome.js";
 import {
@@ -16,8 +16,7 @@ import {
   updateCommandPaletteQuery,
   updateCommandPaletteSelectedIndex
 } from "./command-palette-state.js";
-import { createIdleCommandPreviewState, formatCommandPreviewNotice, type TuiCommandPreviewState } from "./command-preview-state.js";
-import { buildCommandViewDetails, buildCommandViewRows } from "./command-view-details.js";
+import { createIdleCommandPreviewState, formatCommandPreviewNotice } from "./command-preview-state.js";
 import { buildEvidencePreview } from "./evidence-preview.js";
 import { buildFindingDetailLines } from "./finding-detail.js";
 import { formatFileScopeLabel, resolveScopedFiles, toggleFileScope, type FileScope } from "./file-scope.js";
@@ -33,6 +32,7 @@ import { moveSelection } from "./navigation.js";
 import { CommandPalettePreview } from "./overlays/CommandPalettePreview.js";
 import { HelpOverlay } from "./overlays/HelpOverlay.js";
 import { ArtefactListPane } from "./panes/ArtefactListPane.js";
+import { CommandPreviewPane } from "./panes/CommandPreviewPane.js";
 import { CurrentRunPane } from "./panes/CurrentRunPane.js";
 import { EvidenceReviewPane } from "./panes/EvidenceReviewPane.js";
 import { RunListPane } from "./panes/RunListPane.js";
@@ -45,23 +45,6 @@ import { createInitialSelectionState, resetFileSelection } from "./selection-sta
 import type { TuiSpikeFixture } from "./spike-fixture.js";
 
 const HELP_LINE = "? help - p command palette - esc close overlay - s toggle file scope - tab focus pane - j/k select item - enter previews selected action - read-only - Ctrl+C to exit";
-
-function renderCommandPreviewSection(state: TuiCommandPreviewState) {
-  const details = buildCommandViewDetails(state);
-
-  if (!details) {
-    return null;
-  }
-
-  return (
-    <Box flexDirection="column" marginTop={1} borderStyle="round" paddingX={1}>
-      <Text bold>Command</Text>
-      {buildCommandViewRows(details).map((row) => (
-        <Text key={row}>{row}</Text>
-      ))}
-    </Box>
-  );
-}
 
 export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [focusedPane, setFocusedPane] = useState<FocusedPane>("runs");
@@ -227,7 +210,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
           findingDetailLines={findingDetailLines}
         />
       </Box>
-      {renderCommandPreviewSection(commandPreviewState)}
+      <CommandPreviewPane state={commandPreviewState} />
     </AppChrome>
   );
 }
