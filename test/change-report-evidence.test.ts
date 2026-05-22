@@ -105,3 +105,45 @@ test("change report prefers evidence-backed safety and risk fields", async () =>
   assert.equal(report.risk, "high");
   assert.ok(report.riskSignals.includes("evidence risk"));
 });
+
+test("change report prefers evidence-backed reviewer and checks over legacy artefacts", async () => {
+  const runDir = await createRunFixture();
+  await writeFile(
+    path.join(runDir, "reviewer-output-last-message.md"),
+    '```json reviewer-verdict\n{"verdict":"PASS","blockingIssues":[],"nonBlockingIssues":[]}\n```\n',
+    "utf8"
+  );
+  await writeFile(path.join(runDir, "checks-status.json"), JSON.stringify({ state: "executed" }), "utf8");
+  const manifest = createEvidenceManifest({ runId: "run-123", workspace: "/tmp/workspace" });
+  await writeEvidenceManifest(runDir, {
+    ...manifest,
+    status: "fail",
+    reviewer: {
+      verdict: "FAIL",
+      artefactPath: "evidence.json",
+      blockingIssues: [{ severity: "high", summary: "evidence issue", files: ["src/evidence.ts"] }],
+      nonBlockingIssues: []
+    },
+    checks: {
+      status: "failed",
+      failed: ["npm test"],
+      skipped: []
+    },
+    risk: { level: "high", reasons: ["evidence-backed failure"] }
+  });
+
+  const report = await generateChangeReport({ runDir });
+  const evidence = report.evidence;
+  assert.ok(evidence);
+
+  assert.equal(evidence.available, true);
+  assert.equal(evidence.status, "fail");
+  assert.equal(report.reviewer.verdict, "FAIL");
+  assert.deepEqual(report.reviewer.blockingIssues, [
+    { severity: "high", summary: "evidence issue", files: ["src/evidence.ts"] }
+  ]);
+  assert.equal(report.checks.state, "failed");
+  assert.deepEqual(report.checks.failedChecks, ["npm test"]);
+  assert.equal(report.risk, "high");
+  assert.ok(report.riskSignals.includes("evidence-backed failure"));
+});
