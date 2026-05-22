@@ -16,6 +16,7 @@ import {
   updateCommandPaletteQuery,
   updateCommandPaletteSelectedIndex
 } from "./command-palette-state.js";
+import { createIdleCommandPreviewState, formatCommandPreviewNotice } from "./command-preview-state.js";
 import { buildEvidencePreview } from "./evidence-preview.js";
 import { buildFindingDetailLines } from "./finding-detail.js";
 import { formatFileScopeLabel, resolveScopedFiles, toggleFileScope, type FileScope } from "./file-scope.js";
@@ -38,6 +39,7 @@ import { SafeActionPane } from "./panes/SafeActionPane.js";
 import { buildPhaseDetailLines } from "./phase-detail.js";
 import { buildRunContextLines } from "./run-context.js";
 import { buildRunWarningLines } from "./run-warnings.js";
+import { buildSafeActionPreview } from "./safe-action-preview.js";
 import { createInitialSelectionState, resetFileSelection } from "./selection-state.js";
 import type { TuiSpikeFixture } from "./spike-fixture.js";
 
@@ -47,6 +49,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [focusedPane, setFocusedPane] = useState<FocusedPane>("runs");
   const [fileScope, setFileScope] = useState<FileScope>("phase");
   const [overlay, setOverlay] = useState<TuiOverlay>("none");
+  const [commandPreviewState, setCommandPreviewState] = useState(createIdleCommandPreviewState());
   const [commandPaletteState, setCommandPaletteState] = useState(createClosedCommandPaletteState());
   const [notice, setNotice] = useState<TuiNotice | null>(createInfoNotice("TUI is read-only. Actions are previews only."));
   const [selection, setSelection] = useState(createInitialSelectionState());
@@ -141,6 +144,18 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       return;
     }
     if (key.return && focusedPane === "actions") {
+      const nextPreviewState = buildSafeActionPreview({
+        action: selectedAction,
+        runId: selectedRun.id,
+        selectedPhaseId: selectedPhase.id,
+        requestedAt: new Date(0).toISOString()
+      });
+      if (nextPreviewState) {
+        setCommandPreviewState(nextPreviewState);
+        setNotice(createInfoNotice(formatCommandPreviewNotice(nextPreviewState)));
+        return;
+      }
+      setCommandPreviewState(createIdleCommandPreviewState());
       setNotice(createInfoNotice(selectedSafeActionDescription));
       return;
     }
