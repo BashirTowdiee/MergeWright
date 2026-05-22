@@ -27,3 +27,27 @@ export function buildCommandViewDetails(state: TuiCommandPreviewState): CommandV
     reason: state.preview.blockedReason
   };
 }
+
+export function buildCommandViewRows(details: CommandViewDetails): readonly string[] {
+  const rows = [
+    details.title,
+    details.summary,
+    `Risk: ${details.risk}`,
+    `Confirmation: ${details.confirmation}`,
+    `State: ${details.state}`
+  ];
+
+  if (details.preconditions.length > 0) {
+    rows.push(`Preconditions: ${details.preconditions.join(" | ")}`);
+  }
+
+  if (details.effects.length > 0) {
+    rows.push(`Effects: ${details.effects.join(" | ")}`);
+  }
+
+  if (details.reason) {
+    rows.push(`Reason: ${details.reason}`);
+  }
+
+  return rows;
+}
