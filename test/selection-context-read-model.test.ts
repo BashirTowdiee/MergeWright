@@ -99,7 +99,7 @@ test("buildTuiSelectionContext exposes undefined child selections when out of ra
     runs: [runListItem("fallback")],
     runDetailsById: { fallback: fallbackRun },
     fallbackRun,
-    selection: selection({ phaseIndex: 99, actionIndex: 99, findingIndex: 99 }),
+    selection: selection({ phaseIndex: 99, actionIndex: 99, fileIndex: 99, findingIndex: 99 }),
     fileScope: "phase"
   });
 
