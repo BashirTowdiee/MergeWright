@@ -121,7 +121,7 @@ test("change report prefers evidence-backed reviewer and checks over legacy arte
     reviewer: {
       verdict: "FAIL",
       artefactPath: "evidence.json",
-      blockingIssues: [{ severity: "high", summary: "evidence blocker", files: ["src/evidence.ts"] }],
+      blockingIssues: [{ severity: "high", summary: "evidence issue", files: ["src/evidence.ts"] }],
       nonBlockingIssues: []
     },
     checks: {
@@ -133,12 +133,14 @@ test("change report prefers evidence-backed reviewer and checks over legacy arte
   });
 
   const report = await generateChangeReport({ runDir });
+  const evidence = report.evidence;
+  assert.ok(evidence);
 
-  assert.equal(report.evidence.available, true);
-  assert.equal(report.evidence.status, "fail");
+  assert.equal(evidence.available, true);
+  assert.equal(evidence.status, "fail");
   assert.equal(report.reviewer.verdict, "FAIL");
   assert.deepEqual(report.reviewer.blockingIssues, [
-    { severity: "high", summary: "evidence blocker", files: ["src/evidence.ts"] }
+    { severity: "high", summary: "evidence issue", files: ["src/evidence.ts"] }
   ]);
   assert.equal(report.checks.state, "failed");
   assert.deepEqual(report.checks.failedChecks, ["npm test"]);
