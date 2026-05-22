@@ -28,8 +28,8 @@ const description: CommandDescription = {
   summary: "Continues an existing run through the command boundary.",
   risk: "medium",
   requiresConfirmation: true,
-  preconditions: [],
-  effects: [],
+  preconditions: ["Run exists."],
+  effects: ["Updates run state."],
   blockedReason: "continue-run requires confirmation because its risk is medium."
 };
 
@@ -47,6 +47,8 @@ test("command view details summarise selected preview", () => {
     risk: "medium",
     confirmation: "required",
     state: "blocked",
+    preconditions: ["Run exists."],
+    effects: ["Updates run state."],
     reason: "continue-run requires confirmation because its risk is medium."
   });
 });
