@@ -118,3 +118,18 @@ test("command view rows keep detail order", () => {
 
   assert.deepEqual(rows.slice(5), ["Preconditions: C", "Effects: D", "Reason: E"]);
 });
+
+test("command view rows join multiple list values", () => {
+  const rows = buildCommandViewRows({
+    title: "A",
+    summary: "B",
+    risk: "low",
+    confirmation: "not required",
+    state: "ready",
+    preconditions: ["C", "D"],
+    effects: ["E", "F"]
+  });
+
+  assert.equal(rows[5], "Preconditions: C | D");
+  assert.equal(rows[6], "Effects: E | F");
+});
