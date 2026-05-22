@@ -82,3 +82,24 @@ test("command view rows format optional details", () => {
     "Reason: continue-run requires confirmation because its risk is medium."
   ]);
 });
+
+test("command view rows omit optional detail rows when empty", () => {
+  assert.deepEqual(
+    buildCommandViewRows({
+      title: "Continue run (continue-run)",
+      summary: "Continues an existing run through the command boundary.",
+      risk: "low",
+      confirmation: "not required",
+      state: "ready",
+      preconditions: [],
+      effects: []
+    }),
+    [
+      "Continue run (continue-run)",
+      "Continues an existing run through the command boundary.",
+      "Risk: low",
+      "Confirmation: not required",
+      "State: ready"
+    ]
+  );
+});
