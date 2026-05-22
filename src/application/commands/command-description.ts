@@ -1,4 +1,5 @@
 import type { AppCommand, AppCommandType } from "./app-command.js";
+import { getCommandMetadata } from "./command-metadata.js";
 import type { CommandRisk } from "./command-risk.js";
 import { getConfirmationRequirement } from "./confirmation.js";
 
@@ -16,16 +17,17 @@ export type CommandDescription = {
 
 export function describeCommand(command: AppCommand, risk: CommandRisk): CommandDescription {
   const confirmation = getConfirmationRequirement(command, risk);
+  const metadata = getCommandMetadata(command.type);
 
   return {
     commandId: command.commandId,
     type: command.type,
-    title: command.type,
-    summary: `Describes the ${command.type} command before execution.`,
+    title: metadata.title,
+    summary: metadata.summary,
     risk,
     requiresConfirmation: confirmation.required,
-    preconditions: [],
-    effects: [],
+    preconditions: metadata.preconditions,
+    effects: metadata.effects,
     blockedReason: confirmation.reason
   };
 }
