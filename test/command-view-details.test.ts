@@ -83,6 +83,27 @@ test("command view rows format optional details", () => {
   ]);
 });
 
+test("command view rows format ready details", () => {
+  const preview = previewCommandIntent(intent, {
+    ...description,
+    risk: "low",
+    requiresConfirmation: false,
+    preconditions: [],
+    effects: [],
+    blockedReason: undefined
+  });
+  const details = buildCommandViewDetails(showCommandPreview(intent, preview));
+
+  assert.ok(details);
+  assert.deepEqual(buildCommandViewRows(details), [
+    "Command: Continue run (continue-run)",
+    "Summary: Continues an existing run through the command boundary.",
+    "Risk: low",
+    "Confirmation: not required",
+    "State: ready"
+  ]);
+});
+
 test("command view rows omit optional detail rows when empty", () => {
   assert.deepEqual(
     buildCommandViewRows({
