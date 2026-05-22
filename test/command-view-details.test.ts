@@ -44,6 +44,17 @@ test("command view details summarise selected preview", () => {
     title: "Continue run (continue-run)",
     summary: "Continues an existing run through the command boundary.",
     risk: "medium",
-    confirmation: "required"
+    confirmation: "required",
+    state: "blocked"
   });
+});
+
+test("command view details mark ready preview", () => {
+  const readyPreview = previewCommandIntent(intent, {
+    ...description,
+    risk: "low",
+    requiresConfirmation: false
+  });
+
+  assert.equal(buildCommandViewDetails(showCommandPreview(intent, readyPreview))?.state, "ready");
 });
