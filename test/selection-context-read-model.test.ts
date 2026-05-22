@@ -79,6 +79,25 @@ test("buildTuiSelectionContext resolves selected run and selected child items", 
   });
 });
 
+test("buildTuiSelectionContext includes every artefact when file scope is all", () => {
+  const fallbackRun = runDetail("fallback");
+  const context = buildTuiSelectionContext({
+    runs: [runListItem("fallback")],
+    runDetailsById: { fallback: fallbackRun },
+    fallbackRun,
+    selection: selection({ phaseIndex: 1, fileIndex: 1 }),
+    fileScope: "all"
+  });
+
+  assert.deepEqual(
+    context.scopedArtefacts.map((item) => item.id),
+    ["planner-output", "reviewer-output"]
+  );
+  assert.equal(context.selectedPhase?.id, "reviewer");
+  assert.equal(context.selectedArtefact?.id, "reviewer-output");
+  assert.equal(context.navigationCounts.files, 2);
+});
+
 test("buildTuiSelectionContext falls back when selected run is unavailable", () => {
   const fallbackRun = runDetail("fallback");
   const context = buildTuiSelectionContext({
