@@ -30,8 +30,8 @@ export function buildCommandViewDetails(state: TuiCommandPreviewState): CommandV
 
 export function buildCommandViewRows(details: CommandViewDetails): readonly string[] {
   const rows = [
-    details.title,
-    details.summary,
+    `Command: ${details.title}`,
+    `Summary: ${details.summary}`,
     `Risk: ${details.risk}`,
     `Confirmation: ${details.confirmation}`,
     `State: ${details.state}`
