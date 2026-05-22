@@ -7,7 +7,10 @@ function runListItem(id: string): RunListItemViewModel {
   return {
     id,
     title: id,
-    status: "unknown"
+    status: "unknown",
+    subtitle: id,
+    mode: "unknown",
+    warnings: []
   };
 }
 
@@ -16,11 +19,13 @@ function runDetail(id: string): RunDetailViewModel {
     id,
     title: id,
     status: "unknown",
+    runDir: `/tmp/${id}`,
     mode: "unknown",
     phases: [],
     artefacts: [],
     reviewerFindings: [],
-    safeActions: []
+    safeActions: [],
+    warnings: []
   };
 }
 
