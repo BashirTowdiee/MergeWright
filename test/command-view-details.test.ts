@@ -29,7 +29,8 @@ const description: CommandDescription = {
   risk: "medium",
   requiresConfirmation: true,
   preconditions: [],
-  effects: []
+  effects: [],
+  blockedReason: "continue-run requires confirmation because its risk is medium."
 };
 
 test("command view details are absent when idle", () => {
@@ -45,7 +46,8 @@ test("command view details summarise selected preview", () => {
     summary: "Continues an existing run through the command boundary.",
     risk: "medium",
     confirmation: "required",
-    state: "blocked"
+    state: "blocked",
+    reason: "continue-run requires confirmation because its risk is medium."
   });
 });
 
@@ -53,8 +55,10 @@ test("command view details mark ready preview", () => {
   const readyPreview = previewCommandIntent(intent, {
     ...description,
     risk: "low",
-    requiresConfirmation: false
+    requiresConfirmation: false,
+    blockedReason: undefined
   });
 
   assert.equal(buildCommandViewDetails(showCommandPreview(intent, readyPreview))?.state, "ready");
+  assert.equal(buildCommandViewDetails(showCommandPreview(intent, readyPreview))?.reason, undefined);
 });
