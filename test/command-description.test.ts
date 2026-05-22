@@ -40,15 +40,13 @@ test("confirmation token satisfies approve-stage confirmation", () => {
 test("command descriptions are service-renderable without execution", () => {
   const description = describeCommand(command, "medium");
 
-  assert.deepEqual(description, {
-    commandId: "cmd-1",
-    type: "approve-stage",
-    title: "approve-stage",
-    summary: "Describes the approve-stage command before execution.",
-    risk: "medium",
-    requiresConfirmation: true,
-    preconditions: [],
-    effects: [],
-    blockedReason: "approve-stage requires confirmation because its risk is medium."
-  });
+  assert.equal(description.commandId, "cmd-1");
+  assert.equal(description.type, "approve-stage");
+  assert.equal(description.title, "Approve stage");
+  assert.equal(description.summary, "Approves a stage after review.");
+  assert.equal(description.risk, "medium");
+  assert.equal(description.requiresConfirmation, true);
+  assert.deepEqual(description.preconditions, ["Stage exists.", "Required review evidence is present."]);
+  assert.deepEqual(description.effects, ["Records approval intent for the stage."]);
+  assert.equal(description.blockedReason, "approve-stage requires confirmation because its risk is medium.");
 });
