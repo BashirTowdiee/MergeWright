@@ -17,6 +17,7 @@ import {
   updateCommandPaletteSelectedIndex
 } from "./command-palette-state.js";
 import { createIdleCommandPreviewState, formatCommandPreviewNotice, type TuiCommandPreviewState } from "./command-preview-state.js";
+import { buildCommandViewDetails } from "./command-view-details.js";
 import { buildEvidencePreview } from "./evidence-preview.js";
 import { buildFindingDetailLines } from "./finding-detail.js";
 import { formatFileScopeLabel, resolveScopedFiles, toggleFileScope, type FileScope } from "./file-scope.js";
@@ -46,17 +47,19 @@ import type { TuiSpikeFixture } from "./spike-fixture.js";
 const HELP_LINE = "? help - p command palette - esc close overlay - s toggle file scope - tab focus pane - j/k select item - enter previews selected action - read-only - Ctrl+C to exit";
 
 function renderCommandPreviewSection(state: TuiCommandPreviewState) {
-  if (state.status !== "previewing") {
+  const details = buildCommandViewDetails(state);
+
+  if (!details) {
     return null;
   }
 
   return (
     <Box flexDirection="column" marginTop={1} borderStyle="round" paddingX={1}>
       <Text bold>Command</Text>
-      <Text>{state.preview.description.title} ({state.preview.description.type})</Text>
-      <Text>{state.preview.description.summary}</Text>
-      <Text>Risk: {state.preview.risk}</Text>
-      <Text>Confirmation: {state.preview.requiresConfirmation ? "required" : "not required"}</Text>
+      <Text>{details.title}</Text>
+      <Text>{details.summary}</Text>
+      <Text>Risk: {details.risk}</Text>
+      <Text>Confirmation: {details.confirmation}</Text>
     </Box>
   );
 }
