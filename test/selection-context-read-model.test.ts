@@ -34,11 +34,11 @@ function runDetail(id: string): RunDetailViewModel {
     runDir: `/tmp/${id}`,
     mode: "unknown",
     phases: [
-      { id: "planner", label: "Planner", status: "passed" },
-      { id: "reviewer", label: "Reviewer", status: "failed" }
+      { id: "planner", label: "Planner", status: "passed", artefactIds: [] },
+      { id: "reviewer", label: "Reviewer", status: "failed", artefactIds: [] }
     ],
     artefacts: [],
-    reviewerFindings: [{ severity: "high", message: "Review failed" }],
+    reviewerFindings: [{ severity: "high", message: "Review issue" }],
     safeActions: [{ id: "continue", label: "Continue", enabled: true, risk: "medium", requiresConfirmation: false }],
     warnings: []
   };
@@ -58,7 +58,7 @@ test("buildTuiSelectionContext resolves selected run and selected child items", 
   assert.equal(context.selectedRun, selectedRun);
   assert.equal(context.selectedPhase?.id, "reviewer");
   assert.equal(context.selectedAction?.id, "continue");
-  assert.equal(context.selectedFinding?.message, "Review failed");
+  assert.equal(context.selectedFinding?.message, "Review issue");
   assert.deepEqual(context.navigationCounts, {
     runs: 2,
     phases: 2,
