@@ -1,5 +1,7 @@
 import type { TuiCommandPreviewState } from "./command-preview-state.js";
 
+const COMMAND_VIEW_LIST_SEPARATOR = " | ";
+
 export type CommandViewDetails = {
   readonly title: string;
   readonly summary: string;
@@ -38,11 +40,11 @@ export function buildCommandViewRows(details: CommandViewDetails): readonly stri
   ];
 
   if (details.preconditions.length > 0) {
-    rows.push(`Preconditions: ${details.preconditions.join(" | ")}`);
+    rows.push(`Preconditions: ${details.preconditions.join(COMMAND_VIEW_LIST_SEPARATOR)}`);
   }
 
   if (details.effects.length > 0) {
-    rows.push(`Effects: ${details.effects.join(" | ")}`);
+    rows.push(`Effects: ${details.effects.join(COMMAND_VIEW_LIST_SEPARATOR)}`);
   }
 
   if (details.reason) {
