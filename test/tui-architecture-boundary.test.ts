@@ -17,12 +17,15 @@ const FORBIDDEN_IMPORTS = [
 ];
 
 const FORBIDDEN_PATTERNS = [
-  /from\s+["']node:fs["']/,
-  /from\s+["']fs["']/,
-  /from\s+["']node:fs\/promises["']/,
-  /from\s+["']fs\/promises["']/,
   /require\(["']child_process["']\)/,
-  /require\(["']node:child_process["']\)/
+  /require\(["']node:child_process["']\)/,
+  /\bwriteFile(?:Sync)?\s*\(/,
+  /\bappendFile(?:Sync)?\s*\(/,
+  /\bmkdir(?:Sync)?\s*\(/,
+  /\brm(?:Sync)?\s*\(/,
+  /\bunlink(?:Sync)?\s*\(/,
+  /\brename(?:Sync)?\s*\(/,
+  /\bcp(?:Sync)?\s*\(/
 ];
 
 async function listTypeScriptFiles(directory: string): Promise<string[]> {
