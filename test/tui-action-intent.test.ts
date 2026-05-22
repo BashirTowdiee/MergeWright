@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { describeSafeActionIntent } from "../src/tui/action-intent.js";
+import { describeSafeActionIntent, getSafeActionCommandType } from "../src/tui/action-intent.js";
 
 test("describeSafeActionIntent handles missing action", () => {
   assert.equal(describeSafeActionIntent(undefined), "No safe action selected.");
@@ -20,7 +20,7 @@ test("describeSafeActionIntent explains blocked action", () => {
   );
 });
 
-test("describeSafeActionIntent previews enabled action", () => {
+test("describeSafeActionIntent previews unmapped enabled action", () => {
   assert.equal(
     describeSafeActionIntent({
       id: "generate-report",
@@ -33,15 +33,30 @@ test("describeSafeActionIntent previews enabled action", () => {
   );
 });
 
-test("describeSafeActionIntent mentions confirmation when required", () => {
+test("describeSafeActionIntent previews command-backed action metadata", () => {
+  assert.equal(getSafeActionCommandType({ id: "continue", label: "Continue run", enabled: true, risk: "medium", requiresConfirmation: true }), "continue-run");
   assert.equal(
     describeSafeActionIntent({
-      id: "request-fix",
-      label: "Request fix",
+      id: "continue",
+      label: "Continue run",
       enabled: true,
       risk: "medium",
       requiresConfirmation: true
     }),
-    "Preview only: Request fix would run later as a medium-risk action. Requires confirmation."
+    "Preview only: Continue run (continue-run) would use the command boundary as a medium-risk action. Continues an existing run through the command boundary. Requires confirmation. Preconditions: Run exists. Run is resumable. Effects: Updates run artefacts and state."
+  );
+});
+
+test("describeSafeActionIntent maps reviewer rerun to retry-phase metadata", () => {
+  assert.equal(getSafeActionCommandType({ id: "rerun-reviewer", label: "Rerun reviewer", enabled: true, risk: "medium", requiresConfirmation: false }), "retry-phase");
+  assert.equal(
+    describeSafeActionIntent({
+      id: "rerun-reviewer",
+      label: "Rerun reviewer",
+      enabled: true,
+      risk: "medium",
+      requiresConfirmation: false
+    }),
+    "Preview only: Retry phase (retry-phase) would use the command boundary as a medium-risk action. Retries a failed or selected phase through the command boundary. Preconditions: Run exists. Phase is retryable. Effects: Updates phase artefacts and state."
   );
 });
