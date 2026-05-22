@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import type { AppCommand } from "../src/application/commands/app-command.js";
 import type { CommandDescription } from "../src/application/commands/command-description.js";
 import { showCommandPreview, createIdleCommandPreviewState } from "../src/tui/command-preview-state.js";
-import { buildCommandViewDetails } from "../src/tui/command-view-details.js";
+import { buildCommandViewDetails, buildCommandViewRows } from "../src/tui/command-view-details.js";
 import { previewCommandIntent, type TuiCommandIntent } from "../src/tui/write-model.js";
 
 const command: AppCommand = {
@@ -63,4 +63,22 @@ test("command view details mark ready preview", () => {
 
   assert.equal(buildCommandViewDetails(showCommandPreview(intent, readyPreview))?.state, "ready");
   assert.equal(buildCommandViewDetails(showCommandPreview(intent, readyPreview))?.reason, undefined);
+});
+
+test("command view rows format optional details", () => {
+  const preview = previewCommandIntent(intent, description);
+  const state = showCommandPreview(intent, preview);
+  const details = buildCommandViewDetails(state);
+
+  assert.ok(details);
+  assert.deepEqual(buildCommandViewRows(details), [
+    "Continue run (continue-run)",
+    "Continues an existing run through the command boundary.",
+    "Risk: medium",
+    "Confirmation: required",
+    "State: blocked",
+    "Preconditions: Run exists.",
+    "Effects: Updates run state.",
+    "Reason: continue-run requires confirmation because its risk is medium."
+  ]);
 });
