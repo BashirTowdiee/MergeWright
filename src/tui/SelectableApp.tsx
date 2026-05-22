@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Box, useInput } from "ink";
+import { Box, Text, useInput } from "ink";
 import { describeSafeActionIntent } from "./action-intent.js";
 import { AppChrome } from "./components/AppChrome.js";
 import {
@@ -209,6 +209,15 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
           findingDetailLines={findingDetailLines}
         />
       </Box>
+      {commandPreviewState.status === "previewing" ? (
+        <Box flexDirection="column" marginTop={1} borderStyle="round" paddingX={1}>
+          <Text bold>Command</Text>
+          <Text>{commandPreviewState.preview.description.title} ({commandPreviewState.preview.description.type})</Text>
+          <Text>{commandPreviewState.preview.description.summary}</Text>
+          <Text>Risk: {commandPreviewState.preview.risk}</Text>
+          <Text>Confirmation: {commandPreviewState.preview.requiresConfirmation ? "required" : "not required"}</Text>
+        </Box>
+      ) : null}
     </AppChrome>
   );
 }
