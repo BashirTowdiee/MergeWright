@@ -1,6 +1,16 @@
 import type { TuiCommandPreviewState } from "./command-preview-state.js";
 
 const COMMAND_VIEW_LIST_SEPARATOR = " | ";
+const COMMAND_VIEW_ROW_LABELS = {
+  title: "Command",
+  summary: "Summary",
+  risk: "Risk",
+  confirmation: "Confirmation",
+  state: "State",
+  preconditions: "Preconditions",
+  effects: "Effects",
+  reason: "Reason"
+} as const;
 
 export type CommandViewDetails = {
   readonly title: string;
@@ -32,23 +42,23 @@ export function buildCommandViewDetails(state: TuiCommandPreviewState): CommandV
 
 export function buildCommandViewRows(details: CommandViewDetails): readonly string[] {
   const rows = [
-    `Command: ${details.title}`,
-    `Summary: ${details.summary}`,
-    `Risk: ${details.risk}`,
-    `Confirmation: ${details.confirmation}`,
-    `State: ${details.state}`
+    `${COMMAND_VIEW_ROW_LABELS.title}: ${details.title}`,
+    `${COMMAND_VIEW_ROW_LABELS.summary}: ${details.summary}`,
+    `${COMMAND_VIEW_ROW_LABELS.risk}: ${details.risk}`,
+    `${COMMAND_VIEW_ROW_LABELS.confirmation}: ${details.confirmation}`,
+    `${COMMAND_VIEW_ROW_LABELS.state}: ${details.state}`
   ];
 
   if (details.preconditions.length > 0) {
-    rows.push(`Preconditions: ${details.preconditions.join(COMMAND_VIEW_LIST_SEPARATOR)}`);
+    rows.push(`${COMMAND_VIEW_ROW_LABELS.preconditions}: ${details.preconditions.join(COMMAND_VIEW_LIST_SEPARATOR)}`);
   }
 
   if (details.effects.length > 0) {
-    rows.push(`Effects: ${details.effects.join(COMMAND_VIEW_LIST_SEPARATOR)}`);
+    rows.push(`${COMMAND_VIEW_ROW_LABELS.effects}: ${details.effects.join(COMMAND_VIEW_LIST_SEPARATOR)}`);
   }
 
   if (details.reason) {
-    rows.push(`Reason: ${details.reason}`);
+    rows.push(`${COMMAND_VIEW_ROW_LABELS.reason}: ${details.reason}`);
   }
 
   return rows;
