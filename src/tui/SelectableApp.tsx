@@ -61,6 +61,8 @@ function renderCommandPreviewSection(state: TuiCommandPreviewState) {
       <Text>Risk: {details.risk}</Text>
       <Text>Confirmation: {details.confirmation}</Text>
       <Text>State: {details.state}</Text>
+      {details.preconditions.length > 0 ? <Text>Preconditions: {details.preconditions.join(" | ")}</Text> : null}
+      {details.effects.length > 0 ? <Text>Effects: {details.effects.join(" | ")}</Text> : null}
       {details.reason ? <Text>Reason: {details.reason}</Text> : null}
     </Box>
   );
