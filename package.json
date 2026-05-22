@@ -18,7 +18,7 @@
     "docs:check": "npm --prefix docs-site run check"
   },
   "devDependencies": {
-    "@types/node": "^22.15.29",
+    "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",
     "typescript": "^5.8.3"
   },
