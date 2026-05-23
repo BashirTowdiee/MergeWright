@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Box, useInput } from "ink";
+import { DefaultAppCommandService } from "../application/commands/default-app-command-service.js";
 import { describeSafeActionIntent } from "./action-intent.js";
 import { AppChrome } from "./components/AppChrome.js";
 import {
@@ -16,7 +17,8 @@ import {
   updateCommandPaletteQuery,
   updateCommandPaletteSelectedIndex
 } from "./command-palette-state.js";
-import { createIdleCommandPreviewState, formatCommandPreviewNotice } from "./command-preview-state.js";
+import { TuiCommandController } from "./command-controller.js";
+import { createIdleCommandPreviewState } from "./command-preview-state.js";
 import { buildTuiDashboardReadModel } from "./dashboard-read-model.js";
 import { toggleFileScope, type FileScope } from "./file-scope.js";
 import { getFocusedPaneTitle, moveFocus, type FocusedPane } from "./focus.js";
@@ -34,12 +36,13 @@ import { CurrentRunPane } from "./panes/CurrentRunPane.js";
 import { EvidenceReviewPane } from "./panes/EvidenceReviewPane.js";
 import { RunListPane } from "./panes/RunListPane.js";
 import { SafeActionPane } from "./panes/SafeActionPane.js";
-import { buildSafeActionPreview } from "./safe-action-preview.js";
+import { isSelectTaskPreviewForTask } from "./select-task-preview-match.js";
+import { previewSelectTaskCommand, submitSelectTaskCommand } from "./select-task-command-flow.js";
 import { buildTuiSelectionContext } from "./selection-context-read-model.js";
 import { createInitialSelectionState, resetFileSelection } from "./selection-state.js";
 import type { TuiSpikeFixture } from "./spike-fixture.js";
 
-const HELP_LINE = "? help - p command palette - esc close overlay - s toggle file scope - tab focus pane - j/k select item - enter previews selected action - read-only - Ctrl+C to exit";
+const HELP_LINE = "? help - p command palette - esc close overlay - s toggle file scope - tab focus pane - j/k select item - enter previews/submits selected task - read-only - Ctrl+C to exit";
 
 export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [focusedPane, setFocusedPane] = useState<FocusedPane>("runs");
@@ -47,8 +50,9 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [overlay, setOverlay] = useState<TuiOverlay>("none");
   const [commandPreviewState, setCommandPreviewState] = useState(createIdleCommandPreviewState());
   const [commandPaletteState, setCommandPaletteState] = useState(createClosedCommandPaletteState());
-  const [notice, setNotice] = useState<TuiNotice | null>(createInfoNotice("TUI is read-only. Actions are previews only."));
+  const [notice, setNotice] = useState<TuiNotice | null>(createInfoNotice("TUI is service-wired for safe task selection."));
   const [selection, setSelection] = useState(createInitialSelectionState());
+  const commandController = useMemo(() => new TuiCommandController({ commandService: new DefaultAppCommandService() }), []);
   const runs = useRuns({ runs: fixture.runs });
   const commandItems = getCommandPaletteItems();
   const filteredCommandItems = filterCommandPaletteItems(commandItems, commandPaletteState.query);
@@ -84,6 +88,29 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
     setSelection((current) => moveSelectionForFocusedPane({ focusedPane, selection: current, counts: navigationCounts, direction }));
     const message = getNavigationNoticeForFocusedPane(focusedPane);
     setNotice(message ? createInfoNotice(message) : null);
+  }
+
+  async function previewOrSubmitSelectedTask() {
+    if (!selectedAction) {
+      setCommandPreviewState(createIdleCommandPreviewState());
+      setNotice(createInfoNotice(selectedSafeActionDescription));
+      return;
+    }
+
+    if (isSelectTaskPreviewForTask(commandPreviewState, selectedAction.id)) {
+      const result = await submitSelectTaskCommand({ controller: commandController, previewState: commandPreviewState });
+      setNotice(createInfoNotice(result.notice));
+      return;
+    }
+
+    const result = await previewSelectTaskCommand({
+      controller: commandController,
+      taskId: selectedAction.id,
+      label: selectedAction.label,
+      requestedAt: new Date(0).toISOString()
+    });
+    setCommandPreviewState(result.previewState);
+    setNotice(createInfoNotice(result.notice));
   }
 
   useInput((input, key) => {
@@ -137,19 +164,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       return;
     }
     if (key.return && focusedPane === "actions") {
-      const nextPreviewState = buildSafeActionPreview({
-        action: selectedAction,
-        runId: selectedRun.id,
-        selectedPhaseId: selectedPhase?.id ?? "",
-        requestedAt: new Date(0).toISOString()
-      });
-      if (nextPreviewState) {
-        setCommandPreviewState(nextPreviewState);
-        setNotice(createInfoNotice(formatCommandPreviewNotice(nextPreviewState)));
-        return;
-      }
-      setCommandPreviewState(createIdleCommandPreviewState());
-      setNotice(createInfoNotice(selectedSafeActionDescription));
+      void previewOrSubmitSelectedTask();
       return;
     }
     if (input === "\t" || key.tab) {
