@@ -13,6 +13,7 @@ import {
 test("getCommandPaletteItems returns enabled and disabled preview commands", () => {
   const items = getCommandPaletteItems();
   assert.ok(items.some((item) => item.id === "preview-action" && item.enabled));
+  assert.ok(items.some((item) => item.id === "update-coordination-note" && item.enabled));
   assert.ok(items.some((item) => item.id === "generate-report" && !item.enabled));
 });
 
@@ -20,6 +21,7 @@ test("filterCommandPaletteItems filters by id label and description", () => {
   const items = getCommandPaletteItems();
   assert.deepEqual(filterCommandPaletteItems(items, "report").map((item) => item.id), ["generate-report"]);
   assert.deepEqual(filterCommandPaletteItems(items, "scope").map((item) => item.id), ["toggle-file-scope"]);
+  assert.deepEqual(filterCommandPaletteItems(items, "coordination").map((item) => item.id), ["update-coordination-note"]);
   assert.equal(filterCommandPaletteItems(items, "").length, items.length);
 });
 
@@ -81,6 +83,24 @@ test("previewCommandPaletteSelection previews file scope toggle", () => {
       context: { selectedSafeActionDescription: "action", currentFileScope: "phase" }
     }),
     { handled: true, message: "Preview only: file scope would toggle from phase." }
+  );
+});
+
+test("previewCommandPaletteSelection previews coordination note command", () => {
+  assert.deepEqual(
+    previewCommandPaletteSelection({
+      item: {
+        id: "update-coordination-note",
+        label: "Update coordination note",
+        description: "Previews and submits a service-routed coordination note update.",
+        enabled: true
+      },
+      context: { selectedSafeActionDescription: "action", currentFileScope: "phase" }
+    }),
+    {
+      handled: true,
+      message: "Preview command: Update coordination note. Previews and submits a service-routed coordination note update."
+    }
   );
 });
 
