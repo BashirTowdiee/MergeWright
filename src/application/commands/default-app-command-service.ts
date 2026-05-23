@@ -33,6 +33,10 @@ export class DefaultAppCommandService implements AppCommandService {
       return executeUpdateCoordinationNote(command);
     }
 
+    if (command.type === "mark-task-reviewed") {
+      return executeMarkTaskReviewed(command);
+    }
+
     return {
       ok: false,
       commandId: command.commandId,
@@ -80,6 +84,37 @@ function executeUpdateCoordinationNote(command: Extract<AppCommand, { readonly t
     commandId: command.commandId,
     type: command.type,
     message: "Coordination note accepted for service handling.",
+    changedFiles: []
+  };
+}
+
+function executeMarkTaskReviewed(command: Extract<AppCommand, { readonly type: "mark-task-reviewed" }>): AppCommandResult {
+  const taskId = command.taskId.trim();
+  if (!taskId) {
+    return {
+      ok: false,
+      commandId: command.commandId,
+      type: command.type,
+      code: "VALIDATION_FAILED",
+      reason: "Task ID is required."
+    };
+  }
+
+  if (!command.reviewedAt.trim() || Number.isNaN(Date.parse(command.reviewedAt))) {
+    return {
+      ok: false,
+      commandId: command.commandId,
+      type: command.type,
+      code: "VALIDATION_FAILED",
+      reason: "Reviewed-at timestamp must be a valid date."
+    };
+  }
+
+  return {
+    ok: true,
+    commandId: command.commandId,
+    type: command.type,
+    message: `Marked task ${taskId} reviewed.`,
     changedFiles: []
   };
 }
