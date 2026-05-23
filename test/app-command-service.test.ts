@@ -40,7 +40,7 @@ test("DefaultAppCommandService can describe overridden command risk", async () =
 
   assert.equal(description.risk, "high");
   assert.equal(description.requiresConfirmation, true);
-  assert.equal(description.blockedReason, "High risk command requires confirmation.");
+  assert.equal(description.blockedReason, "select-task requires confirmation because its risk is high.");
 });
 
 test("DefaultAppCommandService rejects execution until handlers are wired", async () => {
