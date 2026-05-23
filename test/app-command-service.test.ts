@@ -107,6 +107,63 @@ test("DefaultAppCommandService validates empty coordination notes", async () => 
   });
 });
 
+test("DefaultAppCommandService marks tasks reviewed without direct file writes", async () => {
+  const service = new DefaultAppCommandService();
+
+  const result = await service.execute({
+    ...metadata,
+    type: "mark-task-reviewed",
+    taskId: "task-1",
+    reviewedAt: "2026-05-23T00:00:00.000Z"
+  });
+
+  assert.deepEqual(result, {
+    ok: true,
+    commandId: "cmd-service-1",
+    type: "mark-task-reviewed",
+    message: "Marked task task-1 reviewed.",
+    changedFiles: []
+  });
+});
+
+test("DefaultAppCommandService validates missing reviewed task IDs", async () => {
+  const service = new DefaultAppCommandService();
+
+  const result = await service.execute({
+    ...metadata,
+    type: "mark-task-reviewed",
+    taskId: "  ",
+    reviewedAt: "2026-05-23T00:00:00.000Z"
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    commandId: "cmd-service-1",
+    type: "mark-task-reviewed",
+    code: "VALIDATION_FAILED",
+    reason: "Task ID is required."
+  });
+});
+
+test("DefaultAppCommandService validates reviewed timestamps", async () => {
+  const service = new DefaultAppCommandService();
+
+  const result = await service.execute({
+    ...metadata,
+    type: "mark-task-reviewed",
+    taskId: "task-1",
+    reviewedAt: "not-a-date"
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    commandId: "cmd-service-1",
+    type: "mark-task-reviewed",
+    code: "VALIDATION_FAILED",
+    reason: "Reviewed-at timestamp must be a valid date."
+  });
+});
+
 test("DefaultAppCommandService rejects unwired command execution", async () => {
   const service = new DefaultAppCommandService();
 
