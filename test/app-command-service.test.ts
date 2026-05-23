@@ -164,6 +164,63 @@ test("DefaultAppCommandService validates reviewed timestamps", async () => {
   });
 });
 
+test("DefaultAppCommandService accepts task comments without direct file writes", async () => {
+  const service = new DefaultAppCommandService();
+
+  const result = await service.execute({
+    ...metadata,
+    type: "add-task-comment",
+    taskId: "task-1",
+    comment: "Looks ready."
+  });
+
+  assert.deepEqual(result, {
+    ok: true,
+    commandId: "cmd-service-1",
+    type: "add-task-comment",
+    message: "Comment accepted for task task-1.",
+    changedFiles: []
+  });
+});
+
+test("DefaultAppCommandService validates missing commented task IDs", async () => {
+  const service = new DefaultAppCommandService();
+
+  const result = await service.execute({
+    ...metadata,
+    type: "add-task-comment",
+    taskId: "  ",
+    comment: "Looks ready."
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    commandId: "cmd-service-1",
+    type: "add-task-comment",
+    code: "VALIDATION_FAILED",
+    reason: "Task ID is required."
+  });
+});
+
+test("DefaultAppCommandService validates empty task comments", async () => {
+  const service = new DefaultAppCommandService();
+
+  const result = await service.execute({
+    ...metadata,
+    type: "add-task-comment",
+    taskId: "task-1",
+    comment: "  "
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    commandId: "cmd-service-1",
+    type: "add-task-comment",
+    code: "VALIDATION_FAILED",
+    reason: "Task comment is required."
+  });
+});
+
 test("DefaultAppCommandService rejects unwired command execution", async () => {
   const service = new DefaultAppCommandService();
 
