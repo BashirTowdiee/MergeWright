@@ -82,7 +82,7 @@ test("buildCommandConfirmationState returns required state when preview requires
     showCommandPreview(
       makeIntent(),
       makePreview({
-        risk: "dangerous",
+        risk: "high",
         requiresConfirmation: true,
         canSubmit: false,
         description: {
@@ -90,7 +90,7 @@ test("buildCommandConfirmationState returns required state when preview requires
           type: "select-task",
           title: "Select task",
           summary: "Selects a task.",
-          risk: "dangerous",
+          risk: "high",
           requiresConfirmation: true,
           preconditions: [],
           effects: []
@@ -104,7 +104,7 @@ test("buildCommandConfirmationState returns required state when preview requires
     intentId: "intent-1",
     commandType: "select-task",
     title: "Select task",
-    risk: "dangerous",
+    risk: "high",
     prompt: "Review Select task before continuing."
   });
 });
@@ -117,10 +117,10 @@ test("formatCommandConfirmationNotice formats each state", () => {
       intentId: "intent-1",
       commandType: "select-task",
       title: "Select task",
-      risk: "dangerous",
+      risk: "high",
       prompt: "Review Select task before continuing."
     }),
-    "Confirmation required: Select task (select-task) is dangerous-risk. Review Select task before continuing."
+    "Confirmation required: Select task (select-task) is high-risk. Review Select task before continuing."
   );
   assert.equal(
     formatCommandConfirmationNotice({
