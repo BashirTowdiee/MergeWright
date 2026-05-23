@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Text } from "ink";
+import { buildCommandConfirmationState, formatCommandConfirmationNotice } from "../command-confirmation-state.js";
 import type { TuiCommandPreviewState } from "../command-preview-state.js";
 import { buildCommandViewDetails, buildCommandViewRows } from "../command-view-details.js";
 
@@ -15,9 +16,12 @@ export function buildCommandPreviewPaneModel(state: TuiCommandPreviewState): Com
     return undefined;
   }
 
+  const confirmation = buildCommandConfirmationState(state);
+  const confirmationRows = confirmation.status === "idle" ? [] : [`Confirmation gate: ${formatCommandConfirmationNotice(confirmation)}`];
+
   return {
     title: "Command",
-    rows: buildCommandViewRows(details)
+    rows: [...buildCommandViewRows(details), ...confirmationRows]
   };
 }
 
