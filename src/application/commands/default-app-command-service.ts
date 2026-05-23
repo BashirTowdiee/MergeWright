@@ -25,6 +25,10 @@ export class DefaultAppCommandService implements AppCommandService {
   }
 
   async execute(command: AppCommand): Promise<AppCommandResult> {
+    if (command.type === "select-task") {
+      return executeSelectTask(command);
+    }
+
     return {
       ok: false,
       commandId: command.commandId,
@@ -33,4 +37,24 @@ export class DefaultAppCommandService implements AppCommandService {
       reason: "Command execution is not wired yet."
     };
   }
+}
+
+function executeSelectTask(command: Extract<AppCommand, { readonly type: "select-task" }>): AppCommandResult {
+  const taskId = command.taskId.trim();
+  if (!taskId) {
+    return {
+      ok: false,
+      commandId: command.commandId,
+      type: command.type,
+      code: "VALIDATION_FAILED",
+      reason: "Task ID is required."
+    };
+  }
+
+  return {
+    ok: true,
+    commandId: command.commandId,
+    type: command.type,
+    message: `Selected task ${taskId}.`
+  };
 }
