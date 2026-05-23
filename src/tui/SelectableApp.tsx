@@ -17,13 +17,10 @@ import {
   updateCommandPaletteSelectedIndex
 } from "./command-palette-state.js";
 import { createIdleCommandPreviewState, formatCommandPreviewNotice } from "./command-preview-state.js";
-import { buildEvidencePreview } from "./evidence-preview.js";
-import { buildFindingDetailLines } from "./finding-detail.js";
-import { formatFileScopeLabel, toggleFileScope, type FileScope } from "./file-scope.js";
-import { buildFocusBreadcrumb } from "./focus-breadcrumb.js";
+import { buildTuiDashboardReadModel } from "./dashboard-read-model.js";
+import { toggleFileScope, type FileScope } from "./file-scope.js";
 import { getFocusedPaneTitle, moveFocus, type FocusedPane } from "./focus.js";
 import { useRuns } from "./hooks/useRuns.js";
-import { buildLayoutSummary } from "./layout-summary.js";
 import { createInfoNotice, formatNotice, type TuiNotice } from "./notice.js";
 import { closeOverlay, isCommandPaletteOverlayOpen, isHelpOverlayOpen, isOverlayOpen, toggleOverlay, type TuiOverlay } from "./overlay-state.js";
 import { getNavigationDirection } from "./navigation-keys.js";
@@ -37,9 +34,6 @@ import { CurrentRunPane } from "./panes/CurrentRunPane.js";
 import { EvidenceReviewPane } from "./panes/EvidenceReviewPane.js";
 import { RunListPane } from "./panes/RunListPane.js";
 import { SafeActionPane } from "./panes/SafeActionPane.js";
-import { buildPhaseDetailLines } from "./phase-detail.js";
-import { buildRunContextLines } from "./run-context.js";
-import { buildRunWarningLines } from "./run-warnings.js";
 import { buildSafeActionPreview } from "./safe-action-preview.js";
 import { buildTuiSelectionContext } from "./selection-context-read-model.js";
 import { createInitialSelectionState, resetFileSelection } from "./selection-state.js";
@@ -74,24 +68,17 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
     selectedRun,
     selectedPhase,
     scopedArtefacts: scopedArtifacts,
-    selectedArtefact,
     selectedAction,
-    selectedFinding,
     navigationCounts
   } = selectionContext;
-  const selectedSafeActionDescription = describeSafeActionIntent(selectedAction);
-  const evidenceLines = buildEvidencePreview({
-    artefact: selectedArtefact,
-    findings: selectedRun.reviewerFindings,
-    snippets: fixture.evidenceSnippets
+  const dashboard = buildTuiDashboardReadModel({
+    runs,
+    selectionContext,
+    evidenceSnippets: fixture.evidenceSnippets,
+    focusedPane,
+    fileScope
   });
-  const focusBreadcrumb = buildFocusBreadcrumb({ focusedPane, selectedRun, selectedPhase, fileScope });
-  const findingDetailLines = buildFindingDetailLines(selectedFinding);
-  const runContextLines = buildRunContextLines(selectedRun);
-  const runWarningLines = buildRunWarningLines(selectedRun.warnings);
-  const phaseDetailLines = buildPhaseDetailLines(selectedPhase);
-  const layoutSummary = buildLayoutSummary({ runs, selectedRun });
-  const fileScopeLabel = formatFileScopeLabel({ scope: fileScope, selectedPhase });
+  const selectedSafeActionDescription = describeSafeActionIntent(selectedAction);
 
   function applyNavigation(direction: "up" | "down") {
     setSelection((current) => moveSelectionForFocusedPane({ focusedPane, selection: current, counts: navigationCounts, direction }));
@@ -188,8 +175,8 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
     <AppChrome
       branch={selectedRun.branch}
       mode={selectedRun.mode}
-      layoutSummary={layoutSummary}
-      focusBreadcrumb={focusBreadcrumb}
+      layoutSummary={dashboard.layoutSummary}
+      focusBreadcrumb={dashboard.focusBreadcrumb}
       notice={formatNotice(notice)}
       helpLine={HELP_LINE}
     >
@@ -199,20 +186,20 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
           run={selectedRun}
           selectedPhaseIndex={selection.phaseIndex}
           focusedPane={focusedPane}
-          runContextLines={runContextLines}
-          runWarningLines={runWarningLines}
-          phaseDetailLines={phaseDetailLines}
+          runContextLines={dashboard.runContextLines}
+          runWarningLines={dashboard.runWarningLines}
+          phaseDetailLines={dashboard.phaseDetailLines}
         />
         <SafeActionPane actions={selectedRun.safeActions} selectedActionIndex={selection.actionIndex} focused={focusedPane === "actions"} blockedReason={selectedRun.blockedReason} />
       </Box>
       <Box flexDirection="row" marginTop={1}>
-        <ArtefactListPane artefacts={scopedArtifacts} selectedArtefactIndex={selection.fileIndex} focused={focusedPane === "artefacts"} title={fileScopeLabel} />
+        <ArtefactListPane artefacts={scopedArtifacts} selectedArtefactIndex={selection.fileIndex} focused={focusedPane === "artefacts"} title={dashboard.fileScopeLabel} />
         <EvidenceReviewPane
-          evidenceLines={evidenceLines}
+          evidenceLines={dashboard.evidenceLines}
           findings={selectedRun.reviewerFindings}
           selectedFindingIndex={selection.findingIndex}
           findingsFocused={focusedPane === "findings"}
-          findingDetailLines={findingDetailLines}
+          findingDetailLines={dashboard.findingDetailLines}
         />
       </Box>
       <CommandPreviewPane state={commandPreviewState} />
