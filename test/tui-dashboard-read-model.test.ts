@@ -64,15 +64,15 @@ test("buildTuiDashboardReadModel derives render lines from selection context", (
     runs: [runListItem("run-1")],
     selectionContext: context,
     evidenceSnippets: {
-      "planner-output": ["Evidence line"]
+      "planner-output": { artefactId: "planner-output", lines: ["Evidence line"] }
     },
     focusedPane: "artefacts",
     fileScope: "phase"
   });
 
-  assert.equal(model.layoutSummary, "1 run loaded - selected Stage 3 run");
-  assert.equal(model.fileScopeLabel, "Artefacts - Planner");
-  assert.deepEqual(model.focusBreadcrumb, ["Focus: Artefacts", "Run: Stage 3 run", "Phase: Planner", "Files: phase"]);
+  assert.equal(model.layoutSummary, "1 runs · 1 phases · 1 actions · 1 artefacts · 1 findings · 1 warnings");
+  assert.equal(model.fileScopeLabel, "Artifacts for Planner");
+  assert.equal(model.focusBreadcrumb, "Focus > Files > Run run-1 > Phase Planner > Files phase");
   assert.ok(model.evidenceLines.some((line) => line.includes("Evidence line")));
   assert.ok(model.findingDetailLines.some((line) => line.includes("Review issue")));
   assert.ok(model.runContextLines.some((line) => line.includes("Stage 3 run")));
