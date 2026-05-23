@@ -1,4 +1,4 @@
-export type CommandPaletteCommandId = "preview-action" | "toggle-file-scope" | "open-run-folder" | "generate-report";
+export type CommandPaletteCommandId = "preview-action" | "toggle-file-scope" | "update-coordination-note" | "open-run-folder" | "generate-report";
 
 export interface CommandPaletteItem {
   id: CommandPaletteCommandId;
@@ -29,6 +29,12 @@ export function getCommandPaletteItems(): CommandPaletteItem[] {
       id: "toggle-file-scope",
       label: "Toggle file scope",
       description: "Switches between phase-scoped files and all files.",
+      enabled: true
+    },
+    {
+      id: "update-coordination-note",
+      label: "Update coordination note",
+      description: "Previews and submits a service-routed coordination note update.",
       enabled: true
     },
     {
@@ -103,6 +109,8 @@ export function previewCommandPaletteSelection(input: {
       return { handled: true, message: input.context.selectedSafeActionDescription };
     case "toggle-file-scope":
       return { handled: true, message: `Preview only: file scope would toggle from ${input.context.currentFileScope}.` };
+    case "update-coordination-note":
+      return { handled: true, message: "Preview command: Update coordination note. Previews and submits a service-routed coordination note update." };
     case "open-run-folder":
     case "generate-report":
       return { handled: false, message: describeCommandPaletteSelection(input.item) };
