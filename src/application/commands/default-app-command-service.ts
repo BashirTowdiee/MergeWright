@@ -37,6 +37,10 @@ export class DefaultAppCommandService implements AppCommandService {
       return executeMarkTaskReviewed(command);
     }
 
+    if (command.type === "add-task-comment") {
+      return executeAddTaskComment(command);
+    }
+
     return {
       ok: false,
       commandId: command.commandId,
@@ -115,6 +119,38 @@ function executeMarkTaskReviewed(command: Extract<AppCommand, { readonly type: "
     commandId: command.commandId,
     type: command.type,
     message: `Marked task ${taskId} reviewed.`,
+    changedFiles: []
+  };
+}
+
+function executeAddTaskComment(command: Extract<AppCommand, { readonly type: "add-task-comment" }>): AppCommandResult {
+  const taskId = command.taskId.trim();
+  if (!taskId) {
+    return {
+      ok: false,
+      commandId: command.commandId,
+      type: command.type,
+      code: "VALIDATION_FAILED",
+      reason: "Task ID is required."
+    };
+  }
+
+  const comment = command.comment.trim();
+  if (!comment) {
+    return {
+      ok: false,
+      commandId: command.commandId,
+      type: command.type,
+      code: "VALIDATION_FAILED",
+      reason: "Task comment is required."
+    };
+  }
+
+  return {
+    ok: true,
+    commandId: command.commandId,
+    type: command.type,
+    message: `Comment accepted for task ${taskId}.`,
     changedFiles: []
   };
 }
