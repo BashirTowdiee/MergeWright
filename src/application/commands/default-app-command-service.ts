@@ -1,23 +1,36 @@
 import type { AppCommand } from "./app-command.js";
 import type { AppCommandResult } from "./app-command-result.js";
 import type { AppCommandService } from "./app-command-service.js";
+import { createCommandAuditRecord } from "./command-audit-record.js";
+import type { CommandAuditStore } from "./command-audit-store.js";
 import { describeCommand } from "./command-description.js";
 import type { CommandDescription } from "./command-description.js";
 import type { CommandRisk } from "./command-risk.js";
 
 export type CommandRiskResolver = (command: AppCommand) => CommandRisk;
+export type CommandAuditInputSummaryResolver = (command: AppCommand) => string;
+export type CommandAuditClock = () => string;
 
 export type DefaultAppCommandServiceOptions = {
   readonly resolveRisk?: CommandRiskResolver;
+  readonly auditStore?: CommandAuditStore;
+  readonly resolveAuditInputSummary?: CommandAuditInputSummaryResolver;
+  readonly auditClock?: CommandAuditClock;
 };
 
 const DEFAULT_RISK: CommandRisk = "none";
 
 export class DefaultAppCommandService implements AppCommandService {
   private readonly resolveRisk: CommandRiskResolver;
+  private readonly auditStore?: CommandAuditStore;
+  private readonly resolveAuditInputSummary: CommandAuditInputSummaryResolver;
+  private readonly auditClock: CommandAuditClock;
 
   constructor(options: DefaultAppCommandServiceOptions = {}) {
     this.resolveRisk = options.resolveRisk ?? (() => DEFAULT_RISK);
+    this.auditStore = options.auditStore;
+    this.resolveAuditInputSummary = options.resolveAuditInputSummary ?? defaultAuditInputSummary;
+    this.auditClock = options.auditClock ?? (() => new Date().toISOString());
   }
 
   async describe(command: AppCommand): Promise<CommandDescription> {
@@ -25,30 +38,57 @@ export class DefaultAppCommandService implements AppCommandService {
   }
 
   async execute(command: AppCommand): Promise<AppCommandResult> {
-    if (command.type === "select-task") {
-      return executeSelectTask(command);
-    }
-
-    if (command.type === "update-coordination-note") {
-      return executeUpdateCoordinationNote(command);
-    }
-
-    if (command.type === "mark-task-reviewed") {
-      return executeMarkTaskReviewed(command);
-    }
-
-    if (command.type === "add-task-comment") {
-      return executeAddTaskComment(command);
-    }
-
-    return {
-      ok: false,
-      commandId: command.commandId,
-      type: command.type,
-      code: "EXECUTION_FAILED",
-      reason: "Command execution is not wired yet."
-    };
+    const risk = this.resolveRisk(command);
+    const result = executeCommand(command);
+    await this.audit(command, risk, result);
+    return result;
   }
+
+  private async audit(command: AppCommand, risk: CommandRisk, result: AppCommandResult): Promise<void> {
+    if (!this.auditStore) {
+      return;
+    }
+
+    await this.auditStore.append({
+      record: createCommandAuditRecord({
+        command,
+        risk,
+        inputSummary: this.resolveAuditInputSummary(command),
+        result,
+        recordedAt: this.auditClock()
+      })
+    });
+  }
+}
+
+function executeCommand(command: AppCommand): AppCommandResult {
+  if (command.type === "select-task") {
+    return executeSelectTask(command);
+  }
+
+  if (command.type === "update-coordination-note") {
+    return executeUpdateCoordinationNote(command);
+  }
+
+  if (command.type === "mark-task-reviewed") {
+    return executeMarkTaskReviewed(command);
+  }
+
+  if (command.type === "add-task-comment") {
+    return executeAddTaskComment(command);
+  }
+
+  return {
+    ok: false,
+    commandId: command.commandId,
+    type: command.type,
+    code: "EXECUTION_FAILED",
+    reason: "Command execution is not wired yet."
+  };
+}
+
+function defaultAuditInputSummary(command: AppCommand): string {
+  return command.type;
 }
 
 function executeSelectTask(command: Extract<AppCommand, { readonly type: "select-task" }>): AppCommandResult {
