@@ -75,7 +75,7 @@ test("buildTuiDashboardReadModel derives render lines from selection context", (
   assert.equal(model.focusBreadcrumb, "Focus > Files > Run run-1 > Phase Planner > Files phase");
   assert.ok(model.evidenceLines.some((line) => line.includes("Evidence line")));
   assert.ok(model.findingDetailLines.some((line) => line.includes("Review issue")));
-  assert.ok(model.runContextLines.some((line) => line.includes("Stage 3 run")));
+  assert.ok(model.runContextLines.some((line) => line.includes("run-1")));
   assert.ok(model.runWarningLines.some((line) => line.includes("Warning one")));
   assert.ok(model.phaseDetailLines.some((line) => line.includes("Planner")));
 });
