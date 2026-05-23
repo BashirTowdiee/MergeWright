@@ -43,15 +43,46 @@ test("DefaultAppCommandService can describe overridden command risk", async () =
   assert.equal(description.blockedReason, "select-task requires confirmation because its risk is high.");
 });
 
-test("DefaultAppCommandService rejects execution until handlers are wired", async () => {
+test("DefaultAppCommandService executes select-task without file changes", async () => {
   const service = new DefaultAppCommandService();
 
   const result = await service.execute(command);
 
   assert.deepEqual(result, {
+    ok: true,
+    commandId: "cmd-service-1",
+    type: "select-task",
+    message: "Selected task task-1."
+  });
+});
+
+test("DefaultAppCommandService validates missing select-task IDs", async () => {
+  const service = new DefaultAppCommandService();
+
+  const result = await service.execute({ ...command, taskId: "  " });
+
+  assert.deepEqual(result, {
     ok: false,
     commandId: "cmd-service-1",
     type: "select-task",
+    code: "VALIDATION_FAILED",
+    reason: "Task ID is required."
+  });
+});
+
+test("DefaultAppCommandService rejects unwired command execution", async () => {
+  const service = new DefaultAppCommandService();
+
+  const result = await service.execute({
+    ...metadata,
+    type: "continue-run",
+    runId: "run-1"
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    commandId: "cmd-service-1",
+    type: "continue-run",
     code: "EXECUTION_FAILED",
     reason: "Command execution is not wired yet."
   });
