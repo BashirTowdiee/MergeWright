@@ -5,7 +5,7 @@ import { getFocusedPaneTitle } from "../focus.js";
 import type { ArtefactViewModel } from "../view-models.js";
 
 export interface ArtefactListPaneProps {
-  artefacts: ArtefactViewModel[];
+  artefacts: readonly ArtefactViewModel[];
   selectedArtefactIndex: number;
   focused: boolean;
   title: string;
