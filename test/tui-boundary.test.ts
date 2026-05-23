@@ -36,15 +36,16 @@ test("TUI does not import child_process", () => {
   }
 });
 
-test("TUI does not import write-capable fs APIs", () => {
+test("TUI does not use write-capable fs APIs", () => {
   const forbiddenPatterns = [
-    /from\s+["']node:fs["']/,
-    /from\s+["']fs["']/,
     /writeFile(Sync)?\s*\(/,
     /appendFile(Sync)?\s*\(/,
     /rm(Sync)?\s*\(/,
     /unlink(Sync)?\s*\(/,
-    /mkdir(Sync)?\s*\(/
+    /mkdir(Sync)?\s*\(/,
+    /rename(Sync)?\s*\(/,
+    /copyFile(Sync)?\s*\(/,
+    /createWriteStream\s*\(/
   ];
 
   for (const source of readTuiSources()) {
