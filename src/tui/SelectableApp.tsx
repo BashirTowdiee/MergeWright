@@ -19,7 +19,7 @@ import {
 import { createIdleCommandPreviewState, formatCommandPreviewNotice } from "./command-preview-state.js";
 import { buildEvidencePreview } from "./evidence-preview.js";
 import { buildFindingDetailLines } from "./finding-detail.js";
-import { formatFileScopeLabel, resolveScopedFiles, toggleFileScope, type FileScope } from "./file-scope.js";
+import { formatFileScopeLabel, toggleFileScope, type FileScope } from "./file-scope.js";
 import { buildFocusBreadcrumb } from "./focus-breadcrumb.js";
 import { getFocusedPaneTitle, moveFocus, type FocusedPane } from "./focus.js";
 import { useRuns } from "./hooks/useRuns.js";
@@ -41,6 +41,7 @@ import { buildPhaseDetailLines } from "./phase-detail.js";
 import { buildRunContextLines } from "./run-context.js";
 import { buildRunWarningLines } from "./run-warnings.js";
 import { buildSafeActionPreview } from "./safe-action-preview.js";
+import { buildTuiSelectionContext } from "./selection-context-read-model.js";
 import { createInitialSelectionState, resetFileSelection } from "./selection-state.js";
 import type { TuiSpikeFixture } from "./spike-fixture.js";
 
@@ -58,23 +59,27 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const commandItems = getCommandPaletteItems();
   const filteredCommandItems = filterCommandPaletteItems(commandItems, commandPaletteState.query);
   const selectedCommand = filteredCommandItems[commandPaletteState.selectedIndex];
-  const selectedRun = useMemo(() => {
-    const run = runs[selection.runIndex];
-    return run ? fixture.runDetailsById[run.id] ?? fixture.selectedRun : fixture.selectedRun;
-  }, [fixture, runs, selection.runIndex]);
-  const selectedPhase = selectedRun.phases[selection.phaseIndex];
-  const scopedArtifacts = resolveScopedFiles({ scope: fileScope, files: selectedRun.artefacts, selectedPhase });
-  const selectedArtefact = scopedArtifacts[selection.fileIndex];
-  const selectedAction = selectedRun.safeActions[selection.actionIndex];
-  const selectedFinding = selectedRun.reviewerFindings[selection.findingIndex];
+  const selectionContext = useMemo(
+    () =>
+      buildTuiSelectionContext({
+        runs,
+        runDetailsById: fixture.runDetailsById,
+        fallbackRun: fixture.selectedRun,
+        selection,
+        fileScope
+      }),
+    [fileScope, fixture.runDetailsById, fixture.selectedRun, runs, selection]
+  );
+  const {
+    selectedRun,
+    selectedPhase,
+    scopedArtefacts: scopedArtifacts,
+    selectedArtefact,
+    selectedAction,
+    selectedFinding,
+    navigationCounts
+  } = selectionContext;
   const selectedSafeActionDescription = describeSafeActionIntent(selectedAction);
-  const navigationCounts = {
-    runs: runs.length,
-    phases: selectedRun.phases.length,
-    actions: selectedRun.safeActions.length,
-    files: scopedArtifacts.length,
-    findings: selectedRun.reviewerFindings.length
-  };
   const evidenceLines = buildEvidencePreview({
     artefact: selectedArtefact,
     findings: selectedRun.reviewerFindings,
@@ -148,7 +153,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       const nextPreviewState = buildSafeActionPreview({
         action: selectedAction,
         runId: selectedRun.id,
-        selectedPhaseId: selectedPhase.id,
+        selectedPhaseId: selectedPhase?.id ?? "",
         requestedAt: new Date(0).toISOString()
       });
       if (nextPreviewState) {
