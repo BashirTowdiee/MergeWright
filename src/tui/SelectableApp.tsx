@@ -19,6 +19,7 @@ import {
 } from "./command-palette-state.js";
 import { TuiCommandController } from "./command-controller.js";
 import { createIdleCommandPreviewState } from "./command-preview-state.js";
+import { previewCoordinationNoteCommand, submitCoordinationNoteCommand } from "./coordination-note-command-flow.js";
 import { buildTuiDashboardReadModel } from "./dashboard-read-model.js";
 import { toggleFileScope, type FileScope } from "./file-scope.js";
 import { getFocusedPaneTitle, moveFocus, type FocusedPane } from "./focus.js";
@@ -43,6 +44,7 @@ import { createInitialSelectionState, resetFileSelection } from "./selection-sta
 import type { TuiSpikeFixture } from "./spike-fixture.js";
 
 const HELP_LINE = "? help - p command palette - esc close overlay - s toggle file scope - tab focus pane - j/k select item - enter previews/submits selected task - read-only - Ctrl+C to exit";
+const DEFAULT_COORDINATION_NOTE = "TUI coordination note update requested.";
 
 export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [focusedPane, setFocusedPane] = useState<FocusedPane>("runs");
@@ -113,6 +115,22 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
     setNotice(createInfoNotice(result.notice));
   }
 
+  async function previewOrSubmitCoordinationNote() {
+    if (commandPreviewState.status === "previewing" && commandPreviewState.intent.type === "update-coordination-note") {
+      const result = await submitCoordinationNoteCommand({ controller: commandController, previewState: commandPreviewState });
+      setNotice(createInfoNotice(result.notice));
+      return;
+    }
+
+    const result = await previewCoordinationNoteCommand({
+      controller: commandController,
+      note: DEFAULT_COORDINATION_NOTE,
+      requestedAt: new Date(0).toISOString()
+    });
+    setCommandPreviewState(result.previewState);
+    setNotice(createInfoNotice(result.notice));
+  }
+
   useInput((input, key) => {
     if (key.escape) {
       if (isOverlayOpen(overlay)) {
@@ -144,6 +162,10 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
         return;
       }
       if (key.return) {
+        if (selectedCommand?.id === "update-coordination-note") {
+          void previewOrSubmitCoordinationNote();
+          return;
+        }
         const result = previewCommandPaletteSelection({
           item: selectedCommand,
           context: { selectedSafeActionDescription, currentFileScope: fileScope }
