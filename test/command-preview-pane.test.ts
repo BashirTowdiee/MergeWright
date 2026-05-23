@@ -51,7 +51,33 @@ test("command preview pane model contains title and rows for preview", () => {
       "State: blocked",
       "Preconditions: Run exists.",
       "Effects: Updates run state.",
-      "Reason: continue-run requires confirmation because its risk is medium."
+      "Reason: continue-run requires confirmation because its risk is medium.",
+      "Confirmation gate: Command blocked: Continue run (continue-run). continue-run requires confirmation because its risk is medium."
     ]
   });
+});
+
+test("command preview pane model shows confirmation gate when preview requires confirmation", () => {
+  const preview = previewCommandIntent(intent, {
+    ...description,
+    blockedReason: undefined
+  });
+  const state = showCommandPreview(intent, preview);
+
+  assert.equal(
+    buildCommandPreviewPaneModel(state)?.rows.at(-1),
+    "Confirmation gate: Confirmation required: Continue run (continue-run) is medium-risk. Review Continue run before continuing."
+  );
+});
+
+test("command preview pane model omits confirmation gate when confirmation is not required", () => {
+  const preview = previewCommandIntent(intent, {
+    ...description,
+    risk: "low",
+    requiresConfirmation: false,
+    blockedReason: undefined
+  });
+  const state = showCommandPreview(intent, preview);
+
+  assert.equal(buildCommandPreviewPaneModel(state)?.rows.some((row) => row.startsWith("Confirmation gate:")), false);
 });
