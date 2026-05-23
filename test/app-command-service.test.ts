@@ -70,6 +70,43 @@ test("DefaultAppCommandService validates missing select-task IDs", async () => {
   });
 });
 
+test("DefaultAppCommandService accepts coordination notes without direct file writes", async () => {
+  const service = new DefaultAppCommandService();
+
+  const result = await service.execute({
+    ...metadata,
+    type: "update-coordination-note",
+    note: "Record next action.",
+    expectedRevision: "rev-1"
+  });
+
+  assert.deepEqual(result, {
+    ok: true,
+    commandId: "cmd-service-1",
+    type: "update-coordination-note",
+    message: "Coordination note accepted for service handling.",
+    changedFiles: []
+  });
+});
+
+test("DefaultAppCommandService validates empty coordination notes", async () => {
+  const service = new DefaultAppCommandService();
+
+  const result = await service.execute({
+    ...metadata,
+    type: "update-coordination-note",
+    note: "  "
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    commandId: "cmd-service-1",
+    type: "update-coordination-note",
+    code: "VALIDATION_FAILED",
+    reason: "Coordination note is required."
+  });
+});
+
 test("DefaultAppCommandService rejects unwired command execution", async () => {
   const service = new DefaultAppCommandService();
 

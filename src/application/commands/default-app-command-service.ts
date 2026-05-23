@@ -29,6 +29,10 @@ export class DefaultAppCommandService implements AppCommandService {
       return executeSelectTask(command);
     }
 
+    if (command.type === "update-coordination-note") {
+      return executeUpdateCoordinationNote(command);
+    }
+
     return {
       ok: false,
       commandId: command.commandId,
@@ -56,5 +60,26 @@ function executeSelectTask(command: Extract<AppCommand, { readonly type: "select
     commandId: command.commandId,
     type: command.type,
     message: `Selected task ${taskId}.`
+  };
+}
+
+function executeUpdateCoordinationNote(command: Extract<AppCommand, { readonly type: "update-coordination-note" }>): AppCommandResult {
+  const note = command.note.trim();
+  if (!note) {
+    return {
+      ok: false,
+      commandId: command.commandId,
+      type: command.type,
+      code: "VALIDATION_FAILED",
+      reason: "Coordination note is required."
+    };
+  }
+
+  return {
+    ok: true,
+    commandId: command.commandId,
+    type: command.type,
+    message: "Coordination note accepted for service handling.",
+    changedFiles: []
   };
 }
