@@ -1,6 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Box, useInput } from "ink";
 import { DefaultAppCommandService } from "../application/commands/default-app-command-service.js";
+import { EventedAppCommandService } from "../application/commands/evented-app-command-service.js";
+import type { AppEvent } from "../application/events/app-event.js";
+import { InMemoryAppEventBus } from "../application/events/app-event-bus.js";
 import { describeSafeActionIntent } from "./action-intent.js";
 import { AppChrome } from "./components/AppChrome.js";
 import {
@@ -35,6 +38,7 @@ import { ArtefactListPane } from "./panes/ArtefactListPane.js";
 import { CommandPreviewPane } from "./panes/CommandPreviewPane.js";
 import { CurrentRunPane } from "./panes/CurrentRunPane.js";
 import { EvidenceReviewPane } from "./panes/EvidenceReviewPane.js";
+import { ProgressPane } from "./panes/ProgressPane.js";
 import { RunListPane } from "./panes/RunListPane.js";
 import { SafeActionPane } from "./panes/SafeActionPane.js";
 import { isSelectTaskPreviewForTask } from "./select-task-preview-match.js";
@@ -54,7 +58,29 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
   const [commandPaletteState, setCommandPaletteState] = useState(createClosedCommandPaletteState());
   const [notice, setNotice] = useState<TuiNotice | null>(createInfoNotice("TUI is service-wired for safe task selection."));
   const [selection, setSelection] = useState(createInitialSelectionState());
-  const commandController = useMemo(() => new TuiCommandController({ commandService: new DefaultAppCommandService() }), []);
+  const [progressEvents, setProgressEvents] = useState<readonly AppEvent[]>([]);
+  const eventBus = useMemo(() => new InMemoryAppEventBus(), []);
+  const commandController = useMemo(
+    () =>
+      new TuiCommandController({
+        commandService: new EventedAppCommandService({
+          inner: new DefaultAppCommandService(),
+          eventBus
+        })
+      }),
+    [eventBus]
+  );
+
+  useEffect(() => {
+    const subscription = eventBus.subscribe((event) => {
+      setProgressEvents((current) => [...current, event]);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [eventBus]);
+
   const runs = useRuns({ runs: fixture.runs });
   const commandItems = getCommandPaletteItems();
   const filteredCommandItems = filterCommandPaletteItems(commandItems, commandPaletteState.query);
@@ -239,6 +265,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
           findingDetailLines={dashboard.findingDetailLines}
         />
       </Box>
+      <ProgressPane events={progressEvents} />
       <CommandPreviewPane state={commandPreviewState} />
     </AppChrome>
   );
