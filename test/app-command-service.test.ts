@@ -5,6 +5,7 @@ import { DefaultAppCommandService } from "../src/application/commands/default-ap
 import type {
   ContinueRunCommandHandler,
   DefaultAppCommandServiceOptions,
+  ExecuteBuilderCommandHandler,
   RetryPhaseCommandHandler,
   StartRunCommandHandler
 } from "../src/application/commands/default-app-command-service.js";
@@ -514,6 +515,87 @@ test("DefaultAppCommandService reports unwired retry-phase handler", async () =>
     type: "retry-phase",
     code: "EXECUTION_FAILED",
     reason: "Retry-phase handler is not configured."
+  });
+});
+
+test("DefaultAppCommandService routes execute-builder through an injected service handler", async () => {
+  const calls: Extract<AppCommand, { readonly type: "execute-builder" }>[] = [];
+  const handler: ExecuteBuilderCommandHandler = (executeBuilderCommand) => {
+    calls.push(executeBuilderCommand);
+    return {
+      ok: true,
+      commandId: executeBuilderCommand.commandId,
+      type: executeBuilderCommand.type,
+      message: "Started builder execution.",
+      runId: executeBuilderCommand.runId,
+      artefacts: ["runs/run-1/builder-output.md"]
+    };
+  };
+  const service = createExecutionService({ executeBuilderHandler: handler });
+
+  const result = await service.execute({
+    ...metadata,
+    type: "execute-builder",
+    runId: "run-1"
+  });
+
+  assert.deepEqual(result, {
+    ok: true,
+    commandId: "cmd-service-1",
+    type: "execute-builder",
+    message: "Started builder execution.",
+    runId: "run-1",
+    artefacts: ["runs/run-1/builder-output.md"]
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].runId, "run-1");
+});
+
+test("DefaultAppCommandService validates execute-builder before handler execution", async () => {
+  let called = false;
+  const service = createExecutionService({
+    executeBuilderHandler: () => {
+      called = true;
+      return {
+        ok: true,
+        commandId: "cmd-service-1",
+        type: "execute-builder",
+        message: "Started builder execution."
+      };
+    }
+  });
+
+  const result = await service.execute({
+    ...metadata,
+    type: "execute-builder",
+    runId: "  "
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    commandId: "cmd-service-1",
+    type: "execute-builder",
+    code: "VALIDATION_FAILED",
+    reason: "Run ID is required."
+  });
+  assert.equal(called, false);
+});
+
+test("DefaultAppCommandService reports unwired execute-builder handler", async () => {
+  const service = createExecutionService();
+
+  const result = await service.execute({
+    ...metadata,
+    type: "execute-builder",
+    runId: "run-1"
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    commandId: "cmd-service-1",
+    type: "execute-builder",
+    code: "EXECUTION_FAILED",
+    reason: "Execute-builder handler is not configured."
   });
 });
 
