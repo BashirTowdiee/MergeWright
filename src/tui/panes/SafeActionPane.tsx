@@ -9,13 +9,14 @@ export interface SafeActionPaneProps {
   selectedActionIndex: number;
   focused: boolean;
   blockedReason?: string;
+  width?: number | "100%";
 }
 
-export function SafeActionPane({ actions, selectedActionIndex, focused, blockedReason }: SafeActionPaneProps) {
+export function SafeActionPane({ actions, selectedActionIndex, focused, blockedReason, width = 42 }: SafeActionPaneProps) {
   const selectedAction = actions[selectedActionIndex];
 
   return (
-    <Box flexDirection="column" width={42} borderStyle="round" paddingX={1}>
+    <Box flexDirection="column" width={width} borderStyle="round" paddingX={1}>
       <Text bold>{getFocusedPaneTitle("Safe action", focused)}</Text>
       <Text>{blockedReason ?? "No blocker recorded."}</Text>
       {actions.length === 0 ? <Text dimColor>{getEmptyStateMessage("actions")}</Text> : actions.map((action, index) => (

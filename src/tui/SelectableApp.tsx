@@ -34,6 +34,7 @@ import { getNavigationNoticeForFocusedPane, moveSelectionForFocusedPane } from "
 import { moveSelection } from "./navigation.js";
 import { CommandPalettePreview } from "./overlays/CommandPalettePreview.js";
 import { HelpOverlay } from "./overlays/HelpOverlay.js";
+import { resolveTuiPaneLayout } from "./layout.js";
 import { ArtefactListPane } from "./panes/ArtefactListPane.js";
 import { CommandPreviewPane } from "./panes/CommandPreviewPane.js";
 import { CurrentRunPane } from "./panes/CurrentRunPane.js";
@@ -51,6 +52,7 @@ const HELP_LINE = "? help - p command palette - esc close overlay - s toggle fil
 const DEFAULT_COORDINATION_NOTE = "TUI coordination note update requested.";
 
 export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
+  const [terminalColumns, setTerminalColumns] = useState<number>(process.stdout.columns ?? 120);
   const [focusedPane, setFocusedPane] = useState<FocusedPane>("runs");
   const [fileScope, setFileScope] = useState<FileScope>("phase");
   const [overlay, setOverlay] = useState<TuiOverlay>("none");
@@ -70,6 +72,7 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       }),
     [eventBus]
   );
+  const paneLayout = useMemo(() => resolveTuiPaneLayout(terminalColumns), [terminalColumns]);
 
   useEffect(() => {
     const subscription = eventBus.subscribe((event) => {
@@ -80,6 +83,17 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       subscription.unsubscribe();
     };
   }, [eventBus]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setTerminalColumns(process.stdout.columns ?? 120);
+    };
+
+    process.stdout.on("resize", handleResize);
+    return () => {
+      process.stdout.off("resize", handleResize);
+    };
+  }, []);
 
   const runs = useRuns({ runs: fixture.runs });
   const commandItems = getCommandPaletteItems();
@@ -243,8 +257,15 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
       notice={formatNotice(notice)}
       helpLine={HELP_LINE}
     >
-      <Box flexDirection="row" marginTop={1}>
-        <RunListPane runs={runs} selectedRunIndex={selection.runIndex} focused={focusedPane === "runs"} title={getFocusedPaneTitle("Runs", focusedPane === "runs")} />
+      <Box flexDirection={paneLayout.topRowDirection} marginTop={1}>
+        <RunListPane
+          runs={runs}
+          selectedRunIndex={selection.runIndex}
+          focused={focusedPane === "runs"}
+          title={getFocusedPaneTitle("Runs", focusedPane === "runs")}
+          width={paneLayout.runListWidth}
+          marginRight={paneLayout.topRowDirection === "row" ? paneLayout.rowPaneMarginRight : 0}
+        />
         <CurrentRunPane
           run={selectedRun}
           selectedPhaseIndex={selection.phaseIndex}
@@ -252,17 +273,33 @@ export function SelectableTuiApp({ fixture }: { fixture: TuiSpikeFixture }) {
           runContextLines={dashboard.runContextLines}
           runWarningLines={dashboard.runWarningLines}
           phaseDetailLines={dashboard.phaseDetailLines}
+          width={paneLayout.currentRunWidth}
+          marginRight={paneLayout.topRowDirection === "row" ? paneLayout.rowPaneMarginRight : 0}
         />
-        <SafeActionPane actions={selectedRun.safeActions} selectedActionIndex={selection.actionIndex} focused={focusedPane === "actions"} blockedReason={selectedRun.blockedReason} />
+        <SafeActionPane
+          actions={selectedRun.safeActions}
+          selectedActionIndex={selection.actionIndex}
+          focused={focusedPane === "actions"}
+          blockedReason={selectedRun.blockedReason}
+          width={paneLayout.safeActionWidth}
+        />
       </Box>
-      <Box flexDirection="row" marginTop={1}>
-        <ArtefactListPane artefacts={scopedArtifacts} selectedArtefactIndex={selection.fileIndex} focused={focusedPane === "artefacts"} title={dashboard.fileScopeLabel} />
+      <Box flexDirection={paneLayout.bottomRowDirection} marginTop={1}>
+        <ArtefactListPane
+          artefacts={scopedArtifacts}
+          selectedArtefactIndex={selection.fileIndex}
+          focused={focusedPane === "artefacts"}
+          title={dashboard.fileScopeLabel}
+          width={paneLayout.artefactWidth}
+          marginRight={paneLayout.bottomRowDirection === "row" ? paneLayout.rowPaneMarginRight : 0}
+        />
         <EvidenceReviewPane
           evidenceLines={dashboard.evidenceLines}
           findings={selectedRun.reviewerFindings}
           selectedFindingIndex={selection.findingIndex}
           findingsFocused={focusedPane === "findings"}
           findingDetailLines={dashboard.findingDetailLines}
+          width={paneLayout.evidenceWidth}
         />
       </Box>
       <ProgressPane events={progressEvents} />
