@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { AppCommand } from "../src/application/commands/app-command.js";
 import { DefaultAppCommandService } from "../src/application/commands/default-app-command-service.js";
-import type { StartRunCommandHandler } from "../src/application/commands/default-app-command-service.js";
+import type { RetryPhaseCommandHandler, StartRunCommandHandler } from "../src/application/commands/default-app-command-service.js";
 import type { CommandMetadata } from "../src/application/commands/command-source.js";
 
 const metadata: CommandMetadata = {
@@ -305,6 +305,122 @@ test("DefaultAppCommandService reports unwired start-run handler", async () => {
     type: "start-run",
     code: "EXECUTION_FAILED",
     reason: "Start-run handler is not configured."
+  });
+});
+
+test("DefaultAppCommandService routes reviewer retry-phase through an injected service handler", async () => {
+  const calls: Extract<AppCommand, { readonly type: "retry-phase" }>[] = [];
+  const handler: RetryPhaseCommandHandler = (retryPhaseCommand) => {
+    calls.push(retryPhaseCommand);
+    return {
+      ok: true,
+      commandId: retryPhaseCommand.commandId,
+      type: retryPhaseCommand.type,
+      message: "Started reviewer retry.",
+      runId: retryPhaseCommand.runId,
+      artefacts: ["runs/run-1/reviewer-output.md"]
+    };
+  };
+  const service = new DefaultAppCommandService({ retryPhaseHandler: handler });
+
+  const result = await service.execute({
+    ...metadata,
+    type: "retry-phase",
+    runId: "run-1",
+    phase: "reviewer"
+  });
+
+  assert.deepEqual(result, {
+    ok: true,
+    commandId: "cmd-service-1",
+    type: "retry-phase",
+    message: "Started reviewer retry.",
+    runId: "run-1",
+    artefacts: ["runs/run-1/reviewer-output.md"]
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].runId, "run-1");
+  assert.equal(calls[0].phase, "reviewer");
+});
+
+test("DefaultAppCommandService validates reviewer retry-phase before handler execution", async () => {
+  let called = false;
+  const service = new DefaultAppCommandService({
+    retryPhaseHandler: () => {
+      called = true;
+      return {
+        ok: true,
+        commandId: "cmd-service-1",
+        type: "retry-phase",
+        message: "Started reviewer retry."
+      };
+    }
+  });
+
+  const result = await service.execute({
+    ...metadata,
+    type: "retry-phase",
+    runId: "  ",
+    phase: "reviewer"
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    commandId: "cmd-service-1",
+    type: "retry-phase",
+    code: "VALIDATION_FAILED",
+    reason: "Run ID is required."
+  });
+  assert.equal(called, false);
+});
+
+test("DefaultAppCommandService only supports reviewer retry-phase routing", async () => {
+  let called = false;
+  const service = new DefaultAppCommandService({
+    retryPhaseHandler: () => {
+      called = true;
+      return {
+        ok: true,
+        commandId: "cmd-service-1",
+        type: "retry-phase",
+        message: "Started retry."
+      };
+    }
+  });
+
+  const result = await service.execute({
+    ...metadata,
+    type: "retry-phase",
+    runId: "run-1",
+    phase: "builder"
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    commandId: "cmd-service-1",
+    type: "retry-phase",
+    code: "VALIDATION_FAILED",
+    reason: "Only reviewer retry-phase commands are currently supported."
+  });
+  assert.equal(called, false);
+});
+
+test("DefaultAppCommandService reports unwired retry-phase handler", async () => {
+  const service = new DefaultAppCommandService();
+
+  const result = await service.execute({
+    ...metadata,
+    type: "retry-phase",
+    runId: "run-1",
+    phase: "reviewer"
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    commandId: "cmd-service-1",
+    type: "retry-phase",
+    code: "EXECUTION_FAILED",
+    reason: "Retry-phase handler is not configured."
   });
 });
 
