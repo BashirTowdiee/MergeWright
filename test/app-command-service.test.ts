@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { AppCommand } from "../src/application/commands/app-command.js";
 import { DefaultAppCommandService } from "../src/application/commands/default-app-command-service.js";
+import type { StartRunCommandHandler } from "../src/application/commands/default-app-command-service.js";
 import type { CommandMetadata } from "../src/application/commands/command-source.js";
 
 const metadata: CommandMetadata = {
@@ -218,6 +219,92 @@ test("DefaultAppCommandService validates empty task comments", async () => {
     type: "add-task-comment",
     code: "VALIDATION_FAILED",
     reason: "Task comment is required."
+  });
+});
+
+test("DefaultAppCommandService routes start-run through an injected service handler", async () => {
+  const calls: Extract<AppCommand, { readonly type: "start-run" }>[] = [];
+  const handler: StartRunCommandHandler = (startRunCommand) => {
+    calls.push(startRunCommand);
+    return {
+      ok: true,
+      commandId: startRunCommand.commandId,
+      type: startRunCommand.type,
+      message: "Started planner run.",
+      runId: "run-1",
+      artefacts: ["runs/run-1/planner-output.md"]
+    };
+  };
+  const service = new DefaultAppCommandService({ startRunHandler: handler });
+
+  const result = await service.execute({
+    ...metadata,
+    type: "start-run",
+    stageName: "stage-8",
+    configPath: "configs/shepherd-self.json",
+    preset: "plan"
+  });
+
+  assert.deepEqual(result, {
+    ok: true,
+    commandId: "cmd-service-1",
+    type: "start-run",
+    message: "Started planner run.",
+    runId: "run-1",
+    artefacts: ["runs/run-1/planner-output.md"]
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].stageName, "stage-8");
+  assert.equal(calls[0].configPath, "configs/shepherd-self.json");
+});
+
+test("DefaultAppCommandService validates start-run before handler execution", async () => {
+  let called = false;
+  const service = new DefaultAppCommandService({
+    startRunHandler: () => {
+      called = true;
+      return {
+        ok: true,
+        commandId: "cmd-service-1",
+        type: "start-run",
+        message: "Started planner run."
+      };
+    }
+  });
+
+  const result = await service.execute({
+    ...metadata,
+    type: "start-run",
+    stageName: "  ",
+    configPath: "configs/shepherd-self.json"
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    commandId: "cmd-service-1",
+    type: "start-run",
+    code: "VALIDATION_FAILED",
+    reason: "Stage name is required."
+  });
+  assert.equal(called, false);
+});
+
+test("DefaultAppCommandService reports unwired start-run handler", async () => {
+  const service = new DefaultAppCommandService();
+
+  const result = await service.execute({
+    ...metadata,
+    type: "start-run",
+    stageName: "stage-8",
+    configPath: "configs/shepherd-self.json"
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    commandId: "cmd-service-1",
+    type: "start-run",
+    code: "EXECUTION_FAILED",
+    reason: "Start-run handler is not configured."
   });
 });
 
