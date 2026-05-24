@@ -44,10 +44,11 @@ const successResult: AppCommandResult = {
 class StubCommandService implements AppCommandService {
   readonly describedCommands: AppCommand[] = [];
   readonly executedCommands: AppCommand[] = [];
+  description: CommandDescription = description;
 
   async describe(commandToDescribe: AppCommand): Promise<CommandDescription> {
     this.describedCommands.push(commandToDescribe);
-    return description;
+    return this.description;
   }
 
   async execute(commandToExecute: AppCommand): Promise<AppCommandResult> {
@@ -75,6 +76,76 @@ test("TuiCommandController submits commands through AppCommandService", async ()
   const controller = new TuiCommandController({ commandService: service });
 
   const outcome = await controller.submit({ intentId: intent.id, command });
+
+  assert.deepEqual(service.describedCommands, [command]);
+  assert.deepEqual(service.executedCommands, [command]);
+  assert.deepEqual(outcome, {
+    intentId: "intent-1",
+    result: successResult
+  });
+});
+
+test("TuiCommandController blocks submission when preconditions fail", async () => {
+  const service = new StubCommandService();
+  service.description = {
+    ...description,
+    blockedReason: "Task is locked."
+  };
+  const controller = new TuiCommandController({ commandService: service });
+
+  const outcome = await controller.submit({ intentId: intent.id, command });
+
+  assert.deepEqual(service.executedCommands, []);
+  assert.deepEqual(outcome, {
+    intentId: "intent-1",
+    result: {
+      ok: false,
+      commandId: "cmd-1",
+      type: "select-task",
+      code: "VALIDATION_FAILED",
+      reason: "Task is locked."
+    }
+  });
+});
+
+test("TuiCommandController blocks confirmation-required submission without token", async () => {
+  const service = new StubCommandService();
+  service.description = {
+    ...description,
+    risk: "high",
+    requiresConfirmation: true
+  };
+  const controller = new TuiCommandController({ commandService: service });
+
+  const outcome = await controller.submit({ intentId: intent.id, command });
+
+  assert.deepEqual(service.executedCommands, []);
+  assert.deepEqual(outcome, {
+    intentId: "intent-1",
+    result: {
+      ok: false,
+      commandId: "cmd-1",
+      type: "select-task",
+      code: "CONFIRMATION_REQUIRED",
+      reason: "Confirmation token required: select-task:intent-1:confirm"
+    }
+  });
+});
+
+test("TuiCommandController submits confirmation-required command with matching token", async () => {
+  const service = new StubCommandService();
+  service.description = {
+    ...description,
+    risk: "high",
+    requiresConfirmation: true
+  };
+  const controller = new TuiCommandController({ commandService: service });
+
+  const outcome = await controller.submit({
+    intentId: intent.id,
+    command,
+    confirmationToken: "select-task:intent-1:confirm"
+  });
 
   assert.deepEqual(service.executedCommands, [command]);
   assert.deepEqual(outcome, {

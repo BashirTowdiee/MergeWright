@@ -66,7 +66,7 @@ test("command preview pane model shows confirmation gate when preview requires c
 
   assert.equal(
     buildCommandPreviewPaneModel(state)?.rows.at(-1),
-    "Confirmation gate: Confirmation required: Continue run (continue-run) is medium-risk. Review Continue run before continuing."
+    "Confirmation gate: Confirmation required: Continue run (continue-run) is medium-risk. Review Continue run before continuing with continue-run:intent-1:confirm."
   );
 });
 
