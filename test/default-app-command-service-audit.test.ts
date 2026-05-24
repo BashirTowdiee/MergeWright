@@ -46,6 +46,7 @@ test("DefaultAppCommandService audits successful command executions", async () =
     source: "tui",
     actor: { id: "tester", displayName: "Tester" },
     risk: "low",
+    confirmation: { status: "not_required" },
     requestedAt: "2026-05-23T00:00:00.000Z",
     recordedAt: "2026-05-23T00:01:00.000Z",
     inputSummary: "Select a roadmap task.",
@@ -80,10 +81,77 @@ test("DefaultAppCommandService audits failed command executions", async () => {
   assert.equal(auditStore.records[0].commandId, "cmd-2");
   assert.equal(auditStore.records[0].type, "add-task-comment");
   assert.equal(auditStore.records[0].risk, "low");
+  assert.deepEqual(auditStore.records[0].confirmation, { status: "not_required" });
   assert.equal(auditStore.records[0].inputSummary, "Add an empty task comment.");
   assert.equal(auditStore.records[0].result, result);
   assert.deepEqual(auditStore.records[0].changedFiles, []);
   assert.deepEqual(auditStore.records[0].artefacts, []);
+});
+
+test("DefaultAppCommandService audits and blocks unsatisfied confirmation", async () => {
+  const auditStore = new InMemoryCommandAuditStore();
+  const service = new DefaultAppCommandService({
+    auditStore,
+    resolveRisk: () => "high",
+    auditClock: () => "2026-05-23T00:03:00.000Z"
+  });
+
+  const command: AppCommand = {
+    ...baseCommand,
+    commandId: "cmd-3",
+    type: "select-task",
+    taskId: "task-1"
+  };
+
+  const result = await service.execute(command);
+
+  assert.deepEqual(result, {
+    ok: false,
+    commandId: "cmd-3",
+    type: "select-task",
+    code: "CONFIRMATION_REQUIRED",
+    reason: "select-task requires confirmation because its risk is high."
+  });
+  assert.deepEqual(auditStore.records[0].confirmation, {
+    status: "required",
+    commandId: "cmd-3",
+    commandType: "select-task",
+    risk: "high",
+    satisfied: false,
+    reason: "select-task requires confirmation because its risk is high."
+  });
+  assert.equal(auditStore.records[0].result, result);
+});
+
+test("DefaultAppCommandService audits satisfied approve-stage confirmation", async () => {
+  const auditStore = new InMemoryCommandAuditStore();
+  const service = new DefaultAppCommandService({
+    auditStore,
+    resolveRisk: () => "high",
+    auditClock: () => "2026-05-23T00:04:00.000Z"
+  });
+
+  const command: AppCommand = {
+    ...baseCommand,
+    commandId: "cmd-4",
+    type: "approve-stage",
+    stageId: "stage-7",
+    confirmationToken: "confirmed"
+  };
+
+  const result = await service.execute(command);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "EXECUTION_FAILED");
+  assert.deepEqual(auditStore.records[0].confirmation, {
+    status: "required",
+    commandId: "cmd-4",
+    commandType: "approve-stage",
+    risk: "high",
+    satisfied: true,
+    reason: "approve-stage requires confirmation because its risk is high."
+  });
+  assert.equal(auditStore.records[0].result, result);
 });
 
 test("DefaultAppCommandService still executes without an audit store", async () => {
