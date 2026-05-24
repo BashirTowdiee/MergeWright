@@ -163,7 +163,8 @@ export async function executeAutoChainSinglePass(
     allowWrites: options.allowWrites,
     verbose: options.verbose,
     streamCodex: options.streamCodex,
-    orchestratorRoot: options.orchestratorRoot
+    orchestratorRoot: options.orchestratorRoot,
+    progressLogger
   });
 
   progressLogger.info("[auto-chain] parsing reviewer verdict");
@@ -233,7 +234,8 @@ export async function executeAutoChainSinglePass(
             dryRun: false,
             verbose: options.verbose,
             streamCodex: options.streamCodex,
-            orchestratorRoot: options.orchestratorRoot
+            orchestratorRoot: options.orchestratorRoot,
+            progressLogger
           });
           attemptSummary.fixExecuted = true;
           progressLogger.info(`[auto-chain] ${attemptLabel} fix completed`);
@@ -388,7 +390,8 @@ async function runChecksWithClassification(
       dryRun: false,
       verbose: options.verbose,
       streamCodex: options.streamCodex,
-      orchestratorRoot: options.orchestratorRoot
+      orchestratorRoot: options.orchestratorRoot,
+      progressLogger
     });
     return { checks: "executed", finalStatus: "PASS" };
   } catch (error) {
