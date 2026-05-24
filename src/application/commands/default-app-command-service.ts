@@ -13,6 +13,7 @@ export type CommandRiskResolver = (command: AppCommand) => CommandRisk;
 export type CommandAuditInputSummaryResolver = (command: AppCommand) => string;
 export type CommandAuditClock = () => string;
 export type StartRunCommandHandler = (command: Extract<AppCommand, { readonly type: "start-run" }>) => Promise<AppCommandResult> | AppCommandResult;
+export type RetryPhaseCommandHandler = (command: Extract<AppCommand, { readonly type: "retry-phase" }>) => Promise<AppCommandResult> | AppCommandResult;
 
 export type DefaultAppCommandServiceOptions = {
   readonly resolveRisk?: CommandRiskResolver;
@@ -20,6 +21,7 @@ export type DefaultAppCommandServiceOptions = {
   readonly resolveAuditInputSummary?: CommandAuditInputSummaryResolver;
   readonly auditClock?: CommandAuditClock;
   readonly startRunHandler?: StartRunCommandHandler;
+  readonly retryPhaseHandler?: RetryPhaseCommandHandler;
 };
 
 const DEFAULT_RISK: CommandRisk = "none";
@@ -30,6 +32,7 @@ export class DefaultAppCommandService implements AppCommandService {
   private readonly resolveAuditInputSummary: CommandAuditInputSummaryResolver;
   private readonly auditClock: CommandAuditClock;
   private readonly startRunHandler?: StartRunCommandHandler;
+  private readonly retryPhaseHandler?: RetryPhaseCommandHandler;
 
   constructor(options: DefaultAppCommandServiceOptions = {}) {
     this.resolveRisk = options.resolveRisk ?? (() => DEFAULT_RISK);
@@ -37,6 +40,7 @@ export class DefaultAppCommandService implements AppCommandService {
     this.resolveAuditInputSummary = options.resolveAuditInputSummary ?? defaultAuditInputSummary;
     this.auditClock = options.auditClock ?? (() => new Date().toISOString());
     this.startRunHandler = options.startRunHandler;
+    this.retryPhaseHandler = options.retryPhaseHandler;
   }
 
   async describe(command: AppCommand): Promise<CommandDescription> {
@@ -46,7 +50,7 @@ export class DefaultAppCommandService implements AppCommandService {
   async execute(command: AppCommand, options: AppCommandExecutionOptions = {}): Promise<AppCommandResult> {
     const risk = this.resolveRisk(command);
     const confirmation = getCommandConfirmationState(command, risk);
-    const result = getConfirmationFailure(command, confirmation, options) ?? (await executeCommand(command, this.startRunHandler));
+    const result = getConfirmationFailure(command, confirmation, options) ?? (await executeCommand(command, this.startRunHandler, this.retryPhaseHandler));
     await this.audit(command, risk, confirmation, result);
     return result;
   }
@@ -101,7 +105,11 @@ function getConfirmationFailure(
   };
 }
 
-async function executeCommand(command: AppCommand, startRunHandler: StartRunCommandHandler | undefined): Promise<AppCommandResult> {
+async function executeCommand(
+  command: AppCommand,
+  startRunHandler: StartRunCommandHandler | undefined,
+  retryPhaseHandler: RetryPhaseCommandHandler | undefined
+): Promise<AppCommandResult> {
   if (command.type === "select-task") {
     return executeSelectTask(command);
   }
@@ -120,6 +128,10 @@ async function executeCommand(command: AppCommand, startRunHandler: StartRunComm
 
   if (command.type === "start-run") {
     return executeStartRun(command, startRunHandler);
+  }
+
+  if (command.type === "retry-phase") {
+    return executeRetryPhase(command, retryPhaseHandler);
   }
 
   return {
@@ -163,6 +175,40 @@ function executeStartRun(command: Extract<AppCommand, { readonly type: "start-ru
       type: command.type,
       code: "EXECUTION_FAILED",
       reason: "Start-run handler is not configured."
+    };
+  }
+
+  return handler(command);
+}
+
+function executeRetryPhase(command: Extract<AppCommand, { readonly type: "retry-phase" }>, handler: RetryPhaseCommandHandler | undefined): Promise<AppCommandResult> | AppCommandResult {
+  if (!command.runId.trim()) {
+    return {
+      ok: false,
+      commandId: command.commandId,
+      type: command.type,
+      code: "VALIDATION_FAILED",
+      reason: "Run ID is required."
+    };
+  }
+
+  if (command.phase !== "reviewer") {
+    return {
+      ok: false,
+      commandId: command.commandId,
+      type: command.type,
+      code: "VALIDATION_FAILED",
+      reason: "Only reviewer retry-phase commands are currently supported."
+    };
+  }
+
+  if (!handler) {
+    return {
+      ok: false,
+      commandId: command.commandId,
+      type: command.type,
+      code: "EXECUTION_FAILED",
+      reason: "Retry-phase handler is not configured."
     };
   }
 
