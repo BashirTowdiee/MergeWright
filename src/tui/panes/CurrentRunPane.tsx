@@ -13,6 +13,8 @@ export interface CurrentRunPaneProps {
   runContextLines: string[];
   runWarningLines: string[];
   phaseDetailLines: string[];
+  width?: number | "100%";
+  marginRight?: number;
 }
 
 export function CurrentRunPane({
@@ -21,10 +23,12 @@ export function CurrentRunPane({
   focusedPane,
   runContextLines,
   runWarningLines,
-  phaseDetailLines
+  phaseDetailLines,
+  width = 52,
+  marginRight = 1
 }: CurrentRunPaneProps) {
   return (
-    <Box flexDirection="column" width={52} borderStyle="round" paddingX={1} marginRight={1}>
+    <Box flexDirection="column" width={width} borderStyle="round" paddingX={1} marginRight={marginRight}>
       <Text bold>Current run</Text>
       <Text bold>{run.title}</Text>
       <Text>{run.goal ?? "No goal recorded."}</Text>

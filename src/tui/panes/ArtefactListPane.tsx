@@ -9,11 +9,20 @@ export interface ArtefactListPaneProps {
   selectedArtefactIndex: number;
   focused: boolean;
   title: string;
+  width?: number | "100%";
+  marginRight?: number;
 }
 
-export function ArtefactListPane({ artefacts, selectedArtefactIndex, focused, title }: ArtefactListPaneProps) {
+export function ArtefactListPane({
+  artefacts,
+  selectedArtefactIndex,
+  focused,
+  title,
+  width = 46,
+  marginRight = 1
+}: ArtefactListPaneProps) {
   return (
-    <Box flexDirection="column" width={46} borderStyle="round" paddingX={1} marginRight={1}>
+    <Box flexDirection="column" width={width} borderStyle="round" paddingX={1} marginRight={marginRight}>
       <Text bold>{getFocusedPaneTitle(title, focused)}</Text>
       {artefacts.length === 0 ? <Text dimColor>{getEmptyStateMessage("artefacts")}</Text> : artefacts.map((artefact, index) => (
         <Text key={artefact.id} inverse={focused && index === selectedArtefactIndex}>{index === selectedArtefactIndex ? ">" : " "} {artefact.kind.padEnd(8)} {artefact.title}</Text>

@@ -10,6 +10,7 @@ export interface EvidenceReviewPaneProps {
   selectedFindingIndex: number;
   findingsFocused: boolean;
   findingDetailLines: string[];
+  width?: number | "100%";
 }
 
 export function EvidenceReviewPane({
@@ -17,10 +18,11 @@ export function EvidenceReviewPane({
   findings,
   selectedFindingIndex,
   findingsFocused,
-  findingDetailLines
+  findingDetailLines,
+  width = 80
 }: EvidenceReviewPaneProps) {
   return (
-    <Box flexDirection="column" width={80} borderStyle="round" paddingX={1}>
+    <Box flexDirection="column" width={width} borderStyle="round" paddingX={1}>
       <Text bold>Evidence preview</Text>
       {evidenceLines.map((line, index) => (
         <Text key={`${line}-${index}`}>{line}</Text>

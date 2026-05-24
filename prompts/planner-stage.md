@@ -14,6 +14,9 @@ Rules:
 - Include architecture constraints in the builder prompt.
 - Include concrete validation steps in the builder prompt.
 - Include what must not be done in the builder prompt.
+- Include execution hygiene guidance for command tooling:
+  - if the builder needs to poll or interrupt a long-running command, start it with `exec_command(..., tty=true)`;
+  - do not use `write_stdin` on a non-TTY session.
 - Do not include implementation output.
 - Do not include trailing text after the final builder prompt unless it is part of the builder prompt itself.
 

@@ -9,12 +9,14 @@ export interface RunListPaneProps {
   selectedRunIndex: number;
   focused: boolean;
   title?: string;
+  width?: number | "100%";
+  marginRight?: number;
 }
 
-export function RunListPane({ runs, selectedRunIndex, focused, title = "Runs" }: RunListPaneProps) {
+export function RunListPane({ runs, selectedRunIndex, focused, title = "Runs", width = 30, marginRight = 1 }: RunListPaneProps) {
   const heading = focused ? `[${title}]` : title;
   return (
-    <Box flexDirection="column" width={30} borderStyle="round" paddingX={1} marginRight={1}>
+    <Box flexDirection="column" width={width} borderStyle="round" paddingX={1} marginRight={marginRight}>
       <Text bold>{heading}</Text>
       {runs.length === 0 ? <Text dimColor>{getEmptyStateMessage("runs")}</Text> : runs.map((run, index) => (
         <Box key={run.id} flexDirection="column" marginBottom={1}>
