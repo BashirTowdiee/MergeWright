@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { AppCommand } from "../src/application/commands/app-command.js";
 import { DefaultAppCommandService } from "../src/application/commands/default-app-command-service.js";
-import type { RetryPhaseCommandHandler, StartRunCommandHandler } from "../src/application/commands/default-app-command-service.js";
+import type { ContinueRunCommandHandler, RetryPhaseCommandHandler, StartRunCommandHandler } from "../src/application/commands/default-app-command-service.js";
 import type { CommandMetadata } from "../src/application/commands/command-source.js";
 
 const metadata: CommandMetadata = {
@@ -308,6 +308,87 @@ test("DefaultAppCommandService reports unwired start-run handler", async () => {
   });
 });
 
+test("DefaultAppCommandService routes continue-run through an injected service handler", async () => {
+  const calls: Extract<AppCommand, { readonly type: "continue-run" }>[] = [];
+  const handler: ContinueRunCommandHandler = (continueRunCommand) => {
+    calls.push(continueRunCommand);
+    return {
+      ok: true,
+      commandId: continueRunCommand.commandId,
+      type: continueRunCommand.type,
+      message: "Continued run.",
+      runId: continueRunCommand.runId,
+      artefacts: ["runs/run-1/continue-output.md"]
+    };
+  };
+  const service = new DefaultAppCommandService({ continueRunHandler: handler });
+
+  const result = await service.execute({
+    ...metadata,
+    type: "continue-run",
+    runId: "run-1"
+  });
+
+  assert.deepEqual(result, {
+    ok: true,
+    commandId: "cmd-service-1",
+    type: "continue-run",
+    message: "Continued run.",
+    runId: "run-1",
+    artefacts: ["runs/run-1/continue-output.md"]
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].runId, "run-1");
+});
+
+test("DefaultAppCommandService validates continue-run before handler execution", async () => {
+  let called = false;
+  const service = new DefaultAppCommandService({
+    continueRunHandler: () => {
+      called = true;
+      return {
+        ok: true,
+        commandId: "cmd-service-1",
+        type: "continue-run",
+        message: "Continued run."
+      };
+    }
+  });
+
+  const result = await service.execute({
+    ...metadata,
+    type: "continue-run",
+    runId: "  "
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    commandId: "cmd-service-1",
+    type: "continue-run",
+    code: "VALIDATION_FAILED",
+    reason: "Run ID is required."
+  });
+  assert.equal(called, false);
+});
+
+test("DefaultAppCommandService reports unwired continue-run handler", async () => {
+  const service = new DefaultAppCommandService();
+
+  const result = await service.execute({
+    ...metadata,
+    type: "continue-run",
+    runId: "run-1"
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    commandId: "cmd-service-1",
+    type: "continue-run",
+    code: "EXECUTION_FAILED",
+    reason: "Continue-run handler is not configured."
+  });
+});
+
 test("DefaultAppCommandService routes reviewer retry-phase through an injected service handler", async () => {
   const calls: Extract<AppCommand, { readonly type: "retry-phase" }>[] = [];
   const handler: RetryPhaseCommandHandler = (retryPhaseCommand) => {
@@ -429,14 +510,14 @@ test("DefaultAppCommandService rejects unwired command execution", async () => {
 
   const result = await service.execute({
     ...metadata,
-    type: "continue-run",
-    runId: "run-1"
+    type: "approve-stage",
+    stageId: "stage-8"
   });
 
   assert.deepEqual(result, {
     ok: false,
     commandId: "cmd-service-1",
-    type: "continue-run",
+    type: "approve-stage",
     code: "EXECUTION_FAILED",
     reason: "Command execution is not wired yet."
   });
