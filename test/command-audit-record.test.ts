@@ -14,6 +14,8 @@ const command: AppCommand = {
   comment: "Ready."
 };
 
+const confirmation = { status: "not_required" } as const;
+
 test("createCommandAuditRecord builds a serialisable success audit record", () => {
   const result: AppCommandResult = {
     ok: true,
@@ -27,6 +29,7 @@ test("createCommandAuditRecord builds a serialisable success audit record", () =
   const record = createCommandAuditRecord({
     command,
     risk: "low",
+    confirmation,
     inputSummary: "Add a comment to task-1.",
     result,
     recordedAt: "2026-05-23T00:01:00.000Z",
@@ -40,6 +43,7 @@ test("createCommandAuditRecord builds a serialisable success audit record", () =
     source: "tui",
     actor: { id: "tester", displayName: "Tester" },
     risk: "low",
+    confirmation,
     requestedAt: "2026-05-23T00:00:00.000Z",
     recordedAt: "2026-05-23T00:01:00.000Z",
     inputSummary: "Add a comment to task-1.",
@@ -60,6 +64,7 @@ test("createCommandAuditRecord derives deterministic IDs when omitted", () => {
   const record = createCommandAuditRecord({
     command,
     risk: "none",
+    confirmation,
     inputSummary: "Add a comment.",
     result,
     recordedAt: "2026-05-23T00:01:00.000Z"
@@ -82,6 +87,7 @@ test("createCommandAuditRecord keeps failed command results without changed file
   const record = createCommandAuditRecord({
     command,
     risk: "low",
+    confirmation,
     inputSummary: "Add an empty comment.",
     result,
     recordedAt: "2026-05-23T00:01:00.000Z"

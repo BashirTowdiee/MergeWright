@@ -1,11 +1,13 @@
 import type { AppCommand } from "./app-command.js";
 import type { AppCommandResult } from "./app-command-result.js";
-import type { AppCommandService } from "./app-command-service.js";
+import type { AppCommandExecutionOptions, AppCommandService } from "./app-command-service.js";
 import { createCommandAuditRecord } from "./command-audit-record.js";
 import type { CommandAuditStore } from "./command-audit-store.js";
 import { describeCommand } from "./command-description.js";
 import type { CommandDescription } from "./command-description.js";
 import type { CommandRisk } from "./command-risk.js";
+import { getCommandConfirmationState } from "./confirmation.js";
+import type { CommandConfirmationState } from "./confirmation.js";
 
 export type CommandRiskResolver = (command: AppCommand) => CommandRisk;
 export type CommandAuditInputSummaryResolver = (command: AppCommand) => string;
@@ -37,14 +39,15 @@ export class DefaultAppCommandService implements AppCommandService {
     return describeCommand(command, this.resolveRisk(command));
   }
 
-  async execute(command: AppCommand): Promise<AppCommandResult> {
+  async execute(command: AppCommand, options: AppCommandExecutionOptions = {}): Promise<AppCommandResult> {
     const risk = this.resolveRisk(command);
-    const result = executeCommand(command);
-    await this.audit(command, risk, result);
+    const confirmation = getCommandConfirmationState(command, risk);
+    const result = getConfirmationFailure(command, confirmation, options) ?? executeCommand(command);
+    await this.audit(command, risk, confirmation, result);
     return result;
   }
 
-  private async audit(command: AppCommand, risk: CommandRisk, result: AppCommandResult): Promise<void> {
+  private async audit(command: AppCommand, risk: CommandRisk, confirmation: CommandConfirmationState, result: AppCommandResult): Promise<void> {
     if (!this.auditStore) {
       return;
     }
@@ -53,12 +56,45 @@ export class DefaultAppCommandService implements AppCommandService {
       record: createCommandAuditRecord({
         command,
         risk,
+        confirmation,
         inputSummary: this.resolveAuditInputSummary(command),
         result,
         recordedAt: this.auditClock()
       })
     });
   }
+}
+
+function getConfirmationFailure(
+  command: AppCommand,
+  confirmation: CommandConfirmationState,
+  options: AppCommandExecutionOptions
+): AppCommandResult | undefined {
+  if (confirmation.status === "not_required" || confirmation.satisfied) {
+    return undefined;
+  }
+
+  if (options.confirmationContextId !== undefined || options.confirmationToken !== undefined) {
+    return {
+      ok: false,
+      commandId: command.commandId,
+      type: command.type,
+      code: "CONFIRMATION_REQUIRED",
+      reason: confirmation.reason,
+      details: {
+        confirmationContextId: options.confirmationContextId,
+        confirmationToken: options.confirmationToken
+      }
+    };
+  }
+
+  return {
+    ok: false,
+    commandId: command.commandId,
+    type: command.type,
+    code: "CONFIRMATION_REQUIRED",
+    reason: confirmation.reason
+  };
 }
 
 function executeCommand(command: AppCommand): AppCommandResult {

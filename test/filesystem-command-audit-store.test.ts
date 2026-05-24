@@ -13,6 +13,7 @@ const record: CommandAuditRecord = {
   source: "tui",
   actor: { id: "tester", displayName: "Tester" },
   risk: "low",
+  confirmation: { status: "not_required" },
   requestedAt: "2026-05-23T00:00:00.000Z",
   recordedAt: "2026-05-23T00:01:00.000Z",
   inputSummary: "Add a comment to task-1.",
@@ -59,6 +60,6 @@ test("FilesystemCommandAuditStore does not overwrite an existing audit record", 
 });
 
 test("toAuditRecordFilename sanitises unsafe record IDs", () => {
-  assert.equal(toAuditRecordFilename(" cmd/1:2026-05-23T00:01:00.000Z "), "cmd-1-2026-05-23T00-01-00.000Z");
+  assert.equal(toAuditRecordFilename(" cmd 1:2026-05-23T00:01:00.000Z "), "cmd-1-2026-05-23T00-01-00.000Z");
   assert.equal(toAuditRecordFilename("   "), "audit-record");
 });
