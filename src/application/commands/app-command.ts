@@ -41,6 +41,12 @@ export type RetryPhaseCommand = CommandMetadata & {
   readonly phase: "planner" | "builder" | "reviewer" | "checks" | "fix-planning" | "fix-execution";
 };
 
+export type ExecuteBuilderCommand = CommandMetadata & {
+  readonly type: "execute-builder";
+  readonly runId: string;
+  readonly confirmationToken?: string;
+};
+
 export type ApproveStageCommand = CommandMetadata & {
   readonly type: "approve-stage";
   readonly stageId: string;
@@ -61,6 +67,7 @@ export type AppCommand =
   | StartRunCommand
   | ContinueRunCommand
   | RetryPhaseCommand
+  | ExecuteBuilderCommand
   | ApproveStageCommand
   | ReassessStagePlanCommand;
 
@@ -74,6 +81,7 @@ export const APP_COMMAND_TYPES: readonly AppCommandType[] = [
   "start-run",
   "continue-run",
   "retry-phase",
+  "execute-builder",
   "approve-stage",
   "reassess-stage-plan"
 ];
