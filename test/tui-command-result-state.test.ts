@@ -12,6 +12,23 @@ const successResult: AppCommandResult = {
   artefacts: []
 };
 
+const orchestrationSuccessResult: AppCommandResult = {
+  ok: true,
+  commandId: "cmd-3",
+  type: "start-run",
+  message: "Started planner run.",
+  runId: "run-1",
+  artefacts: ["runs/run-1/planner-output.md"]
+};
+
+const changedFilesSuccessResult: AppCommandResult = {
+  ok: true,
+  commandId: "cmd-4",
+  type: "update-coordination-note",
+  message: "Coordination note accepted.",
+  changedFiles: ["plans/coordination.md"]
+};
+
 const failureResult: AppCommandResult = {
   ok: false,
   commandId: "cmd-2",
@@ -35,6 +52,28 @@ test("command result state formats successful command results", () => {
     result: successResult
   });
   assert.equal(formatCommandResultNotice(state), "Command result: Selected task task-1.");
+});
+
+test("command result state formats orchestration result metadata", () => {
+  const state = showCommandResult("intent-3", orchestrationSuccessResult);
+
+  assert.deepEqual(state, {
+    status: "completed",
+    intentId: "intent-3",
+    result: orchestrationSuccessResult
+  });
+  assert.equal(formatCommandResultNotice(state), "Command result: Started planner run. Run: run-1. Artefacts: runs/run-1/planner-output.md.");
+});
+
+test("command result state formats changed file metadata", () => {
+  const state = showCommandResult("intent-4", changedFilesSuccessResult);
+
+  assert.deepEqual(state, {
+    status: "completed",
+    intentId: "intent-4",
+    result: changedFilesSuccessResult
+  });
+  assert.equal(formatCommandResultNotice(state), "Command result: Coordination note accepted. Changed files: plans/coordination.md.");
 });
 
 test("command result state formats failed command results", () => {
