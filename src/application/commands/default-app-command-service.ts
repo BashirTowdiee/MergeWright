@@ -5,6 +5,7 @@ import { createCommandAuditRecord } from "./command-audit-record.js";
 import type { CommandAuditStore } from "./command-audit-store.js";
 import { describeCommand } from "./command-description.js";
 import type { CommandDescription } from "./command-description.js";
+import { getCommandMetadata } from "./command-metadata.js";
 import type { CommandRisk } from "./command-risk.js";
 import { getCommandConfirmationState } from "./confirmation.js";
 import type { CommandConfirmationState } from "./confirmation.js";
@@ -26,8 +27,6 @@ export type DefaultAppCommandServiceOptions = {
   readonly retryPhaseHandler?: RetryPhaseCommandHandler;
 };
 
-const DEFAULT_RISK: CommandRisk = "none";
-
 export class DefaultAppCommandService implements AppCommandService {
   private readonly resolveRisk: CommandRiskResolver;
   private readonly auditStore?: CommandAuditStore;
@@ -38,7 +37,7 @@ export class DefaultAppCommandService implements AppCommandService {
   private readonly retryPhaseHandler?: RetryPhaseCommandHandler;
 
   constructor(options: DefaultAppCommandServiceOptions = {}) {
-    this.resolveRisk = options.resolveRisk ?? (() => DEFAULT_RISK);
+    this.resolveRisk = options.resolveRisk ?? ((command) => getCommandMetadata(command.type).defaultRisk);
     this.auditStore = options.auditStore;
     this.resolveAuditInputSummary = options.resolveAuditInputSummary ?? defaultAuditInputSummary;
     this.auditClock = options.auditClock ?? (() => new Date().toISOString());
