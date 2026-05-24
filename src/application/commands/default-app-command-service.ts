@@ -12,12 +12,14 @@ import type { CommandConfirmationState } from "./confirmation.js";
 export type CommandRiskResolver = (command: AppCommand) => CommandRisk;
 export type CommandAuditInputSummaryResolver = (command: AppCommand) => string;
 export type CommandAuditClock = () => string;
+export type StartRunCommandHandler = (command: Extract<AppCommand, { readonly type: "start-run" }>) => Promise<AppCommandResult> | AppCommandResult;
 
 export type DefaultAppCommandServiceOptions = {
   readonly resolveRisk?: CommandRiskResolver;
   readonly auditStore?: CommandAuditStore;
   readonly resolveAuditInputSummary?: CommandAuditInputSummaryResolver;
   readonly auditClock?: CommandAuditClock;
+  readonly startRunHandler?: StartRunCommandHandler;
 };
 
 const DEFAULT_RISK: CommandRisk = "none";
@@ -27,12 +29,14 @@ export class DefaultAppCommandService implements AppCommandService {
   private readonly auditStore?: CommandAuditStore;
   private readonly resolveAuditInputSummary: CommandAuditInputSummaryResolver;
   private readonly auditClock: CommandAuditClock;
+  private readonly startRunHandler?: StartRunCommandHandler;
 
   constructor(options: DefaultAppCommandServiceOptions = {}) {
     this.resolveRisk = options.resolveRisk ?? (() => DEFAULT_RISK);
     this.auditStore = options.auditStore;
     this.resolveAuditInputSummary = options.resolveAuditInputSummary ?? defaultAuditInputSummary;
     this.auditClock = options.auditClock ?? (() => new Date().toISOString());
+    this.startRunHandler = options.startRunHandler;
   }
 
   async describe(command: AppCommand): Promise<CommandDescription> {
@@ -42,7 +46,7 @@ export class DefaultAppCommandService implements AppCommandService {
   async execute(command: AppCommand, options: AppCommandExecutionOptions = {}): Promise<AppCommandResult> {
     const risk = this.resolveRisk(command);
     const confirmation = getCommandConfirmationState(command, risk);
-    const result = getConfirmationFailure(command, confirmation, options) ?? executeCommand(command);
+    const result = getConfirmationFailure(command, confirmation, options) ?? (await executeCommand(command, this.startRunHandler));
     await this.audit(command, risk, confirmation, result);
     return result;
   }
@@ -97,7 +101,7 @@ function getConfirmationFailure(
   };
 }
 
-function executeCommand(command: AppCommand): AppCommandResult {
+async function executeCommand(command: AppCommand, startRunHandler: StartRunCommandHandler | undefined): Promise<AppCommandResult> {
   if (command.type === "select-task") {
     return executeSelectTask(command);
   }
@@ -114,6 +118,10 @@ function executeCommand(command: AppCommand): AppCommandResult {
     return executeAddTaskComment(command);
   }
 
+  if (command.type === "start-run") {
+    return executeStartRun(command, startRunHandler);
+  }
+
   return {
     ok: false,
     commandId: command.commandId,
@@ -125,6 +133,40 @@ function executeCommand(command: AppCommand): AppCommandResult {
 
 function defaultAuditInputSummary(command: AppCommand): string {
   return command.type;
+}
+
+function executeStartRun(command: Extract<AppCommand, { readonly type: "start-run" }>, handler: StartRunCommandHandler | undefined): Promise<AppCommandResult> | AppCommandResult {
+  if (!command.stageName.trim()) {
+    return {
+      ok: false,
+      commandId: command.commandId,
+      type: command.type,
+      code: "VALIDATION_FAILED",
+      reason: "Stage name is required."
+    };
+  }
+
+  if (!command.configPath.trim()) {
+    return {
+      ok: false,
+      commandId: command.commandId,
+      type: command.type,
+      code: "VALIDATION_FAILED",
+      reason: "Config path is required."
+    };
+  }
+
+  if (!handler) {
+    return {
+      ok: false,
+      commandId: command.commandId,
+      type: command.type,
+      code: "EXECUTION_FAILED",
+      reason: "Start-run handler is not configured."
+    };
+  }
+
+  return handler(command);
 }
 
 function executeSelectTask(command: Extract<AppCommand, { readonly type: "select-task" }>): AppCommandResult {
