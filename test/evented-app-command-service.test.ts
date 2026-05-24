@@ -25,7 +25,7 @@ const successResult: AppCommandResult = {
   artefacts: ["runs/run-1/output.md"]
 };
 
-const failureResult: AppCommandResult = {
+const errorResult: AppCommandResult = {
   ok: false,
   commandId: "cmd-1",
   type: "continue-run",
@@ -46,7 +46,8 @@ class StubCommandService implements AppCommandService {
       summary: "Stub command description.",
       risk: "none",
       requiresConfirmation: false,
-      preconditions: []
+      preconditions: [],
+      effects: []
     };
   }
 
@@ -60,7 +61,9 @@ test("EventedAppCommandService emits command started and finished events around 
   const inner = new StubCommandService(successResult);
   const eventBus = new InMemoryAppEventBus();
   const events: AppEvent[] = [];
-  eventBus.subscribe((event) => events.push(event));
+  eventBus.subscribe((event) => {
+    events.push(event);
+  });
   const service = new EventedAppCommandService({
     inner,
     eventBus,
@@ -93,11 +96,13 @@ test("EventedAppCommandService emits command started and finished events around 
   ]);
 });
 
-test("EventedAppCommandService emits failed command finished events", async () => {
-  const inner = new StubCommandService(failureResult);
+test("EventedAppCommandService emits finished events when execution is not ok", async () => {
+  const inner = new StubCommandService(errorResult);
   const eventBus = new InMemoryAppEventBus();
   const events: AppEvent[] = [];
-  eventBus.subscribe((event) => events.push(event));
+  eventBus.subscribe((event) => {
+    events.push(event);
+  });
   const service = new EventedAppCommandService({
     inner,
     eventBus,
@@ -106,7 +111,7 @@ test("EventedAppCommandService emits failed command finished events", async () =
 
   const result = await service.execute(command);
 
-  assert.equal(result, failureResult);
+  assert.equal(result, errorResult);
   assert.deepEqual(events, [
     {
       type: "command.started",
@@ -132,7 +137,9 @@ test("EventedAppCommandService delegates describe without publishing events", as
   const inner = new StubCommandService(successResult);
   const eventBus = new InMemoryAppEventBus();
   const events: AppEvent[] = [];
-  eventBus.subscribe((event) => events.push(event));
+  eventBus.subscribe((event) => {
+    events.push(event);
+  });
   const service = new EventedAppCommandService({ inner, eventBus });
 
   const description = await service.describe(command);
