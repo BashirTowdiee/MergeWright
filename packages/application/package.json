@@ -1,0 +1,7 @@
+{
+  "name": "@mergewright/application",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MergeWright application services, command use cases, query services, and ports."
+}
