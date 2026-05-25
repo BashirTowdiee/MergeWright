@@ -1,0 +1,7 @@
+{
+  "name": "@mergewright/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MergeWright web control room application boundary."
+}
