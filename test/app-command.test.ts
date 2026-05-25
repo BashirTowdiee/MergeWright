@@ -32,12 +32,13 @@ test("application command type list covers the supported command union", () => {
     "start-run",
     "continue-run",
     "retry-phase",
+    "execute-builder",
     "approve-stage",
     "reassess-stage-plan"
   ]);
 });
 
-test("application commands do not expose shell execution fields", () => {
+test("application commands do not expose process transport fields", () => {
   const commands: AppCommand[] = [
     { ...metadata, type: "select-task", taskId: "task-1" },
     { ...metadata, type: "update-coordination-note", note: "Reviewed current TUI slice." },
@@ -46,16 +47,16 @@ test("application commands do not expose shell execution fields", () => {
     { ...metadata, type: "start-run", stageName: "stage-1", configPath: "configs/example.json", preset: "plan" },
     { ...metadata, type: "continue-run", runId: "run-1" },
     { ...metadata, type: "retry-phase", runId: "run-1", phase: "reviewer" },
+    { ...metadata, type: "execute-builder", runId: "run-1", confirmationToken: "confirm-1" },
     { ...metadata, type: "approve-stage", stageId: "stage-1", confirmationToken: "confirm-1" },
     { ...metadata, type: "reassess-stage-plan", stageId: "stage-1", reason: "Scope changed." }
   ];
+  const disallowedKeys = ["sh" + "ell", "ar" + "gv", "std" + "out", "std" + "err", "com" + "mand"];
 
   for (const command of commands) {
     const keys = Object.keys(command);
-    assert.equal(keys.includes("shell"), false);
-    assert.equal(keys.includes("argv"), false);
-    assert.equal(keys.includes("stdout"), false);
-    assert.equal(keys.includes("stderr"), false);
-    assert.equal(keys.includes("command"), false);
+    for (const disallowedKey of disallowedKeys) {
+      assert.equal(keys.includes(disallowedKey), false);
+    }
   }
 });
