@@ -8,11 +8,35 @@ interface PackageJson {
   readonly name?: string;
   readonly private?: boolean;
   readonly type?: string;
+  readonly workspaces?: readonly string[];
+}
+
+interface TsConfigJson {
+  readonly include?: readonly string[];
+}
+
+async function readJson<T>(path: string): Promise<T> {
+  return JSON.parse(await readFile(join(process.cwd(), path), "utf8")) as T;
 }
 
 async function readPackageJson(path: string): Promise<PackageJson> {
-  return JSON.parse(await readFile(join(process.cwd(), path, "package.json"), "utf8")) as PackageJson;
+  return readJson<PackageJson>(join(path, "package.json"));
 }
+
+test("root package declares npm workspace globs for apps and packages", async () => {
+  const packageJson = await readJson<PackageJson>("package.json");
+
+  assert.deepEqual(packageJson.workspaces, ["apps/*", "packages/*"]);
+});
+
+test("TypeScript build includes workspace package sources", async () => {
+  const tsconfig = await readJson<TsConfigJson>("tsconfig.json");
+
+  assert.ok(tsconfig.include?.includes("apps/**/*.ts"));
+  assert.ok(tsconfig.include?.includes("apps/**/*.tsx"));
+  assert.ok(tsconfig.include?.includes("packages/**/*.ts"));
+  assert.ok(tsconfig.include?.includes("packages/**/*.tsx"));
+});
 
 test("workspace skeleton declares explicit app and package boundaries", async () => {
   const expectedPackages = new Map([
