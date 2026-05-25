@@ -1,0 +1,150 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { createApiServer } from "../src/api/create-api-server.js";
+import type { RunDetail, RunSummary } from "../src/application/read-models/run-read-model.js";
+import type { RunQueryService, ListRunsInput, GetRunInput } from "../src/application/queries/run-query-service.js";
+
+const runSummary: RunSummary = {
+  id: "run-1",
+  title: "Run one",
+  status: "running",
+  subtitle: "In progress",
+  startedAt: "2026-05-25T00:00:00.000Z",
+  branch: "feature/demo",
+  mode: "read-only",
+  warnings: []
+};
+
+const completedRunSummary: RunSummary = {
+  id: "run-2",
+  title: "Run two",
+  status: "passed",
+  subtitle: "Complete",
+  completedAt: "2026-05-25T01:00:00.000Z",
+  mode: "dry-run",
+  warnings: ["No artefacts"]
+};
+
+const runDetail: RunDetail = {
+  id: "run-1",
+  title: "Run one",
+  goal: "Validate API route wiring",
+  status: "running",
+  workspaceRoot: "/tmp/workspace",
+  runDir: "/tmp/workspace/.mergewright/run-1",
+  branch: "feature/demo",
+  mode: "read-only",
+  provider: "codex",
+  model: "gpt",
+  phases: [
+    {
+      id: "planner",
+      label: "Planner",
+      status: "passed",
+      artefactIds: ["plan"]
+    }
+  ],
+  artefacts: [
+    {
+      id: "plan",
+      title: "Plan",
+      kind: "markdown",
+      path: "plan.md",
+      phaseId: "planner"
+    }
+  ],
+  safeActions: [
+    {
+      id: "continue",
+      label: "Continue",
+      enabled: true,
+      risk: "low",
+      requiresConfirmation: false
+    }
+  ],
+  reviewerFindings: [],
+  warnings: []
+};
+
+class FakeRunQueryService implements RunQueryService {
+  readonly listCalls: ListRunsInput[] = [];
+  readonly getCalls: GetRunInput[] = [];
+
+  constructor(private readonly runs: RunSummary[] = [runSummary, completedRunSummary]) {}
+
+  async listRuns(input: ListRunsInput = {}): Promise<RunSummary[]> {
+    this.listCalls.push(input);
+    if (input.status === undefined || input.status === "all") {
+      return this.runs;
+    }
+    return this.runs.filter((run) => run.status === input.status);
+  }
+
+  async getRun(input: GetRunInput): Promise<RunDetail | null> {
+    this.getCalls.push(input);
+    if (input.runId === runDetail.id) {
+      return runDetail;
+    }
+    return null;
+  }
+}
+
+test("GET /health returns API status", async () => {
+  const server = createApiServer({ runQueryService: new FakeRunQueryService() });
+  const response = await server.inject({ method: "GET", url: "/health" });
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json(), { ok: true, service: "mergewright-api" });
+});
+
+test("GET /runs lists runs through the query service", async () => {
+  const runQueryService = new FakeRunQueryService();
+  const server = createApiServer({ runQueryService });
+  const response = await server.inject({ method: "GET", url: "/runs" });
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json(), { runs: [runSummary, completedRunSummary] });
+  assert.deepEqual(runQueryService.listCalls, [{}]);
+});
+
+test("GET /runs filters runs by status through the query service", async () => {
+  const runQueryService = new FakeRunQueryService();
+  const server = createApiServer({ runQueryService });
+  const response = await server.inject({ method: "GET", url: "/runs?status=passed" });
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json(), { runs: [completedRunSummary] });
+  assert.deepEqual(runQueryService.listCalls, [{ status: "passed" }]);
+});
+
+test("GET /runs rejects invalid status query values", async () => {
+  const server = createApiServer({ runQueryService: new FakeRunQueryService() });
+  const response = await server.inject({ method: "GET", url: "/runs?status=invalid" });
+
+  assert.equal(response.statusCode, 400);
+  assert.deepEqual(response.json(), {
+    code: "VALIDATION_FAILED",
+    message: "Invalid run list query."
+  });
+});
+
+test("GET /runs/:runId returns run details through the query service", async () => {
+  const runQueryService = new FakeRunQueryService();
+  const server = createApiServer({ runQueryService });
+  const response = await server.inject({ method: "GET", url: "/runs/run-1" });
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json(), { run: runDetail });
+  assert.deepEqual(runQueryService.getCalls, [{ runId: "run-1" }]);
+});
+
+test("GET /runs/:runId returns 404 for missing runs", async () => {
+  const server = createApiServer({ runQueryService: new FakeRunQueryService() });
+  const response = await server.inject({ method: "GET", url: "/runs/missing" });
+
+  assert.equal(response.statusCode, 404);
+  assert.deepEqual(response.json(), {
+    code: "RUN_NOT_FOUND",
+    message: "Run not found."
+  });
+});
