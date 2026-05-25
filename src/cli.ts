@@ -1,10 +1,6 @@
-#!/usr/bin/env node
-import process from "node:process";
-import { spawn } from "node:child_process";
 import { createProgressLogger, NOOP_PROGRESS_LOGGER } from "./progress-logger.js";
 import { commandHandlers } from "./cli/command-registry.js";
 import { knownCommands } from "./cli/known-commands.js";
-import { parseArgs } from "./cli/parse/parse-args.js";
 import { runCheckWriteSafety as runCheckWriteSafetyImpl } from "./cli/run-check-write-safety.js";
 import type { ParsedArgs, RunCommandDeps, OpenRunDirectory } from "./cli/types.js";
 
@@ -17,17 +13,6 @@ export { formatWriteSafetySummaryLines } from "./cli/output/write-safety-summary
 export { formatRunDetailsLines } from "./cli/output/run-details-summary.js";
 export { formatReportSummaryLines, formatGeneratedReportSummaryLines } from "./cli/output/report-summary.js";
 export { parseArgs } from "./cli/parse/parse-args.js";
-
-async function main(): Promise<void> {
-  try {
-    const args = parseArgs(process.argv.slice(2));
-    await runCommand(args, process.cwd(), process.platform, defaultOpenRunDirectory);
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    console.error(`Error: ${msg}`);
-    process.exitCode = 1;
-  }
-}
 
 export async function runCommand(
   args: ParsedArgs,
@@ -410,23 +395,4 @@ function renderHelpText(command?: string): string {
     "  - No auto-commit or auto-push.",
     "  - Write-enabled execution requires explicit --allow-writes and write-safety pass."
   ].join("\n");
-}
-
-
-export async function defaultOpenRunDirectory(runDir: string): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    const child = spawn("open", [runDir], { stdio: "ignore", shell: false });
-    child.on("error", reject);
-    child.on("exit", (code, signal) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`Failed to open run directory with open. code=${code ?? "null"} signal=${signal ?? "null"}`));
-      }
-    });
-  });
-}
-
-if (process.argv[1] && process.argv[1].endsWith("cli.js")) {
-  void main();
 }
