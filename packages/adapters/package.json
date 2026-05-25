@@ -1,0 +1,7 @@
+{
+  "name": "@mergewright/adapters",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MergeWright filesystem, shell, Codex, GitHub, and process-bound adapters."
+}
