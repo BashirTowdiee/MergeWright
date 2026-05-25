@@ -192,7 +192,7 @@ test("GET /runs/:runId/artifacts lists artifacts through the query service", asy
 
   assert.equal(response.statusCode, 200);
   assert.deepEqual(response.json(), { artifacts: [planArtifact, reviewArtifact] });
-  assert.deepEqual(artifactQueryService.listCalls, [{ runId: "run-1", phaseId: undefined }]);
+  assert.deepEqual(artifactQueryService.listCalls, [{ runId: "run-1" }]);
 });
 
 test("GET /runs/:runId/artifacts filters artifacts by phase", async () => {
