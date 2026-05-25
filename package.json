@@ -8,13 +8,13 @@
     "node": ">=22"
   },
   "bin": {
-    "mergewright": "dist/src/cli.js"
+    "mergewright": "dist/apps/cli/src/main.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node --test dist/test/**/*.test.js",
     "agent": "npm run mergewright --",
-    "mergewright": "npm run build && node dist/src/cli.js",
+    "mergewright": "npm run build && node dist/apps/cli/src/main.js",
     "docs:dev": "npm --prefix docs-site run dev",
     "docs:build": "npm --prefix docs-site run build",
     "docs:preview": "npm --prefix docs-site run preview",
