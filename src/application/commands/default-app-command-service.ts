@@ -15,13 +15,15 @@ import { DefaultMarkTaskReviewedUseCase } from "../use-cases/mark-task-reviewed-
 import type { MarkTaskReviewedUseCase } from "../use-cases/mark-task-reviewed-use-case.js";
 import { DefaultSelectTaskUseCase } from "../use-cases/select-task-use-case.js";
 import type { SelectTaskUseCase } from "../use-cases/select-task-use-case.js";
+import { DefaultStartRunUseCase } from "../use-cases/start-run-use-case.js";
+import type { StartRunUseCase, StartRunUseCaseHandler } from "../use-cases/start-run-use-case.js";
 import { DefaultUpdateCoordinationNoteUseCase } from "../use-cases/update-coordination-note-use-case.js";
 import type { UpdateCoordinationNoteUseCase } from "../use-cases/update-coordination-note-use-case.js";
 
 export type CommandRiskResolver = (command: AppCommand) => CommandRisk;
 export type CommandAuditInputSummaryResolver = (command: AppCommand) => string;
 export type CommandAuditClock = () => string;
-export type StartRunCommandHandler = (command: Extract<AppCommand, { readonly type: "start-run" }>) => Promise<AppCommandResult> | AppCommandResult;
+export type StartRunCommandHandler = StartRunUseCaseHandler;
 export type ContinueRunCommandHandler = (command: Extract<AppCommand, { readonly type: "continue-run" }>) => Promise<AppCommandResult> | AppCommandResult;
 export type RetryPhaseCommandHandler = (command: Extract<AppCommand, { readonly type: "retry-phase" }>) => Promise<AppCommandResult> | AppCommandResult;
 export type ExecuteBuilderCommandHandler = (command: Extract<AppCommand, { readonly type: "execute-builder" }>) => Promise<AppCommandResult> | AppCommandResult;
@@ -35,6 +37,7 @@ export type DefaultAppCommandServiceOptions = {
   readonly updateCoordinationNoteUseCase?: UpdateCoordinationNoteUseCase;
   readonly markTaskReviewedUseCase?: MarkTaskReviewedUseCase;
   readonly addTaskCommentUseCase?: AddTaskCommentUseCase;
+  readonly startRunUseCase?: StartRunUseCase;
   readonly startRunHandler?: StartRunCommandHandler;
   readonly continueRunHandler?: ContinueRunCommandHandler;
   readonly retryPhaseHandler?: RetryPhaseCommandHandler;
@@ -50,7 +53,7 @@ export class DefaultAppCommandService implements AppCommandService {
   private readonly updateCoordinationNoteUseCase: UpdateCoordinationNoteUseCase;
   private readonly markTaskReviewedUseCase: MarkTaskReviewedUseCase;
   private readonly addTaskCommentUseCase: AddTaskCommentUseCase;
-  private readonly startRunHandler?: StartRunCommandHandler;
+  private readonly startRunUseCase: StartRunUseCase;
   private readonly continueRunHandler?: ContinueRunCommandHandler;
   private readonly retryPhaseHandler?: RetryPhaseCommandHandler;
   private readonly executeBuilderHandler?: ExecuteBuilderCommandHandler;
@@ -64,7 +67,7 @@ export class DefaultAppCommandService implements AppCommandService {
     this.updateCoordinationNoteUseCase = options.updateCoordinationNoteUseCase ?? new DefaultUpdateCoordinationNoteUseCase();
     this.markTaskReviewedUseCase = options.markTaskReviewedUseCase ?? new DefaultMarkTaskReviewedUseCase();
     this.addTaskCommentUseCase = options.addTaskCommentUseCase ?? new DefaultAddTaskCommentUseCase();
-    this.startRunHandler = options.startRunHandler;
+    this.startRunUseCase = options.startRunUseCase ?? new DefaultStartRunUseCase(options.startRunHandler);
     this.continueRunHandler = options.continueRunHandler;
     this.retryPhaseHandler = options.retryPhaseHandler;
     this.executeBuilderHandler = options.executeBuilderHandler;
@@ -79,7 +82,7 @@ export class DefaultAppCommandService implements AppCommandService {
     const confirmation = getCommandConfirmationState(command, risk);
     const result =
       getConfirmationFailure(command, confirmation, options) ??
-      (await executeCommand(command, this.selectTaskUseCase, this.updateCoordinationNoteUseCase, this.markTaskReviewedUseCase, this.addTaskCommentUseCase, this.startRunHandler, this.continueRunHandler, this.retryPhaseHandler, this.executeBuilderHandler));
+      (await executeCommand(command, this.selectTaskUseCase, this.updateCoordinationNoteUseCase, this.markTaskReviewedUseCase, this.addTaskCommentUseCase, this.startRunUseCase, this.continueRunHandler, this.retryPhaseHandler, this.executeBuilderHandler));
     await this.audit(command, risk, confirmation, result);
     return result;
   }
@@ -140,7 +143,7 @@ async function executeCommand(
   updateCoordinationNoteUseCase: UpdateCoordinationNoteUseCase,
   markTaskReviewedUseCase: MarkTaskReviewedUseCase,
   addTaskCommentUseCase: AddTaskCommentUseCase,
-  startRunHandler: StartRunCommandHandler | undefined,
+  startRunUseCase: StartRunUseCase,
   continueRunHandler: ContinueRunCommandHandler | undefined,
   retryPhaseHandler: RetryPhaseCommandHandler | undefined,
   executeBuilderHandler: ExecuteBuilderCommandHandler | undefined
@@ -162,7 +165,7 @@ async function executeCommand(
   }
 
   if (command.type === "start-run") {
-    return executeStartRun(command, startRunHandler);
+    return startRunUseCase.execute(command);
   }
 
   if (command.type === "continue-run") {
@@ -188,40 +191,6 @@ async function executeCommand(
 
 function defaultAuditInputSummary(command: AppCommand): string {
   return command.type;
-}
-
-function executeStartRun(command: Extract<AppCommand, { readonly type: "start-run" }>, handler: StartRunCommandHandler | undefined): Promise<AppCommandResult> | AppCommandResult {
-  if (!command.stageName.trim()) {
-    return {
-      ok: false,
-      commandId: command.commandId,
-      type: command.type,
-      code: "VALIDATION_FAILED",
-      reason: "Stage name is required."
-    };
-  }
-
-  if (!command.configPath.trim()) {
-    return {
-      ok: false,
-      commandId: command.commandId,
-      type: command.type,
-      code: "VALIDATION_FAILED",
-      reason: "Config path is required."
-    };
-  }
-
-  if (!handler) {
-    return {
-      ok: false,
-      commandId: command.commandId,
-      type: command.type,
-      code: "EXECUTION_FAILED",
-      reason: "Start-run handler is not configured."
-    };
-  }
-
-  return handler(command);
 }
 
 function executeContinueRun(command: Extract<AppCommand, { readonly type: "continue-run" }>, handler: ContinueRunCommandHandler | undefined): Promise<AppCommandResult> | AppCommandResult {
