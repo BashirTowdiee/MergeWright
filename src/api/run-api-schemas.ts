@@ -72,6 +72,45 @@ export const runDetailSchema = z.object({
   warnings: z.array(z.string())
 });
 
+export const appCommandTypeSchema = z.enum(["select-task", "update-coordination-note", "mark-task-reviewed", "add-task-comment", "start-run", "continue-run", "retry-phase", "execute-builder", "approve-stage", "reassess-stage-plan"]);
+export const commandSourceSchema = z.enum(["cli", "tui", "mcp", "automation"]);
+export const appCommandSchema = z.object({
+  commandId: z.string().min(1),
+  source: commandSourceSchema,
+  requestedAt: z.string().min(1),
+  type: appCommandTypeSchema,
+  actor: z.object({ id: z.string().optional(), displayName: z.string().optional() }).optional()
+}).passthrough();
+export const commandExecutionOptionsSchema = z.object({
+  confirmationContextId: z.string().optional(),
+  confirmationToken: z.string().optional()
+});
+export const submitCommandRequestSchema = z.object({
+  command: appCommandSchema,
+  options: commandExecutionOptionsSchema.optional()
+});
+export const appCommandSuccessResultSchema = z.object({
+  ok: z.literal(true),
+  commandId: z.string(),
+  type: appCommandTypeSchema,
+  message: z.string(),
+  changedFiles: z.array(z.string()).optional(),
+  artefacts: z.array(z.string()).optional(),
+  runId: z.string().optional(),
+  stageId: z.string().optional(),
+  warnings: z.array(z.string()).optional()
+});
+export const appCommandFailureResultSchema = z.object({
+  ok: z.literal(false),
+  commandId: z.string(),
+  type: appCommandTypeSchema,
+  code: z.enum(["VALIDATION_FAILED", "CONFIRMATION_REQUIRED", "WRITE_SAFETY_FAILED", "NOT_FOUND", "CONFLICT", "EXECUTION_FAILED"]),
+  reason: z.string(),
+  details: z.unknown().optional()
+});
+export const appCommandResultSchema = z.discriminatedUnion("ok", [appCommandSuccessResultSchema, appCommandFailureResultSchema]);
+export const submitCommandResponseSchema = z.object({ result: appCommandResultSchema });
+
 export const healthResponseSchema = z.object({
   ok: z.literal(true),
   service: z.literal("mergewright-api")
