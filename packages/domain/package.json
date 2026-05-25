@@ -1,0 +1,7 @@
+{
+  "name": "@mergewright/domain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MergeWright pure domain models, policies, result codes, and risk rules."
+}
