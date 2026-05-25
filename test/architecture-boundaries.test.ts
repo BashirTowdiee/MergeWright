@@ -52,3 +52,19 @@ test("web, API, and UI surfaces do not import CLI implementation files", async (
 
   assert.deepEqual(violations, []);
 });
+
+test("process-level child process usage stays inside CLI presentation boundaries", async () => {
+  const files = await listSourceFiles(join(repoRoot, "src"));
+  const violations: string[] = [];
+
+  for (const file of files) {
+    const relativePath = relative(repoRoot, file).split(sep).join("/");
+    const contents = await readFile(file, "utf8");
+
+    if (contents.includes("node:child_process") || contents.includes("child_process")) {
+      violations.push(relativePath);
+    }
+  }
+
+  assert.deepEqual(violations, []);
+});
