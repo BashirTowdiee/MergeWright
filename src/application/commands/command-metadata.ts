@@ -67,6 +67,21 @@ export const COMMAND_METADATA: Readonly<Record<AppCommandType, CommandMetadataDe
     preconditions: ["Run exists.", "Phase is retryable."],
     effects: ["Updates phase artefacts and state."]
   },
+  "execute-builder": {
+    type: "execute-builder",
+    title: "Execute builder",
+    summary: "Executes the builder phase through the command boundary after safety gates pass.",
+    defaultRisk: "high",
+    preconditions: [
+      "Run exists.",
+      "Builder phase is available for the run.",
+      "Write safety checks pass.",
+      "Repo is clean or the command is explicitly confirmed for writes.",
+      "Branch is safe for writes.",
+      "No dependency-blocked or overlapping file-scope task is active."
+    ],
+    effects: ["Runs the builder phase through service-routed execution.", "Captures builder output as artefacts."]
+  },
   "approve-stage": {
     type: "approve-stage",
     title: "Approve stage",
