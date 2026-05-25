@@ -5,7 +5,7 @@ import { DefaultSelectTaskUseCase } from "../src/application/use-cases/select-ta
 
 const command: SelectTaskCommand = {
   commandId: "select-task-1",
-  source: "web",
+  source: "automation",
   requestedAt: "2026-05-25T00:00:00.000Z",
   actor: {
     id: "tester",
