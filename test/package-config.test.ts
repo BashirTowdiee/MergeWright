@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import process from "node:process";
 
 interface PackageJson {
   readonly bin?: Record<string, string>;
@@ -8,7 +10,7 @@ interface PackageJson {
 }
 
 async function readPackageJson(): Promise<PackageJson> {
-  return JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")) as PackageJson;
+  return JSON.parse(await readFile(join(process.cwd(), "package.json"), "utf8")) as PackageJson;
 }
 
 test("package CLI entrypoints point at the app boundary", async () => {
