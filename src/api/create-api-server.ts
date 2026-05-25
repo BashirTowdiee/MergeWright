@@ -32,7 +32,8 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       );
     }
 
-    const runs = await options.runQueryService.listRuns({ status: query.data.status });
+    const listRunsInput = query.data.status === undefined ? {} : { status: query.data.status };
+    const runs = await options.runQueryService.listRuns(listRunsInput);
     return listRunsResponseSchema.parse({ runs });
   });
 
