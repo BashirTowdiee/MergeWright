@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createApiServer } from "../src/api/create-api-server.js";
-import type { RunDetail, RunSummary } from "../src/application/read-models/run-read-model.js";
+import type { RunDetail, RunSummary, RunArtefact } from "../src/application/read-models/run-read-model.js";
+import type { ArtifactQueryService, GetArtifactInput, ListArtifactsInput } from "../src/application/queries/artifact-query-service.js";
 import type { RunQueryService, ListRunsInput, GetRunInput } from "../src/application/queries/run-query-service.js";
 
 const runSummary: RunSummary = {
@@ -25,6 +26,23 @@ const completedRunSummary: RunSummary = {
   warnings: ["No artefacts"]
 };
 
+const planArtifact: RunArtefact = {
+  id: "plan",
+  title: "Plan",
+  kind: "markdown",
+  path: "plan.md",
+  phaseId: "planner"
+};
+
+const reviewArtifact: RunArtefact = {
+  id: "review",
+  title: "Review",
+  kind: "json",
+  path: "review.json",
+  phaseId: "reviewer",
+  sizeBytes: 128
+};
+
 const runDetail: RunDetail = {
   id: "run-1",
   title: "Run one",
@@ -44,15 +62,7 @@ const runDetail: RunDetail = {
       artefactIds: ["plan"]
     }
   ],
-  artefacts: [
-    {
-      id: "plan",
-      title: "Plan",
-      kind: "markdown",
-      path: "plan.md",
-      phaseId: "planner"
-    }
-  ],
+  artefacts: [planArtifact, reviewArtifact],
   safeActions: [
     {
       id: "continue",
@@ -86,6 +96,32 @@ class FakeRunQueryService implements RunQueryService {
       return runDetail;
     }
     return null;
+  }
+}
+
+class FakeArtifactQueryService implements ArtifactQueryService {
+  readonly listCalls: ListArtifactsInput[] = [];
+  readonly getCalls: GetArtifactInput[] = [];
+
+  constructor(private readonly artifacts: RunArtefact[] = [planArtifact, reviewArtifact]) {}
+
+  async listArtifacts(input: ListArtifactsInput): Promise<RunArtefact[]> {
+    this.listCalls.push(input);
+    if (input.runId !== runDetail.id) {
+      return [];
+    }
+    if (!input.phaseId) {
+      return this.artifacts;
+    }
+    return this.artifacts.filter((artifact) => artifact.phaseId === input.phaseId);
+  }
+
+  async getArtifact(input: GetArtifactInput): Promise<RunArtefact | null> {
+    this.getCalls.push(input);
+    if (input.runId !== runDetail.id) {
+      return null;
+    }
+    return this.artifacts.find((artifact) => artifact.id === input.artifactId) ?? null;
   }
 }
 
@@ -146,5 +182,57 @@ test("GET /runs/:runId returns 404 for missing runs", async () => {
   assert.deepEqual(response.json(), {
     code: "RUN_NOT_FOUND",
     message: "Run not found."
+  });
+});
+
+test("GET /runs/:runId/artifacts lists artifacts through the query service", async () => {
+  const artifactQueryService = new FakeArtifactQueryService();
+  const server = createApiServer({ runQueryService: new FakeRunQueryService(), artifactQueryService });
+  const response = await server.inject({ method: "GET", url: "/runs/run-1/artifacts" });
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json(), { artifacts: [planArtifact, reviewArtifact] });
+  assert.deepEqual(artifactQueryService.listCalls, [{ runId: "run-1" }]);
+});
+
+test("GET /runs/:runId/artifacts filters artifacts by phase", async () => {
+  const artifactQueryService = new FakeArtifactQueryService();
+  const server = createApiServer({ runQueryService: new FakeRunQueryService(), artifactQueryService });
+  const response = await server.inject({ method: "GET", url: "/runs/run-1/artifacts?phaseId=planner" });
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json(), { artifacts: [planArtifact] });
+  assert.deepEqual(artifactQueryService.listCalls, [{ runId: "run-1", phaseId: "planner" }]);
+});
+
+test("GET /runs/:runId/artifacts returns 503 when artifact service is missing", async () => {
+  const server = createApiServer({ runQueryService: new FakeRunQueryService() });
+  const response = await server.inject({ method: "GET", url: "/runs/run-1/artifacts" });
+
+  assert.equal(response.statusCode, 503);
+  assert.deepEqual(response.json(), {
+    code: "ARTIFACT_QUERY_SERVICE_UNAVAILABLE",
+    message: "Artifact query service is not configured."
+  });
+});
+
+test("GET /runs/:runId/artifacts/:artifactId returns artifact metadata", async () => {
+  const artifactQueryService = new FakeArtifactQueryService();
+  const server = createApiServer({ runQueryService: new FakeRunQueryService(), artifactQueryService });
+  const response = await server.inject({ method: "GET", url: "/runs/run-1/artifacts/plan" });
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json(), { artifact: planArtifact });
+  assert.deepEqual(artifactQueryService.getCalls, [{ runId: "run-1", artifactId: "plan" }]);
+});
+
+test("GET /runs/:runId/artifacts/:artifactId returns 404 for missing artifact metadata", async () => {
+  const server = createApiServer({ runQueryService: new FakeRunQueryService(), artifactQueryService: new FakeArtifactQueryService() });
+  const response = await server.inject({ method: "GET", url: "/runs/run-1/artifacts/missing" });
+
+  assert.equal(response.statusCode, 404);
+  assert.deepEqual(response.json(), {
+    code: "ARTIFACT_NOT_FOUND",
+    message: "Artifact not found."
   });
 });

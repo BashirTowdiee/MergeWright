@@ -93,6 +93,27 @@ export const getRunResponseSchema = z.object({
   run: runDetailSchema
 });
 
+export const listRunArtifactsParamsSchema = z.object({
+  runId: z.string().min(1)
+});
+
+export const listRunArtifactsQuerySchema = z.object({
+  phaseId: z.string().min(1).optional()
+});
+
+export const listRunArtifactsResponseSchema = z.object({
+  artifacts: z.array(runArtefactSchema)
+});
+
+export const getRunArtifactParamsSchema = z.object({
+  runId: z.string().min(1),
+  artifactId: z.string().min(1)
+});
+
+export const getRunArtifactResponseSchema = z.object({
+  artifact: runArtefactSchema
+});
+
 export const errorResponseSchema = z.object({
   code: z.string(),
   message: z.string()
