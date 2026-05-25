@@ -90,7 +90,11 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       );
     }
 
-    const artifacts = await artifactQueryService.listArtifacts({ runId: params.data.runId, phaseId: query.data.phaseId });
+    const listArtifactsInput =
+      query.data.phaseId === undefined
+        ? { runId: params.data.runId }
+        : { runId: params.data.runId, phaseId: query.data.phaseId };
+    const artifacts = await artifactQueryService.listArtifacts(listArtifactsInput);
     return listRunArtifactsResponseSchema.parse({ artifacts });
   });
 
