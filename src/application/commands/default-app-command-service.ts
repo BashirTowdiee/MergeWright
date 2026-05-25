@@ -9,6 +9,8 @@ import { getCommandMetadata } from "./command-metadata.js";
 import type { CommandRisk } from "./command-risk.js";
 import { getCommandConfirmationState } from "./confirmation.js";
 import type { CommandConfirmationState } from "./confirmation.js";
+import { DefaultSelectTaskUseCase } from "../use-cases/select-task-use-case.js";
+import type { SelectTaskUseCase } from "../use-cases/select-task-use-case.js";
 
 export type CommandRiskResolver = (command: AppCommand) => CommandRisk;
 export type CommandAuditInputSummaryResolver = (command: AppCommand) => string;
@@ -23,6 +25,7 @@ export type DefaultAppCommandServiceOptions = {
   readonly auditStore?: CommandAuditStore;
   readonly resolveAuditInputSummary?: CommandAuditInputSummaryResolver;
   readonly auditClock?: CommandAuditClock;
+  readonly selectTaskUseCase?: SelectTaskUseCase;
   readonly startRunHandler?: StartRunCommandHandler;
   readonly continueRunHandler?: ContinueRunCommandHandler;
   readonly retryPhaseHandler?: RetryPhaseCommandHandler;
@@ -34,6 +37,7 @@ export class DefaultAppCommandService implements AppCommandService {
   private readonly auditStore?: CommandAuditStore;
   private readonly resolveAuditInputSummary: CommandAuditInputSummaryResolver;
   private readonly auditClock: CommandAuditClock;
+  private readonly selectTaskUseCase: SelectTaskUseCase;
   private readonly startRunHandler?: StartRunCommandHandler;
   private readonly continueRunHandler?: ContinueRunCommandHandler;
   private readonly retryPhaseHandler?: RetryPhaseCommandHandler;
@@ -44,6 +48,7 @@ export class DefaultAppCommandService implements AppCommandService {
     this.auditStore = options.auditStore;
     this.resolveAuditInputSummary = options.resolveAuditInputSummary ?? defaultAuditInputSummary;
     this.auditClock = options.auditClock ?? (() => new Date().toISOString());
+    this.selectTaskUseCase = options.selectTaskUseCase ?? new DefaultSelectTaskUseCase();
     this.startRunHandler = options.startRunHandler;
     this.continueRunHandler = options.continueRunHandler;
     this.retryPhaseHandler = options.retryPhaseHandler;
@@ -59,7 +64,7 @@ export class DefaultAppCommandService implements AppCommandService {
     const confirmation = getCommandConfirmationState(command, risk);
     const result =
       getConfirmationFailure(command, confirmation, options) ??
-      (await executeCommand(command, this.startRunHandler, this.continueRunHandler, this.retryPhaseHandler, this.executeBuilderHandler));
+      (await executeCommand(command, this.selectTaskUseCase, this.startRunHandler, this.continueRunHandler, this.retryPhaseHandler, this.executeBuilderHandler));
     await this.audit(command, risk, confirmation, result);
     return result;
   }
@@ -116,13 +121,14 @@ function getConfirmationFailure(
 
 async function executeCommand(
   command: AppCommand,
+  selectTaskUseCase: SelectTaskUseCase,
   startRunHandler: StartRunCommandHandler | undefined,
   continueRunHandler: ContinueRunCommandHandler | undefined,
   retryPhaseHandler: RetryPhaseCommandHandler | undefined,
   executeBuilderHandler: ExecuteBuilderCommandHandler | undefined
 ): Promise<AppCommandResult> {
   if (command.type === "select-task") {
-    return executeSelectTask(command);
+    return selectTaskUseCase.execute(command);
   }
 
   if (command.type === "update-coordination-note") {
@@ -280,26 +286,6 @@ function executeBuilder(command: Extract<AppCommand, { readonly type: "execute-b
   }
 
   return handler(command);
-}
-
-function executeSelectTask(command: Extract<AppCommand, { readonly type: "select-task" }>): AppCommandResult {
-  const taskId = command.taskId.trim();
-  if (!taskId) {
-    return {
-      ok: false,
-      commandId: command.commandId,
-      type: command.type,
-      code: "VALIDATION_FAILED",
-      reason: "Task ID is required."
-    };
-  }
-
-  return {
-    ok: true,
-    commandId: command.commandId,
-    type: command.type,
-    message: `Selected task ${taskId}.`
-  };
 }
 
 function executeUpdateCoordinationNote(command: Extract<AppCommand, { readonly type: "update-coordination-note" }>): AppCommandResult {
