@@ -1,0 +1,8 @@
+{
+  "name": "@mergewright/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MergeWright Fastify API application boundary.",
+  "main": "../../dist/apps/api/src/server.js"
+}
