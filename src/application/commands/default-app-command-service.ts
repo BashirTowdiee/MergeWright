@@ -9,6 +9,8 @@ import { getCommandMetadata } from "./command-metadata.js";
 import type { CommandRisk } from "./command-risk.js";
 import { getCommandConfirmationState } from "./confirmation.js";
 import type { CommandConfirmationState } from "./confirmation.js";
+import { DefaultAddTaskCommentUseCase } from "../use-cases/add-task-comment-use-case.js";
+import type { AddTaskCommentUseCase } from "../use-cases/add-task-comment-use-case.js";
 import { DefaultMarkTaskReviewedUseCase } from "../use-cases/mark-task-reviewed-use-case.js";
 import type { MarkTaskReviewedUseCase } from "../use-cases/mark-task-reviewed-use-case.js";
 import { DefaultSelectTaskUseCase } from "../use-cases/select-task-use-case.js";
@@ -32,6 +34,7 @@ export type DefaultAppCommandServiceOptions = {
   readonly selectTaskUseCase?: SelectTaskUseCase;
   readonly updateCoordinationNoteUseCase?: UpdateCoordinationNoteUseCase;
   readonly markTaskReviewedUseCase?: MarkTaskReviewedUseCase;
+  readonly addTaskCommentUseCase?: AddTaskCommentUseCase;
   readonly startRunHandler?: StartRunCommandHandler;
   readonly continueRunHandler?: ContinueRunCommandHandler;
   readonly retryPhaseHandler?: RetryPhaseCommandHandler;
@@ -46,6 +49,7 @@ export class DefaultAppCommandService implements AppCommandService {
   private readonly selectTaskUseCase: SelectTaskUseCase;
   private readonly updateCoordinationNoteUseCase: UpdateCoordinationNoteUseCase;
   private readonly markTaskReviewedUseCase: MarkTaskReviewedUseCase;
+  private readonly addTaskCommentUseCase: AddTaskCommentUseCase;
   private readonly startRunHandler?: StartRunCommandHandler;
   private readonly continueRunHandler?: ContinueRunCommandHandler;
   private readonly retryPhaseHandler?: RetryPhaseCommandHandler;
@@ -59,6 +63,7 @@ export class DefaultAppCommandService implements AppCommandService {
     this.selectTaskUseCase = options.selectTaskUseCase ?? new DefaultSelectTaskUseCase();
     this.updateCoordinationNoteUseCase = options.updateCoordinationNoteUseCase ?? new DefaultUpdateCoordinationNoteUseCase();
     this.markTaskReviewedUseCase = options.markTaskReviewedUseCase ?? new DefaultMarkTaskReviewedUseCase();
+    this.addTaskCommentUseCase = options.addTaskCommentUseCase ?? new DefaultAddTaskCommentUseCase();
     this.startRunHandler = options.startRunHandler;
     this.continueRunHandler = options.continueRunHandler;
     this.retryPhaseHandler = options.retryPhaseHandler;
@@ -74,7 +79,7 @@ export class DefaultAppCommandService implements AppCommandService {
     const confirmation = getCommandConfirmationState(command, risk);
     const result =
       getConfirmationFailure(command, confirmation, options) ??
-      (await executeCommand(command, this.selectTaskUseCase, this.updateCoordinationNoteUseCase, this.markTaskReviewedUseCase, this.startRunHandler, this.continueRunHandler, this.retryPhaseHandler, this.executeBuilderHandler));
+      (await executeCommand(command, this.selectTaskUseCase, this.updateCoordinationNoteUseCase, this.markTaskReviewedUseCase, this.addTaskCommentUseCase, this.startRunHandler, this.continueRunHandler, this.retryPhaseHandler, this.executeBuilderHandler));
     await this.audit(command, risk, confirmation, result);
     return result;
   }
@@ -134,6 +139,7 @@ async function executeCommand(
   selectTaskUseCase: SelectTaskUseCase,
   updateCoordinationNoteUseCase: UpdateCoordinationNoteUseCase,
   markTaskReviewedUseCase: MarkTaskReviewedUseCase,
+  addTaskCommentUseCase: AddTaskCommentUseCase,
   startRunHandler: StartRunCommandHandler | undefined,
   continueRunHandler: ContinueRunCommandHandler | undefined,
   retryPhaseHandler: RetryPhaseCommandHandler | undefined,
@@ -152,7 +158,7 @@ async function executeCommand(
   }
 
   if (command.type === "add-task-comment") {
-    return executeAddTaskComment(command);
+    return addTaskCommentUseCase.execute(command);
   }
 
   if (command.type === "start-run") {
@@ -298,36 +304,4 @@ function executeBuilder(command: Extract<AppCommand, { readonly type: "execute-b
   }
 
   return handler(command);
-}
-
-function executeAddTaskComment(command: Extract<AppCommand, { readonly type: "add-task-comment" }>): AppCommandResult {
-  const taskId = command.taskId.trim();
-  if (!taskId) {
-    return {
-      ok: false,
-      commandId: command.commandId,
-      type: command.type,
-      code: "VALIDATION_FAILED",
-      reason: "Task ID is required."
-    };
-  }
-
-  const comment = command.comment.trim();
-  if (!comment) {
-    return {
-      ok: false,
-      commandId: command.commandId,
-      type: command.type,
-      code: "VALIDATION_FAILED",
-      reason: "Task comment is required."
-    };
-  }
-
-  return {
-    ok: true,
-    commandId: command.commandId,
-    type: command.type,
-    message: `Comment accepted for task ${taskId}.`,
-    changedFiles: []
-  };
 }
