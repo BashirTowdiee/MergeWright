@@ -11,3 +11,14 @@ test("CLI app entrypoint owns the open-run adapter dependency", async () => {
   assert.equal(entrypoint.includes("const openRunDirectory"), true);
   assert.equal(entrypoint.includes("node:child_process"), true);
 });
+
+test("root CLI module remains a compatibility boundary", async () => {
+  const rootCli = await readFile(join(process.cwd(), "src/cli.ts"), "utf8");
+
+  assert.equal(rootCli.startsWith("#!"), false);
+  assert.equal(rootCli.includes("node:process"), false);
+  assert.equal(rootCli.includes("node:child_process"), false);
+  assert.equal(rootCli.includes("defaultOpenRunDirectory"), false);
+  assert.equal(rootCli.includes("void main()"), false);
+  assert.equal(rootCli.includes("export async function runCommand"), true);
+});
