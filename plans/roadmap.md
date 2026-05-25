@@ -1,295 +1,415 @@
-# MergeWright TUI Roadmap
+# MergeWright Web-First Roadmap
 
 Status: active
 
-Scope: move the TUI from read-only inspection to a safe operator console through a service-first command layer.
+Scope: move MergeWright from a TUI-primary product path to a web-first local control room backed by a shared application service layer and Fastify API.
+
+## Product direction
+
+The TUI is no longer the target product surface. Existing TUI work may be mined for useful command, event, read-model, and safety abstractions, but future interface investment goes into the web app.
+
+Primary surfaces:
+
+```text
+Web app -> Fastify API -> application services -> domain/use cases -> adapters
+CLI     -> application services -> domain/use cases -> adapters
+```
+
+Non-goals:
+
+```text
+TUI as primary interface
+TUI feature expansion
+web app shelling out to CLI commands
+web app parsing CLI stdout for product state
+API routes owning orchestration logic
+duplicated orchestration in CLI/web/TUI
+```
 
 ## Architectural rule
 
 Allowed path:
 
 ```text
-TUI -> typed command -> application service -> domain/use case -> adapters
+Web UI -> typed API request -> Fastify route -> application service -> domain/use case -> adapter
+CLI    -> typed command     -> application service -> domain/use case -> adapter
 ```
 
 Forbidden paths:
 
 ```text
-TUI -> shell command
-TUI -> direct file edit
-TUI -> parse CLI stdout
-TUI -> mutate git/plans/runs directly
-TUI -> bypass write-safety checks
+Web UI -> shell command
+Web UI -> direct file edit
+Web UI -> parse CLI stdout
+Web UI -> mutate git/plans/runs directly
+API route -> orchestration logic inline
+API route -> bypass write-safety checks
+UI surface -> duplicate command policy
 ```
 
-The TUI must not become a second CLI implementation. CLI, TUI, MCP, and future web surfaces should share application services.
+The Fastify API is the orchestration boundary for the web app. The CLI remains the automation surface. Both must share the same application services and safety policies.
 
-## Stage 1: Command boundary foundation
+## Stage 0: Freeze and retire TUI roadmap work
 
-Goal: define stable, serialisable commands and structured command outputs.
-
-Deliverables:
-- typed application command model
-- command source and actor metadata
-- typed command result model
-- command risk model
-- command description model
-- application command service shell
-
-Acceptance criteria:
-- commands describe product intent, not shell execution
-- every command includes source/actor metadata
-- command results are structured and renderable by the TUI
-- failures use stable result codes rather than uncaught UI exceptions
-- command descriptions expose risk, summary, and preconditions
-- unimplemented commands fail deterministically with `EXECUTION_FAILED`
-
-Dependencies:
-- existing `src/application/commands/app-command.ts`
-- existing `src/application/commands/command-source.ts`
-
-Next action:
-- complete the command result, risk, description, and service-shell slice before wiring any TUI execution.
-
-## Stage 2: Boundary and drift tests
-
-Goal: enforce that the TUI cannot bypass the service-first command layer.
+Goal: stop new TUI product work and preserve only reusable internals.
 
 Deliverables:
-- architecture tests for forbidden TUI imports
-- architecture tests for direct write and shell boundaries
+- roadmap update marking web as the primary interface path
+- product docs updated to remove TUI-primary language
+- TUI implementation plan marked superseded
+- active planning files updated with web-first next actions
 
 Acceptance criteria:
-- tests fail if `src/tui/**` imports `child_process`
-- tests fail if `src/tui/**` imports write-capable filesystem APIs
-- tests fail if TUI code introduces shell-shaped command execution
-
-Dependencies:
-- Stage 1 command boundary foundation
+- docs no longer describe TUI as the primary human interface
+- no new roadmap stage depends on Ink or TUI panes
+- existing TUI code is treated as legacy spike/client code
+- reusable command/event/read-model concepts remain available for extraction
 
 Next action:
-- add architecture tests immediately after the service shell exists.
+- extract reusable non-TUI read models and command services before creating broad web UI code.
 
-## Stage 3: Read-model extraction
+## Stage 1: Shared domain and read-model extraction
 
-Goal: move TUI selection and dashboard derivation out of `SelectableApp`.
+Goal: remove TUI-specific naming from reusable run, task, artefact, and action models.
 
 Deliverables:
-- dashboard read-model service
-- selected run/phase/action/artefact/finding derivation helpers
-- command preview input read model
+- generic run summary and run detail read models
+- generic phase, artefact, reviewer finding, and safe action models
+- TUI-specific `Tui*` names renamed or wrapped in non-TUI types
+- demo seed data separated from Ink component fixtures
 
 Acceptance criteria:
-- `SelectableApp` mostly coordinates state and rendering
-- selection derivation is tested without React
-- fixture-backed read models still support the current spike flow
+- shared read models do not mention TUI, Ink, panes, overlays, or terminal concepts
+- UI-specific state remains outside application/domain models
+- current tests continue to pass while extraction is incremental
+- demo data can seed in-memory repositories without direct React component props
 
 Dependencies:
-- current TUI pane extraction work
-- existing selection context helpers
+- current `src/tui/view-models.ts` and spike fixture concepts
 
 Next action:
-- extract dashboard state after the command boundary is committed.
+- move reusable run/task/artefact types into `src/application/read-models` or a future `packages/application` boundary.
 
-## Stage 4: Safe local commands
+## Stage 2: Query services and in-memory repositories
 
-Goal: implement low-risk write commands before orchestration.
+Goal: create the read path the web app and API will consume.
 
 Deliverables:
-- `select-task` handler
-- `update-coordination-note` handler
-- `mark-task-reviewed` handler
-- `add-task-comment` handler
+- `RunQueryService`
+- `TaskQueryService`
+- `ArtifactQueryService`
+- `EventQueryService`
+- in-memory run/task/event repositories
+- seeded demo workspace data
 
 Acceptance criteria:
-- commands run only through `AppCommandService`
-- existing planning content is preserved
-- validation covers missing IDs, empty note/comment values, and conflicts
-- command results include changed file metadata when writes occur
+- run list and run detail data can be read without TUI fixtures
+- query services are framework-agnostic
+- query services have deterministic unit tests
+- no query service imports React, Ink, Fastify, or CLI presentation code
 
 Dependencies:
-- Stage 1 command service shell
-- Stage 2 boundary tests
+- Stage 1 shared read models
 
 Next action:
-- implement `select-task` first because it is the smallest useful write intent.
+- implement `RunQueryService` and an in-memory repository first.
 
-## Stage 5: Audit logging
+## Stage 3: Application command/use-case layer hardening
 
-Goal: make every attempted write command traceable.
+Goal: convert the existing command facade into backend-owned use cases that both API and CLI can call.
 
 Deliverables:
-- command audit record model
-- command audit store interface
-- filesystem audit store
-- command service audit integration
+- use cases for select task, update coordination note, start run, continue run, retry phase, and execute builder
+- command validation in application services
+- command risk and confirmation policy preserved outside UI code
+- command audit model retained and extended
+- ports for run repository, task repository, event bus, and agent executor
 
 Acceptance criteria:
-- successful commands produce audit records
-- failed commands produce audit records
-- audit records include command ID, type, source, actor, risk, input summary, result, changed files, and artefacts
-- existing audit records are not overwritten
+- command execution is not stubbed in UI code
+- API and CLI can call the same command service
+- command results are structured and serialisable
+- missing handlers fail deterministically with stable result codes
+- risky commands are blocked by policy before adapters execute
 
 Dependencies:
-- Stage 4 safe command handlers
+- existing `src/application/commands/*`
+- Stage 2 repository ports
 
 Next action:
-- wire audit logging before any orchestration command is exposed.
+- introduce explicit use cases behind `DefaultAppCommandService` without changing CLI behaviour.
 
-## Stage 6: TUI safe-write wiring
+## Stage 4: Fastify API foundation
 
-Goal: let the TUI execute safe commands through the service layer.
+Goal: expose application reads and commands to the web app through a typed local API.
 
 Deliverables:
-- TUI command controller
-- command result pane state
-- wiring for `select-task`
-- wiring for coordination note updates
+- `apps/api` or equivalent API entry point
+- Fastify server factory
+- Zod request/response schemas
+- health route
+- run list and run detail routes
+- artifact list/content routes
+- command submission route
+- route tests
+
+Initial endpoints:
+
+```text
+GET  /health
+GET  /runs
+GET  /runs/:runId
+GET  /runs/:runId/artifacts
+GET  /runs/:runId/artifacts/:artifactId
+POST /commands
+```
 
 Acceptance criteria:
-- TUI maps each UI action to exactly one `AppCommand`
-- TUI renders `CommandDescription` before execution where required
-- TUI renders `AppCommandResult` after execution
-- TUI contains no filesystem, git, shell, or orchestration logic
+- Fastify routes call application services only
+- route handlers contain no orchestration logic
+- request and response payloads are schema-validated
+- API can run against in-memory repositories first
+- route tests cover success and validation failure paths
 
 Dependencies:
-- Stage 4 safe command handlers
-- Stage 5 audit logging
+- Stage 2 query services
+- Stage 3 command service hardening
 
 Next action:
-- wire only `select-task` first.
+- add read-only `/health`, `/runs`, and `/runs/:runId` first.
 
-## Stage 7: Confirmation gates
+## Stage 5: Web app shell
 
-Goal: expose risk and confirmation requirements without duplicating business rules in the TUI.
+Goal: create the first useful web control room over the Fastify API.
 
 Deliverables:
-- confirmation model
-- confirmation state machine
-- confirmation overlay
-- service-owned precondition rendering
+- `apps/web` or equivalent web entry point
+- Next.js app shell
+- run list page
+- run detail page
+- phase timeline
+- artefact list
+- reviewer findings panel
+- safe actions panel
+- API client using shared schemas
+
+Recommended stack:
+
+```text
+Next.js
+React
+TypeScript
+Tailwind CSS
+shadcn/ui or Radix primitives
+TanStack Query
+Monaco Editor later for artefacts, diffs, and code views
+```
 
 Acceptance criteria:
-- moderate and dangerous commands can be described before execution
-- dangerous commands require explicit confirmation
-- failed preconditions block execution
-- confirmation state is auditable
+- web app fetches runs from Fastify
+- web app renders selected run detail from API data
+- web app does not import server-only orchestration code
+- web app can display blocked reasons, phases, artefacts, reviewer findings, and safe actions
+- UI state is limited to selection, filters, panels, and local presentation state
 
 Dependencies:
-- Stage 1 command descriptions
-- Stage 6 TUI command controller
+- Stage 4 Fastify read API
 
 Next action:
-- add confirmation support before planner/reviewer orchestration.
+- implement `/runs` and `/runs/[runId]` before command execution controls.
 
-## Stage 8: Planner and reviewer orchestration
+## Stage 6: Structured events and live progress
 
-Goal: expose read-only planner/reviewer flows through the command service.
+Goal: stream run and command progress to the web app without stdout scraping.
 
 Deliverables:
-- `start-run` handler for planner/reviewer flows
-- `run-planner` behaviour through service routing
-- `run-reviewer` behaviour through service routing
-- structured result rendering in the TUI
+- application event model
+- event bus abstraction
+- persisted or in-memory event store
+- Fastify Server-Sent Events endpoint
+- web live event panel
+- command start/finish and phase start/finish events
+
+Initial endpoint:
+
+```text
+GET /runs/:runId/events
+```
 
 Acceptance criteria:
-- existing runner/orchestration logic is reused
-- command results include run IDs and artefact paths
-- no CLI command string is constructed by TUI code
-- no TUI stdout parsing is introduced
+- web app receives typed progress events
+- command and phase lifecycle events are represented structurally
+- output chunks may be captured as events or artefacts, but product state does not depend on parsing raw stdout
+- event stream can reconnect without losing persisted events once persistence exists
 
 Dependencies:
-- Stage 7 confirmation gates
-- existing runner services
+- Stage 3 command service hardening
+- Stage 4 Fastify API foundation
 
 Next action:
-- implement planner-only command support before reviewer support.
+- stream command started/finished events from the existing evented command service pattern.
 
-## Stage 9: Structured progress events
+## Stage 7: Persistence and artefact indexing
 
-Goal: display live progress without scraping process output.
+Goal: make run history durable and queryable.
 
 Deliverables:
-- app event model
-- app event bus
-- command service event emission
-- TUI progress pane
+- durable run repository
+- durable event repository
+- durable command audit store
+- artefact metadata index
+- migrations and repository tests
+
+Recommended persistence:
+
+```text
+Postgres + Drizzle
+```
+
+Local-first bootstrap may use SQLite only if it materially speeds local development. The target product path should not depend on UI state for history.
 
 Acceptance criteria:
-- TUI receives typed progress events
-- command start/finish and phase start/finish are represented structurally
-- phase output chunks are events, not parsed CLI stdout
+- API restart does not lose run history
+- run events are persisted
+- command audit records are persisted
+- artefact metadata is queryable by run and phase
+- filesystem artefacts remain inspectable by developers
 
 Dependencies:
-- Stage 8 orchestration commands
+- Stage 2 repository ports
+- Stage 4 API foundation
 
 Next action:
-- add event bus before long-running builder work is exposed.
+- persist run summaries/details and events before implementing complex web controls.
 
-## Stage 10: Builder execution gates
+## Stage 8: Real orchestration execution
 
-Goal: expose builder execution only behind strong safety controls.
+Goal: wire real planner, reviewer, fix, and builder execution behind application services.
 
 Deliverables:
-- `execute-builder` command
-- builder precondition checks
-- confirmation requirements
-- service-routed builder execution
+- Codex executor adapter
+- shell executor adapter where needed
+- artifact writer/indexer
+- workspace safety service
+- start-run, continue-run, retry-phase, and execute-builder handlers
+- structured failure/blocker model
 
 Acceptance criteria:
-- builder cannot run with writes unless confirmation passes
-- builder uses the same write-safety path as the CLI
-- dirty repo, unsafe branch, dependency-blocked, and overlapping file-scope cases are blocked
-- builder output is captured as artefacts
+- starting a run creates a durable run record
+- phase transitions are persisted and streamed
+- artefacts are written and indexed
+- failures produce structured blocker reasons
+- retry uses stored run context
+- write-enabled actions cannot bypass safety gates
 
 Dependencies:
-- Stage 9 progress events
-- existing write-safety checks
+- Stage 3 command/use-case layer
+- Stage 6 events
+- Stage 7 persistence
 
 Next action:
-- implement precondition descriptions before execution.
+- wire read-only start-run before builder execution.
 
-## Stage 11: PR and git operations
+## Stage 9: Web command controls and approval gates
 
-Goal: support merge-ready workflows from the TUI through service commands.
+Goal: make the web app an operator control room, not only a viewer.
 
 Deliverables:
-- merge-ready check command
-- commit command
-- push command
-- merge PR command
+- command preview panel
+- risk and confirmation UI
+- safe action execution
+- command result display
+- audit log panel
+- blocked precondition display
 
 Acceptance criteria:
-- dangerous operations require confirmation
-- merge requires prior merge-ready check success
-- operations follow repo policy
-- audit records include changed files and remote operation metadata
+- low-risk commands can execute from the web UI
+- medium/high-risk commands require preview and confirmation according to shared policy
+- web UI does not duplicate risk logic
+- command results and audit records are visible after execution
+- unsafe commands fail before adapter invocation
 
 Dependencies:
-- Stage 10 builder execution gates
+- Stage 5 web shell
+- Stage 8 real execution
 
 Next action:
-- implement merge-ready check before commit/push/merge.
+- implement select-task/coordination note controls before run execution controls.
+
+## Stage 10: PR, CI, and merge-readiness panels
+
+Goal: make the web app the clearest place to decide whether work can merge.
+
+Deliverables:
+- PR status panel
+- changed files and diff viewer
+- CI checks panel
+- review status panel
+- unresolved conversation display
+- merge-readiness service
+- safe merge action behind policy
+
+Acceptance criteria:
+- web app shows PR readiness without terminal inspection
+- merge action is blocked unless merge policy passes
+- failed CI links to logs or structured summaries
+- expected head SHA is used where available
+- GitHub operations are auditable
+
+Dependencies:
+- Stage 7 persistence
+- Stage 8 execution
+- GitHub adapter availability
+
+Next action:
+- implement read-only PR/CI status before merge actions.
+
+## Stage 11: TUI removal and cleanup
+
+Goal: remove the abandoned TUI surface once web parity exists for useful run inspection.
+
+Deliverables:
+- remove TUI scripts
+- remove Ink dependency if no longer used
+- remove or quarantine `src/tui/**`
+- migrate reusable tests to application/web/API layers
+- README points users to CLI and web surfaces only
+
+Acceptance criteria:
+- no runtime dependency on Ink remains unless explicitly retained for a demo
+- no active docs describe TUI as the product path
+- no test imports deleted TUI code
+- CI passes after cleanup
+
+Dependencies:
+- Stage 5 web shell reaches useful run inspection parity
+
+Next action:
+- do not delete TUI code until the shared read models and web shell are in place.
 
 ## Stage 12: Product hardening
 
-Goal: make the TUI reliable for daily use.
+Goal: make the web-first MergeWright workflow reliable for daily local use and future team adoption.
 
 Deliverables:
-- real workspace bootstrap path
-- fixture/demo mode retained for tests
+- local dev bootstrap command
+- API/web startup scripts
+- workspace selection and validation
 - empty/loading/error states
-- integration smoke test
-- keyboard help generated from central shortcut definitions
+- API/web smoke tests
+- documentation and screenshots
+- provider/model settings
+- optional desktop packaging evaluation
 
 Acceptance criteria:
-- TUI boots with real workspace data
-- TUI boots with fixture data
-- missing workspace renders a structured error state
-- keyboard help matches actual key handlers
+- user can start API and web locally with documented commands
+- web app explains missing workspace/config/run states clearly
+- CLI remains usable for automation
+- web app is the documented human control room
+- architecture still supports future hosted/team mode without forcing it now
 
 Dependencies:
-- prior TUI command and read-model stages
+- prior web/API stages
 
 Next action:
-- replace fixture-first boot path after safe command wiring is stable.
+- document local API/web startup once Stage 4 and Stage 5 exist.
