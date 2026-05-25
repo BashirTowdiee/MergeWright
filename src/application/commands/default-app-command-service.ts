@@ -5,6 +5,7 @@ import { createCommandAuditRecord } from "./command-audit-record.js";
 import type { CommandAuditStore } from "./command-audit-store.js";
 import { describeCommand } from "./command-description.js";
 import type { CommandDescription } from "./command-description.js";
+import { getCommandMetadata } from "./command-metadata.js";
 import type { CommandRisk } from "./command-risk.js";
 import { getCommandConfirmationState } from "./confirmation.js";
 import type { CommandConfirmationState } from "./confirmation.js";
@@ -15,6 +16,7 @@ export type CommandAuditClock = () => string;
 export type StartRunCommandHandler = (command: Extract<AppCommand, { readonly type: "start-run" }>) => Promise<AppCommandResult> | AppCommandResult;
 export type ContinueRunCommandHandler = (command: Extract<AppCommand, { readonly type: "continue-run" }>) => Promise<AppCommandResult> | AppCommandResult;
 export type RetryPhaseCommandHandler = (command: Extract<AppCommand, { readonly type: "retry-phase" }>) => Promise<AppCommandResult> | AppCommandResult;
+export type ExecuteBuilderCommandHandler = (command: Extract<AppCommand, { readonly type: "execute-builder" }>) => Promise<AppCommandResult> | AppCommandResult;
 
 export type DefaultAppCommandServiceOptions = {
   readonly resolveRisk?: CommandRiskResolver;
@@ -24,9 +26,8 @@ export type DefaultAppCommandServiceOptions = {
   readonly startRunHandler?: StartRunCommandHandler;
   readonly continueRunHandler?: ContinueRunCommandHandler;
   readonly retryPhaseHandler?: RetryPhaseCommandHandler;
+  readonly executeBuilderHandler?: ExecuteBuilderCommandHandler;
 };
-
-const DEFAULT_RISK: CommandRisk = "none";
 
 export class DefaultAppCommandService implements AppCommandService {
   private readonly resolveRisk: CommandRiskResolver;
@@ -36,15 +37,17 @@ export class DefaultAppCommandService implements AppCommandService {
   private readonly startRunHandler?: StartRunCommandHandler;
   private readonly continueRunHandler?: ContinueRunCommandHandler;
   private readonly retryPhaseHandler?: RetryPhaseCommandHandler;
+  private readonly executeBuilderHandler?: ExecuteBuilderCommandHandler;
 
   constructor(options: DefaultAppCommandServiceOptions = {}) {
-    this.resolveRisk = options.resolveRisk ?? (() => DEFAULT_RISK);
+    this.resolveRisk = options.resolveRisk ?? ((command) => getCommandMetadata(command.type).defaultRisk);
     this.auditStore = options.auditStore;
     this.resolveAuditInputSummary = options.resolveAuditInputSummary ?? defaultAuditInputSummary;
     this.auditClock = options.auditClock ?? (() => new Date().toISOString());
     this.startRunHandler = options.startRunHandler;
     this.continueRunHandler = options.continueRunHandler;
     this.retryPhaseHandler = options.retryPhaseHandler;
+    this.executeBuilderHandler = options.executeBuilderHandler;
   }
 
   async describe(command: AppCommand): Promise<CommandDescription> {
@@ -56,7 +59,7 @@ export class DefaultAppCommandService implements AppCommandService {
     const confirmation = getCommandConfirmationState(command, risk);
     const result =
       getConfirmationFailure(command, confirmation, options) ??
-      (await executeCommand(command, this.startRunHandler, this.continueRunHandler, this.retryPhaseHandler));
+      (await executeCommand(command, this.startRunHandler, this.continueRunHandler, this.retryPhaseHandler, this.executeBuilderHandler));
     await this.audit(command, risk, confirmation, result);
     return result;
   }
@@ -115,7 +118,8 @@ async function executeCommand(
   command: AppCommand,
   startRunHandler: StartRunCommandHandler | undefined,
   continueRunHandler: ContinueRunCommandHandler | undefined,
-  retryPhaseHandler: RetryPhaseCommandHandler | undefined
+  retryPhaseHandler: RetryPhaseCommandHandler | undefined,
+  executeBuilderHandler: ExecuteBuilderCommandHandler | undefined
 ): Promise<AppCommandResult> {
   if (command.type === "select-task") {
     return executeSelectTask(command);
@@ -143,6 +147,10 @@ async function executeCommand(
 
   if (command.type === "retry-phase") {
     return executeRetryPhase(command, retryPhaseHandler);
+  }
+
+  if (command.type === "execute-builder") {
+    return executeBuilder(command, executeBuilderHandler);
   }
 
   return {
@@ -244,6 +252,30 @@ function executeRetryPhase(command: Extract<AppCommand, { readonly type: "retry-
       type: command.type,
       code: "EXECUTION_FAILED",
       reason: "Retry-phase handler is not configured."
+    };
+  }
+
+  return handler(command);
+}
+
+function executeBuilder(command: Extract<AppCommand, { readonly type: "execute-builder" }>, handler: ExecuteBuilderCommandHandler | undefined): Promise<AppCommandResult> | AppCommandResult {
+  if (!command.runId.trim()) {
+    return {
+      ok: false,
+      commandId: command.commandId,
+      type: command.type,
+      code: "VALIDATION_FAILED",
+      reason: "Run ID is required."
+    };
+  }
+
+  if (!handler) {
+    return {
+      ok: false,
+      commandId: command.commandId,
+      type: command.type,
+      code: "EXECUTION_FAILED",
+      reason: "Execute-builder handler is not configured."
     };
   }
 

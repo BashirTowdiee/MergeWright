@@ -2,7 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { AppCommand } from "../src/application/commands/app-command.js";
 import { DefaultAppCommandService } from "../src/application/commands/default-app-command-service.js";
-import type { ContinueRunCommandHandler, RetryPhaseCommandHandler, StartRunCommandHandler } from "../src/application/commands/default-app-command-service.js";
+import type {
+  ContinueRunCommandHandler,
+  DefaultAppCommandServiceOptions,
+  ExecuteBuilderCommandHandler,
+  RetryPhaseCommandHandler,
+  StartRunCommandHandler
+} from "../src/application/commands/default-app-command-service.js";
 import type { CommandMetadata } from "../src/application/commands/command-source.js";
 
 const metadata: CommandMetadata = {
@@ -20,6 +26,13 @@ const command: AppCommand = {
   type: "select-task",
   taskId: "task-1"
 };
+
+function createExecutionService(options: DefaultAppCommandServiceOptions = {}): DefaultAppCommandService {
+  return new DefaultAppCommandService({
+    resolveRisk: () => "none",
+    ...options
+  });
+}
 
 test("DefaultAppCommandService describes commands from metadata", async () => {
   const service = new DefaultAppCommandService();
@@ -45,7 +58,7 @@ test("DefaultAppCommandService can describe overridden command risk", async () =
 });
 
 test("DefaultAppCommandService executes select-task without file changes", async () => {
-  const service = new DefaultAppCommandService();
+  const service = createExecutionService();
 
   const result = await service.execute(command);
 
@@ -58,7 +71,7 @@ test("DefaultAppCommandService executes select-task without file changes", async
 });
 
 test("DefaultAppCommandService validates missing select-task IDs", async () => {
-  const service = new DefaultAppCommandService();
+  const service = createExecutionService();
 
   const result = await service.execute({ ...command, taskId: "  " });
 
@@ -72,7 +85,7 @@ test("DefaultAppCommandService validates missing select-task IDs", async () => {
 });
 
 test("DefaultAppCommandService accepts coordination notes without direct file writes", async () => {
-  const service = new DefaultAppCommandService();
+  const service = createExecutionService();
 
   const result = await service.execute({
     ...metadata,
@@ -91,7 +104,7 @@ test("DefaultAppCommandService accepts coordination notes without direct file wr
 });
 
 test("DefaultAppCommandService validates empty coordination notes", async () => {
-  const service = new DefaultAppCommandService();
+  const service = createExecutionService();
 
   const result = await service.execute({
     ...metadata,
@@ -109,7 +122,7 @@ test("DefaultAppCommandService validates empty coordination notes", async () => 
 });
 
 test("DefaultAppCommandService marks tasks reviewed without direct file writes", async () => {
-  const service = new DefaultAppCommandService();
+  const service = createExecutionService();
 
   const result = await service.execute({
     ...metadata,
@@ -128,7 +141,7 @@ test("DefaultAppCommandService marks tasks reviewed without direct file writes",
 });
 
 test("DefaultAppCommandService validates missing reviewed task IDs", async () => {
-  const service = new DefaultAppCommandService();
+  const service = createExecutionService();
 
   const result = await service.execute({
     ...metadata,
@@ -147,7 +160,7 @@ test("DefaultAppCommandService validates missing reviewed task IDs", async () =>
 });
 
 test("DefaultAppCommandService validates reviewed timestamps", async () => {
-  const service = new DefaultAppCommandService();
+  const service = createExecutionService();
 
   const result = await service.execute({
     ...metadata,
@@ -166,7 +179,7 @@ test("DefaultAppCommandService validates reviewed timestamps", async () => {
 });
 
 test("DefaultAppCommandService accepts task comments without direct file writes", async () => {
-  const service = new DefaultAppCommandService();
+  const service = createExecutionService();
 
   const result = await service.execute({
     ...metadata,
@@ -185,7 +198,7 @@ test("DefaultAppCommandService accepts task comments without direct file writes"
 });
 
 test("DefaultAppCommandService validates missing commented task IDs", async () => {
-  const service = new DefaultAppCommandService();
+  const service = createExecutionService();
 
   const result = await service.execute({
     ...metadata,
@@ -204,7 +217,7 @@ test("DefaultAppCommandService validates missing commented task IDs", async () =
 });
 
 test("DefaultAppCommandService validates empty task comments", async () => {
-  const service = new DefaultAppCommandService();
+  const service = createExecutionService();
 
   const result = await service.execute({
     ...metadata,
@@ -235,7 +248,7 @@ test("DefaultAppCommandService routes start-run through an injected service hand
       artefacts: ["runs/run-1/planner-output.md"]
     };
   };
-  const service = new DefaultAppCommandService({ startRunHandler: handler });
+  const service = createExecutionService({ startRunHandler: handler });
 
   const result = await service.execute({
     ...metadata,
@@ -260,7 +273,7 @@ test("DefaultAppCommandService routes start-run through an injected service hand
 
 test("DefaultAppCommandService validates start-run before handler execution", async () => {
   let called = false;
-  const service = new DefaultAppCommandService({
+  const service = createExecutionService({
     startRunHandler: () => {
       called = true;
       return {
@@ -290,7 +303,7 @@ test("DefaultAppCommandService validates start-run before handler execution", as
 });
 
 test("DefaultAppCommandService reports unwired start-run handler", async () => {
-  const service = new DefaultAppCommandService();
+  const service = createExecutionService();
 
   const result = await service.execute({
     ...metadata,
@@ -321,7 +334,7 @@ test("DefaultAppCommandService routes continue-run through an injected service h
       artefacts: ["runs/run-1/continue-output.md"]
     };
   };
-  const service = new DefaultAppCommandService({ continueRunHandler: handler });
+  const service = createExecutionService({ continueRunHandler: handler });
 
   const result = await service.execute({
     ...metadata,
@@ -343,7 +356,7 @@ test("DefaultAppCommandService routes continue-run through an injected service h
 
 test("DefaultAppCommandService validates continue-run before handler execution", async () => {
   let called = false;
-  const service = new DefaultAppCommandService({
+  const service = createExecutionService({
     continueRunHandler: () => {
       called = true;
       return {
@@ -372,7 +385,7 @@ test("DefaultAppCommandService validates continue-run before handler execution",
 });
 
 test("DefaultAppCommandService reports unwired continue-run handler", async () => {
-  const service = new DefaultAppCommandService();
+  const service = createExecutionService();
 
   const result = await service.execute({
     ...metadata,
@@ -402,7 +415,7 @@ test("DefaultAppCommandService routes reviewer retry-phase through an injected s
       artefacts: ["runs/run-1/reviewer-output.md"]
     };
   };
-  const service = new DefaultAppCommandService({ retryPhaseHandler: handler });
+  const service = createExecutionService({ retryPhaseHandler: handler });
 
   const result = await service.execute({
     ...metadata,
@@ -426,7 +439,7 @@ test("DefaultAppCommandService routes reviewer retry-phase through an injected s
 
 test("DefaultAppCommandService validates reviewer retry-phase before handler execution", async () => {
   let called = false;
-  const service = new DefaultAppCommandService({
+  const service = createExecutionService({
     retryPhaseHandler: () => {
       called = true;
       return {
@@ -457,7 +470,7 @@ test("DefaultAppCommandService validates reviewer retry-phase before handler exe
 
 test("DefaultAppCommandService only supports reviewer retry-phase routing", async () => {
   let called = false;
-  const service = new DefaultAppCommandService({
+  const service = createExecutionService({
     retryPhaseHandler: () => {
       called = true;
       return {
@@ -487,7 +500,7 @@ test("DefaultAppCommandService only supports reviewer retry-phase routing", asyn
 });
 
 test("DefaultAppCommandService reports unwired retry-phase handler", async () => {
-  const service = new DefaultAppCommandService();
+  const service = createExecutionService();
 
   const result = await service.execute({
     ...metadata,
@@ -505,8 +518,89 @@ test("DefaultAppCommandService reports unwired retry-phase handler", async () =>
   });
 });
 
+test("DefaultAppCommandService routes execute-builder through an injected service handler", async () => {
+  const calls: Extract<AppCommand, { readonly type: "execute-builder" }>[] = [];
+  const handler: ExecuteBuilderCommandHandler = (executeBuilderCommand) => {
+    calls.push(executeBuilderCommand);
+    return {
+      ok: true,
+      commandId: executeBuilderCommand.commandId,
+      type: executeBuilderCommand.type,
+      message: "Started builder execution.",
+      runId: executeBuilderCommand.runId,
+      artefacts: ["runs/run-1/builder-output.md"]
+    };
+  };
+  const service = createExecutionService({ executeBuilderHandler: handler });
+
+  const result = await service.execute({
+    ...metadata,
+    type: "execute-builder",
+    runId: "run-1"
+  });
+
+  assert.deepEqual(result, {
+    ok: true,
+    commandId: "cmd-service-1",
+    type: "execute-builder",
+    message: "Started builder execution.",
+    runId: "run-1",
+    artefacts: ["runs/run-1/builder-output.md"]
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].runId, "run-1");
+});
+
+test("DefaultAppCommandService validates execute-builder before handler execution", async () => {
+  let called = false;
+  const service = createExecutionService({
+    executeBuilderHandler: () => {
+      called = true;
+      return {
+        ok: true,
+        commandId: "cmd-service-1",
+        type: "execute-builder",
+        message: "Started builder execution."
+      };
+    }
+  });
+
+  const result = await service.execute({
+    ...metadata,
+    type: "execute-builder",
+    runId: "  "
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    commandId: "cmd-service-1",
+    type: "execute-builder",
+    code: "VALIDATION_FAILED",
+    reason: "Run ID is required."
+  });
+  assert.equal(called, false);
+});
+
+test("DefaultAppCommandService reports unwired execute-builder handler", async () => {
+  const service = createExecutionService();
+
+  const result = await service.execute({
+    ...metadata,
+    type: "execute-builder",
+    runId: "run-1"
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    commandId: "cmd-service-1",
+    type: "execute-builder",
+    code: "EXECUTION_FAILED",
+    reason: "Execute-builder handler is not configured."
+  });
+});
+
 test("DefaultAppCommandService rejects unwired command execution", async () => {
-  const service = new DefaultAppCommandService();
+  const service = createExecutionService();
 
   const result = await service.execute({
     ...metadata,
