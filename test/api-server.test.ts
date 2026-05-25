@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createApiServer } from "../src/api/create-api-server.js";
+import type { AppCommand } from "../src/application/commands/app-command.js";
+import type { AppCommandResult } from "../src/application/commands/app-command-result.js";
+import type { AppCommandExecutionOptions, AppCommandService } from "../src/application/commands/app-command-service.js";
+import type { CommandDescription } from "../src/application/commands/command-description.js";
 import type { RunDetail, RunSummary, RunArtefact } from "../src/application/read-models/run-read-model.js";
 import type { ArtifactQueryService, GetArtifactInput, ListArtifactsInput } from "../src/application/queries/artifact-query-service.js";
 import type { RunQueryService, ListRunsInput, GetRunInput } from "../src/application/queries/run-query-service.js";
@@ -125,6 +129,44 @@ class FakeArtifactQueryService implements ArtifactQueryService {
   }
 }
 
+class FakeCommandService implements AppCommandService {
+  readonly executeCalls: Array<{ command: AppCommand; options: AppCommandExecutionOptions }> = [];
+
+  async describe(command: AppCommand): Promise<CommandDescription> {
+    return {
+      commandId: command.commandId,
+      type: command.type,
+      title: "Fake command",
+      summary: "Fake command summary",
+      risk: "low",
+      requiresConfirmation: false,
+      preconditions: [],
+      effects: []
+    };
+  }
+
+  async execute(command: AppCommand, options: AppCommandExecutionOptions = {}): Promise<AppCommandResult> {
+    this.executeCalls.push({ command, options });
+    return {
+      ok: true,
+      commandId: command.commandId,
+      type: command.type,
+      message: "Command accepted"
+    };
+  }
+}
+
+function createSelectTaskCommand(overrides: Partial<AppCommand> = {}): AppCommand {
+  return {
+    commandId: "cmd-1",
+    source: "automation",
+    requestedAt: "2026-05-25T00:00:00.000Z",
+    type: "select-task",
+    taskId: "task-1",
+    ...overrides
+  } as AppCommand;
+}
+
 test("GET /health returns API status", async () => {
   const server = createApiServer({ runQueryService: new FakeRunQueryService() });
   const response = await server.inject({ method: "GET", url: "/health" });
@@ -234,5 +276,64 @@ test("GET /runs/:runId/artifacts/:artifactId returns 404 for missing artifact me
   assert.deepEqual(response.json(), {
     code: "ARTIFACT_NOT_FOUND",
     message: "Artifact not found."
+  });
+});
+
+test("POST /commands executes validated commands through the command service", async () => {
+  const commandService = new FakeCommandService();
+  const command = createSelectTaskCommand();
+  const server = createApiServer({ runQueryService: new FakeRunQueryService(), commandService });
+  const response = await server.inject({
+    method: "POST",
+    url: "/commands",
+    payload: {
+      command,
+      options: { confirmationContextId: "ctx-1", confirmationToken: "token-1" }
+    }
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json(), {
+    result: {
+      ok: true,
+      commandId: "cmd-1",
+      type: "select-task",
+      message: "Command accepted"
+    }
+  });
+  assert.deepEqual(commandService.executeCalls, [
+    { command, options: { confirmationContextId: "ctx-1", confirmationToken: "token-1" } }
+  ]);
+});
+
+test("POST /commands rejects invalid command requests", async () => {
+  const commandService = new FakeCommandService();
+  const server = createApiServer({ runQueryService: new FakeRunQueryService(), commandService });
+  const response = await server.inject({
+    method: "POST",
+    url: "/commands",
+    payload: { command: { type: "select-task" } }
+  });
+
+  assert.equal(response.statusCode, 400);
+  assert.deepEqual(response.json(), {
+    code: "VALIDATION_FAILED",
+    message: "Invalid command request."
+  });
+  assert.deepEqual(commandService.executeCalls, []);
+});
+
+test("POST /commands returns 503 when command service is missing", async () => {
+  const server = createApiServer({ runQueryService: new FakeRunQueryService() });
+  const response = await server.inject({
+    method: "POST",
+    url: "/commands",
+    payload: { command: createSelectTaskCommand() }
+  });
+
+  assert.equal(response.statusCode, 503);
+  assert.deepEqual(response.json(), {
+    code: "COMMAND_SERVICE_UNAVAILABLE",
+    message: "Command service is not configured."
   });
 });
