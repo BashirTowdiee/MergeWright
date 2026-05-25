@@ -57,8 +57,8 @@ const runDetail: RunDetail = {
       requiresConfirmation: false
     },
     {
-      id: "execute-builder",
-      label: "Execute builder",
+      id: "request-fix",
+      label: "Request fix",
       enabled: false,
       blockedReason: "Needs confirmation",
       risk: "high",
