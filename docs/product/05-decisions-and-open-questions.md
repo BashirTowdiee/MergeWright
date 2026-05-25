@@ -23,7 +23,7 @@ Status: Accepted
 Decision:
 
 ```txt
-MergeWright should be positioned as a local-first, terminal-native agentic workflow orchestrator for safe, staged, auditable AI-assisted software development.
+MergeWright should be positioned as a local-first agentic workflow orchestrator for safe, staged, auditable AI-assisted software development.
 ```
 
 Rationale:
@@ -33,8 +33,8 @@ This keeps the product broader than a Codex wrapper while still focused on softw
 Implications:
 
 - CLI remains a product surface, not the whole product identity.
-- TUI becomes the primary human product surface.
-- Future API/dashboard/editor surfaces should reuse the same orchestration model.
+- Web app becomes the primary human product surface.
+- Future API/dashboard/editor/desktop surfaces should reuse the same orchestration model.
 - Documentation should use product-level language instead of only command-level language.
 
 ### D002: CLI remains foundational
@@ -54,29 +54,30 @@ The CLI already exists and is suitable for dogfooding, scripts, and staged workf
 Implications:
 
 - CLI compatibility should be protected during refactors.
-- TUI should reuse shared application services rather than shelling out and parsing CLI text.
-- CLI remains useful even after the TUI becomes the main human interface.
+- CLI should reuse shared application services rather than becoming a separate orchestration implementation.
+- CLI remains useful after the web app becomes the main human interface.
 
-### D003: TUI is the primary human interface
+### D003: Web app is the primary human interface
 
 Status: Accepted
 
 Decision:
 
 ```txt
-The TUI is the chosen primary human interface for MergeWright.
+The web app is the chosen primary human interface for MergeWright. The TUI path is superseded.
 ```
 
 Rationale:
 
-MergeWright is local-first, repo-aware, terminal-native, and developer-oriented. A TUI better fits the product identity than a SaaS-style web dashboard. It keeps users in the same environment where they run commands, inspect git state, review logs, and supervise agent workflows.
+MergeWright needs a rich operator control room for run history, phase timelines, artefacts, diffs, reviewer findings, safe actions, approval gates, PR state, CI state, and audit history. A web app is a better fit for these workflows than a terminal UI. The web app should be backed by a Fastify API and shared application services, not by CLI stdout parsing.
 
 Implications:
 
-- Roadmap should prioritise run metadata, artefact index, application services, and TUI implementation.
-- Web dashboard work is deferred and optional.
-- TUI design should focus on run inspection, phase flow, artefact preview, review findings, safety gates, and safe next actions.
-- TUI implementation should use Ink as the accepted framework.
+- Roadmap should prioritise shared state contracts, application services, Fastify API, and Next.js web UI.
+- TUI work is no longer a product target and should not receive new feature investment.
+- Existing TUI code may be mined for reusable command, event, read-model, and safety abstractions.
+- TUI-specific code should be removed or quarantined after the web app reaches useful run-inspection parity.
+- Web UI implementation should focus on run inspection, phase flow, artefact preview, review findings, safety gates, live events, and safe next actions.
 
 ### D004: Local-first before hosted
 
@@ -94,28 +95,30 @@ Local-first operation is easier to trust, easier to dogfood, and aligns with tar
 
 Implications:
 
+- The first API/web implementation should run locally.
 - No hosted auth, team accounts, cloud workers, or remote run history in current scope.
 - Local filesystem remains the default artefact store.
 - Future hosted/team modes should not drive current architecture.
 
-### D005: Filesystem remains source of truth
+### D005: Filesystem remains inspectable source of artefacts
 
 Status: Proposed
 
 Decision:
 
 ```txt
-Run directories and machine-readable files should remain the source of truth. A local database may be added later as an index/cache.
+Run directories and machine-readable files should remain inspectable. A database should index/query run history, events, audit records, and artefact metadata.
 ```
 
 Rationale:
 
-The existing product already persists artefacts to disk, and direct file inspection is useful for developer trust.
+The existing product already persists artefacts to disk, and direct file inspection is useful for developer trust. The web app also needs efficient durable queries, event history, and audit trails.
 
 Implications:
 
-- `run.json`, `artefacts.json`, and `events.jsonl` should be stabilised before the TUI becomes control-capable.
-- SQLite should not be required for the first read-only TUI unless filesystem scanning is too slow.
+- `run.json`, artefact metadata, and events should be stabilised before advanced web controls.
+- A database should be introduced as a durable index/store rather than hiding all artefacts from the filesystem.
+- Postgres + Drizzle is the preferred target for the web-first path.
 
 ### D006: Provider-agnostic direction
 
@@ -129,14 +132,14 @@ Should MergeWright formally commit to a provider-agnostic execution contract, wi
 
 Default recommendation:
 
-Yes, but only after the run state and artefact contracts are stable.
+Yes, but only after the run state, artefact, command, and event contracts are stable.
 
 Implications if accepted:
 
 - Add provider interface and capability matrix.
 - Isolate Codex-specific flags and output parsing.
 - Record provider/model metadata in run state.
-- Surface provider/model metadata in the TUI.
+- Surface provider/model metadata in the web app.
 
 Implications if rejected:
 
@@ -163,21 +166,21 @@ Implications if accepted:
 - Add explicit commit design.
 - Add commit message generation and review.
 - Add strong no-push/no-merge boundaries unless separately designed.
-- Add explicit TUI confirmation and review state.
+- Add explicit web confirmation and review state.
 
 ### D008: Local API command name
 
-Status: Deferred
+Status: Open
 
 Decision needed:
 
 ```txt
-Should the local API/dashboard be launched through `ui`, `server`, `dashboard`, or another command?
+Should the local API/web control room be launched through `ui`, `server`, `dashboard`, `web`, or another command?
 ```
 
 Default recommendation:
 
-Defer. The local API is no longer the next primary interface. Revisit only if an API/web/editor surface becomes necessary.
+Use separate explicit development commands first, for example `api` and `web`, then add a convenience launcher once the architecture stabilises.
 
 ### D009: Dashboard timeline implementation
 
@@ -191,30 +194,49 @@ Should the first dashboard use React Flow or simple ordered phase cards?
 
 Default recommendation:
 
-Defer. The dashboard is optional and later than the TUI.
+Start with simple ordered phase cards. Add graph/timeline libraries only after the run model proves stable.
 
 ### D010: TUI framework choice
+
+Status: Rejected
+
+Decision:
+
+```txt
+Do not continue the central TUI implementation as a product path.
+```
+
+Rationale:
+
+The product direction has moved to a web-first interface. Ink was previously accepted for a TUI implementation, but the TUI itself is no longer the intended primary human interface.
+
+Implications:
+
+- Do not add more Ink/TUI features.
+- Do not build new roadmap stages around TUI panes, overlays, or command palette behaviour.
+- Existing TUI code can remain temporarily until reusable internals are extracted and web parity exists.
+- Remove Ink and `src/tui/**` once no longer required.
+
+### D011: Fastify API boundary
 
 Status: Accepted
 
 Decision:
 
 ```txt
-The central TUI should use Ink.
+The web app should talk to a Fastify API that owns the HTTP boundary and calls shared application services.
 ```
 
 Rationale:
 
-Ink is the best fit for the current implementation phase because MergeWright is already TypeScript/Node, the first TUI milestone is a read-only inspector, and the React-style component model is familiar enough to ship quickly. OpenTUI/Solid remains interesting, but its smaller ecosystem and higher debugging cost make it less suitable for the first central TUI implementation.
+MergeWright's core value is orchestration, safety, run state, events, artefacts, and auditability. Keeping these behind a Fastify API prevents the web app from becoming a second orchestration implementation.
 
 Implications:
 
-- Add `ink` and `react` through a real package install so `package-lock.json` is generated correctly.
-- Build the first TUI as an Ink app shell over existing TUI read-model services.
-- Prioritise keyboard navigation, panes, simple vertical phase flow, artefact preview, and safe action display.
-- Keep TUI state limited to focus, selection, filters, scroll offsets, and modals.
-- Do not let Ink components own orchestration state or parse CLI output.
-- Revisit OpenTUI/Solid only if Ink becomes a blocker for pane layout, scrollback, live logs, or rendering stability.
+- Fastify routes should validate HTTP input/output and call use cases.
+- Route handlers should not own orchestration logic.
+- Web UI should not spawn commands, parse CLI output, or mutate workspace files directly.
+- CLI and API should share application services where practical.
 
 ## Open questions requiring maintainer input
 
@@ -222,6 +244,8 @@ Implications:
 2. Should controlled local commits be a future product goal, or should MergeWright permanently leave commits to the user?
 3. Should hosted/team modes be excluded entirely to keep the product local-only?
 4. Should run metadata use a clean public schema even if it differs from current internal names, or should it mirror existing implementation names exactly?
+5. Should the first durable store be Postgres immediately, or should a SQLite/local store be used as a stepping stone?
+6. What should the canonical local launcher command be for API + web once both exist?
 
 ## Decision review cadence
 
@@ -230,8 +254,10 @@ Review this file before starting any stage that affects:
 - provider support
 - run metadata schema
 - artefact schema
+- event schema
 - write safety
 - commit automation
-- optional API/web/editor surfaces
+- API/web boundaries
+- persistence choice
 - release/distribution model
-- TUI framework assumptions
+- TUI removal assumptions
