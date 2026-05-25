@@ -1,5 +1,7 @@
 import Fastify from "fastify";
 import type { FastifyInstance } from "fastify";
+import type { AppCommand } from "../application/commands/app-command.js";
+import type { AppCommandService } from "../application/commands/app-command-service.js";
 import type { ArtifactQueryService } from "../application/queries/artifact-query-service.js";
 import type { RunQueryService } from "../application/queries/run-query-service.js";
 import {
@@ -13,12 +15,15 @@ import {
   listRunArtifactsQuerySchema,
   listRunArtifactsResponseSchema,
   listRunsQuerySchema,
-  listRunsResponseSchema
+  listRunsResponseSchema,
+  submitCommandRequestSchema,
+  submitCommandResponseSchema
 } from "./run-api-schemas.js";
 
 export interface CreateApiServerOptions {
   readonly runQueryService: RunQueryService;
   readonly artifactQueryService?: ArtifactQueryService;
+  readonly commandService?: AppCommandService;
 }
 
 export function createApiServer(options: CreateApiServerOptions): FastifyInstance {
@@ -130,6 +135,31 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
     }
 
     return getRunArtifactResponseSchema.parse({ artifact });
+  });
+
+  server.post("/commands", async (request, reply) => {
+    const body = submitCommandRequestSchema.safeParse(request.body);
+    if (!body.success) {
+      return reply.code(400).send(
+        errorResponseSchema.parse({
+          code: "VALIDATION_FAILED",
+          message: "Invalid command request."
+        })
+      );
+    }
+
+    const commandService = options.commandService;
+    if (!commandService) {
+      return reply.code(503).send(
+        errorResponseSchema.parse({
+          code: "COMMAND_SERVICE_UNAVAILABLE",
+          message: "Command service is not configured."
+        })
+      );
+    }
+
+    const result = await commandService.execute(body.data.command as AppCommand, body.data.options ?? {});
+    return submitCommandResponseSchema.parse({ result });
   });
 
   return server;
