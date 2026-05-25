@@ -1,0 +1,7 @@
+{
+  "name": "@mergewright/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MergeWright shared primitives with no product ownership."
+}
