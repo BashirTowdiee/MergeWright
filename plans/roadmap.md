@@ -139,6 +139,102 @@ Dependencies:
 Next action:
 - introduce explicit use cases behind `DefaultAppCommandService` without changing CLI behaviour.
 
+## Stage 3.5: Monorepo and CLI boundary refactor
+
+Goal: move from a root `src`-centred implementation to explicit workspace boundaries before API and web growth make the module structure harder to untangle.
+
+Target structure:
+
+```text
+apps/
+  cli/
+    src/
+      main.ts
+      commands/
+      presentation/
+  api/
+    src/
+      server.ts
+      routes/
+  web/
+    src/
+      app/
+      components/
+
+packages/
+  application/
+    src/
+      commands/
+      read-models/
+      services/
+      use-cases/
+  domain/
+    src/
+      models/
+      policies/
+      results/
+  adapters/
+    src/
+      codex/
+      filesystem/
+      github/
+      shell/
+  config/
+    src/
+      loaders/
+      schemas/
+  shared/
+    src/
+      errors/
+      ids/
+      result/
+```
+
+Allowed CLI dependency path:
+
+```text
+apps/cli -> packages/application -> packages/domain -> packages/adapters
+```
+
+Deliverables:
+- workspace configuration for the root package manager
+- `apps/cli` entry point and command presentation layer
+- `packages/application` for command services, read models, orchestration use cases, and ports
+- `packages/domain` for pure models, policies, result codes, and risk rules
+- `packages/adapters` for filesystem, shell, Codex, GitHub, and process-bound integrations
+- `packages/config` for config schemas, loaders, and validation
+- `packages/shared` for small cross-cutting primitives that do not own product logic
+- package-level TypeScript build configuration
+- updated CLI binary and npm scripts
+
+Acceptance criteria:
+- root package uses workspaces or an equivalent explicit multi-package layout
+- CLI binary points at the `apps/cli` build output instead of `dist/src/cli.js`
+- root `src/cli.ts` is removed or reduced to a temporary compatibility shim
+- CLI files contain only argument parsing, command registration, terminal formatting, and process exit mapping
+- orchestration logic, workspace mutation logic, provider execution, GitHub logic, config loading, and risk policy do not live in CLI presentation code
+- API and CLI import the same application services rather than duplicating command logic
+- no web, API, or TUI code imports CLI files
+- tests are moved near package boundaries or kept in an intentional root integration test folder
+- existing CLI behaviour remains compatible for documented commands during the migration
+
+Dependencies:
+- Stage 3 command/use-case layer
+- existing `src/cli.ts`, `src/application/**`, adapter-like modules, and root scripts
+
+Migration order:
+1. Add workspace configuration and package folders without changing runtime behaviour.
+2. Move the CLI entry point into `apps/cli` and keep a temporary compatibility shim only if needed.
+3. Move command services, query services, read models, and use cases into `packages/application`.
+4. Move pure models, policies, result types, and risk rules into `packages/domain`.
+5. Move filesystem, shell, Codex, GitHub, and process integrations into `packages/adapters`.
+6. Move config schemas and loading into `packages/config`.
+7. Update package scripts, TypeScript references, binary paths, and tests.
+8. Resume API and web stages against the new package boundaries.
+
+Next action:
+- implement the workspace skeleton and move only the CLI entry point first, preserving command behaviour and tests.
+
 ## Stage 4: Fastify API foundation
 
 Goal: expose application reads and commands to the web app through a typed local API.
@@ -174,6 +270,7 @@ Acceptance criteria:
 Dependencies:
 - Stage 2 query services
 - Stage 3 command service hardening
+- Stage 3.5 monorepo and CLI boundary refactor
 
 Next action:
 - add read-only `/health`, `/runs`, and `/runs/:runId` first.
