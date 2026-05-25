@@ -11,6 +11,8 @@ import { getCommandConfirmationState } from "./confirmation.js";
 import type { CommandConfirmationState } from "./confirmation.js";
 import { DefaultSelectTaskUseCase } from "../use-cases/select-task-use-case.js";
 import type { SelectTaskUseCase } from "../use-cases/select-task-use-case.js";
+import { DefaultUpdateCoordinationNoteUseCase } from "../use-cases/update-coordination-note-use-case.js";
+import type { UpdateCoordinationNoteUseCase } from "../use-cases/update-coordination-note-use-case.js";
 
 export type CommandRiskResolver = (command: AppCommand) => CommandRisk;
 export type CommandAuditInputSummaryResolver = (command: AppCommand) => string;
@@ -26,6 +28,7 @@ export type DefaultAppCommandServiceOptions = {
   readonly resolveAuditInputSummary?: CommandAuditInputSummaryResolver;
   readonly auditClock?: CommandAuditClock;
   readonly selectTaskUseCase?: SelectTaskUseCase;
+  readonly updateCoordinationNoteUseCase?: UpdateCoordinationNoteUseCase;
   readonly startRunHandler?: StartRunCommandHandler;
   readonly continueRunHandler?: ContinueRunCommandHandler;
   readonly retryPhaseHandler?: RetryPhaseCommandHandler;
@@ -38,6 +41,7 @@ export class DefaultAppCommandService implements AppCommandService {
   private readonly resolveAuditInputSummary: CommandAuditInputSummaryResolver;
   private readonly auditClock: CommandAuditClock;
   private readonly selectTaskUseCase: SelectTaskUseCase;
+  private readonly updateCoordinationNoteUseCase: UpdateCoordinationNoteUseCase;
   private readonly startRunHandler?: StartRunCommandHandler;
   private readonly continueRunHandler?: ContinueRunCommandHandler;
   private readonly retryPhaseHandler?: RetryPhaseCommandHandler;
@@ -49,6 +53,7 @@ export class DefaultAppCommandService implements AppCommandService {
     this.resolveAuditInputSummary = options.resolveAuditInputSummary ?? defaultAuditInputSummary;
     this.auditClock = options.auditClock ?? (() => new Date().toISOString());
     this.selectTaskUseCase = options.selectTaskUseCase ?? new DefaultSelectTaskUseCase();
+    this.updateCoordinationNoteUseCase = options.updateCoordinationNoteUseCase ?? new DefaultUpdateCoordinationNoteUseCase();
     this.startRunHandler = options.startRunHandler;
     this.continueRunHandler = options.continueRunHandler;
     this.retryPhaseHandler = options.retryPhaseHandler;
@@ -64,7 +69,7 @@ export class DefaultAppCommandService implements AppCommandService {
     const confirmation = getCommandConfirmationState(command, risk);
     const result =
       getConfirmationFailure(command, confirmation, options) ??
-      (await executeCommand(command, this.selectTaskUseCase, this.startRunHandler, this.continueRunHandler, this.retryPhaseHandler, this.executeBuilderHandler));
+      (await executeCommand(command, this.selectTaskUseCase, this.updateCoordinationNoteUseCase, this.startRunHandler, this.continueRunHandler, this.retryPhaseHandler, this.executeBuilderHandler));
     await this.audit(command, risk, confirmation, result);
     return result;
   }
@@ -122,6 +127,7 @@ function getConfirmationFailure(
 async function executeCommand(
   command: AppCommand,
   selectTaskUseCase: SelectTaskUseCase,
+  updateCoordinationNoteUseCase: UpdateCoordinationNoteUseCase,
   startRunHandler: StartRunCommandHandler | undefined,
   continueRunHandler: ContinueRunCommandHandler | undefined,
   retryPhaseHandler: RetryPhaseCommandHandler | undefined,
@@ -132,7 +138,7 @@ async function executeCommand(
   }
 
   if (command.type === "update-coordination-note") {
-    return executeUpdateCoordinationNote(command);
+    return updateCoordinationNoteUseCase.execute(command);
   }
 
   if (command.type === "mark-task-reviewed") {
@@ -286,27 +292,6 @@ function executeBuilder(command: Extract<AppCommand, { readonly type: "execute-b
   }
 
   return handler(command);
-}
-
-function executeUpdateCoordinationNote(command: Extract<AppCommand, { readonly type: "update-coordination-note" }>): AppCommandResult {
-  const note = command.note.trim();
-  if (!note) {
-    return {
-      ok: false,
-      commandId: command.commandId,
-      type: command.type,
-      code: "VALIDATION_FAILED",
-      reason: "Coordination note is required."
-    };
-  }
-
-  return {
-    ok: true,
-    commandId: command.commandId,
-    type: command.type,
-    message: "Coordination note accepted for service handling.",
-    changedFiles: []
-  };
 }
 
 function executeMarkTaskReviewed(command: Extract<AppCommand, { readonly type: "mark-task-reviewed" }>): AppCommandResult {
