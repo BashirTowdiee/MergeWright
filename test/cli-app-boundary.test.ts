@@ -20,5 +20,5 @@ test("root CLI module remains a compatibility boundary", async () => {
   assert.equal(rootCli.includes("node:child_process"), false);
   assert.equal(rootCli.includes("defaultOpenRunDirectory"), false);
   assert.equal(rootCli.includes("void main()"), false);
-  assert.equal(rootCli.includes("export async function runCommand"), true);
+  assert.equal(rootCli.trim(), 'export * from "./cli-core.js";');
 });
