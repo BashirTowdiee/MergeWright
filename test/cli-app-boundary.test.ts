@@ -4,12 +4,12 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
 
-test("CLI app entrypoint owns the open-run adapter dependency", async () => {
+test("CLI app entrypoint delegates open-run behaviour to adapters", async () => {
   const entrypoint = await readFile(join(process.cwd(), "apps/cli/src/main.ts"), "utf8");
 
-  assert.equal(entrypoint.includes("defaultOpenRunDirectory"), false);
-  assert.equal(entrypoint.includes("const openRunDirectory"), true);
-  assert.equal(entrypoint.includes("node:child_process"), true);
+  assert.equal(entrypoint.includes("../../../packages/adapters/src/open-run-directory.js"), true);
+  assert.equal(entrypoint.includes("const openRunDirectory"), false);
+  assert.equal(entrypoint.includes("node:child_process"), false);
 });
 
 test("root CLI module remains a compatibility boundary", async () => {
