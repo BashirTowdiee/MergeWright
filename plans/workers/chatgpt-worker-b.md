@@ -102,3 +102,55 @@ Stale claims ignored:
 
 Next recommended action:
 - Re-check CI for PR 255 head `2f5ee67c7af17a45127793e8a103276149f0691c`; merge only if required CI is green and merge policy permits.
+
+## 2026-05-27T07:20:00+10:00
+
+Selected action:
+- Implement Stage 3.5 CLI output formatter export barrel slice.
+
+Active stage:
+- Stage 3.5 Monorepo and CLI boundary refactor.
+
+Acceptance criteria advanced:
+- Root `src/cli-core.ts` remains a thin compatibility facade.
+- CLI output formatter exports now route through `src/cli/output/index.ts`.
+- Regression coverage prevents `src/cli-core.ts` from regaining direct formatter-module export coupling.
+
+Files touched:
+- src/cli-core.ts
+- src/cli/output/index.ts
+- test/cli-core-boundary.test.ts
+- plans/events/2026-05-27T07-13-00-chatgpt-worker-b.md
+- plans/workers/chatgpt-worker-b.md
+
+PR/branch:
+- Branch: agent/chatgpt-worker-b/extract-cli-dispatcher
+- PR: pending creation
+
+Commit/head SHA:
+- Latest branch head after source/test updates: 2b087bc5d3fd235754dc660280a05b1119daa965
+
+Tests/checks run:
+- Inspected open PR state, recent PR state, current main files, and worker files.
+- Local `npm run build` and `npm test` could not be run from this connector-only environment.
+- CI should run repository checks after PR creation.
+
+CI status:
+- Pending PR creation.
+
+Merge status:
+- Not merged.
+
+Blockers:
+- None for PR creation.
+
+Conflicting claims considered:
+- Open PR search returned no open PRs before and after source edits.
+- PR 258 and PR 259 are closed and merged.
+- Worker-a has no fresh open PR claim in the touched files.
+
+Stale claims ignored:
+- The existing worker-b branch from PR 259 was stale and already merged; fresh branch creation was previously blocked, so the owned branch was reset to current main before new work.
+
+Next recommended action:
+- Open PR, wait for CI, then merge if green and mergeable.
