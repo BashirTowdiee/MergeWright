@@ -2,10 +2,20 @@ import path from "node:path";
 import type { executeCheckCommand } from "../../commands.js";
 import type { AgentExecutionBackendMetadata, AgentExecutor } from "../../agent-executor.js";
 import type { captureWriteAuditPostStateAndWriteArtefacts, captureWriteAuditPreState } from "../../write-audit.js";
+import {
+  canRunChecksWithPostWriteReview,
+  createPostWriteReviewCompleted,
+  createPostWriteReviewFailed,
+  createPostWriteReviewPending,
+  mergeRequiredByPhases
+} from "../../continue-run/post-write-review.js";
+import { createContinueWriteSafetyMetadata } from "../../continue-run/write-safety-state.js";
 import { checkWriteSafety } from "../../write-safety.js";
 import { writeRunMetadata, updateRunPhase, type RunMetadata, type RunPhaseName, type RunPhaseStatus } from "../../run-metadata.js";
 import type { ContinueOptions, ContinueResult } from "./contracts.js";
 import { writeJsonArtefact } from "./artefact-io.js";
+
+export { mergeRequiredByPhases };
 
 export interface ContinuationContext {
   options: ContinueOptions;
@@ -69,17 +79,7 @@ export async function bestEffortPhaseFailure(
 }
 
 export function canRunChecksWithMetadata(source: RunMetadata): { ok: boolean; reason?: string } {
-  const postWriteReview = source.postWriteReview;
-  if (!postWriteReview.required) {
-    return { ok: true };
-  }
-  if (postWriteReview.status === "completed") {
-    return { ok: true };
-  }
-  return {
-    ok: false,
-    reason: `Checks blocked: post-write review status is "${postWriteReview.status}". Execute reviewer first to complete post-write review.`
-  };
+  return canRunChecksWithPostWriteReview(source.postWriteReview);
 }
 
 export async function persistWriteSafetyState(
@@ -88,18 +88,13 @@ export async function persistWriteSafetyState(
   reason?: string,
   writeSafetyArtefacts?: string[]
 ): Promise<void> {
-  context.metadata.writeSafety = {
-    ...(context.metadata.writeSafety ?? { allowWrites: context.allowWrites }),
+  context.metadata.writeSafety = createContinueWriteSafetyMetadata({
+    existing: context.metadata.writeSafety,
     allowWrites: context.allowWrites,
     state: state.writeSafetyState,
-    ...(state.writeSafetyState === "skipped by dry-run"
-      ? { status: "skipped" as const }
-      : state.writeSafetyState === "passed" || state.writeSafetyState === "failed"
-        ? { status: state.writeSafetyState }
-        : {}),
-    ...(reason ? { reason } : {}),
-    ...(writeSafetyArtefacts && writeSafetyArtefacts.length > 0 ? { artefacts: writeSafetyArtefacts } : {})
-  };
+    reason,
+    artefacts: writeSafetyArtefacts
+  });
   if (!context.options.dryRun) {
     await context.metadataWriter(context.runDir, context.metadata);
   }
@@ -148,26 +143,12 @@ export async function ensureWriteSafetyIfNeeded(context: ContinuationContext, st
   context.progressLogger.phaseComplete("write-safety", "passed");
 }
 
-export function mergeRequiredByPhases(
-  existing: Array<"builder" | "fixExecution">,
-  incoming: Array<"builder" | "fixExecution">
-): Array<"builder" | "fixExecution"> {
-  const union = new Set<"builder" | "fixExecution">([...existing, ...incoming]);
-  return (["builder", "fixExecution"] as const).filter((phase): phase is "builder" | "fixExecution" => union.has(phase));
-}
-
 export async function setPostWriteReviewPending(
   context: ContinuationContext,
   phases: Array<"builder" | "fixExecution">
 ): Promise<void> {
-  const requiredByPhases = mergeRequiredByPhases(context.metadata.postWriteReview.requiredByPhases ?? [], phases);
-  context.metadata.postWriteReview = {
-    required: true,
-    status: "pending",
-    reason: "write-enabled builder/fix executed",
-    requiredByPhases,
-    artefacts: ["post-write-review-required.json", "post-write-review-status.json"]
-  };
+  context.metadata.postWriteReview = createPostWriteReviewPending(context.metadata.postWriteReview, phases);
+  const requiredByPhases = context.metadata.postWriteReview.requiredByPhases;
   context.progressLogger.phaseStart("post-write-review", `pending (${requiredByPhases.join(", ")})`);
   if (!context.options.dryRun) {
     await writeJsonArtefact(
@@ -194,13 +175,7 @@ export async function setPostWriteReviewPending(
 }
 
 export async function setPostWriteReviewCompleted(context: ContinuationContext): Promise<void> {
-  context.metadata.postWriteReview = {
-    ...context.metadata.postWriteReview,
-    required: true,
-    status: "completed",
-    reason: "reviewer executed after write-enabled builder/fix",
-    artefacts: ["post-write-review-required.json", "post-write-review-status.json"]
-  };
+  context.metadata.postWriteReview = createPostWriteReviewCompleted(context.metadata.postWriteReview);
   context.progressLogger.phaseComplete("post-write-review", "completed");
   if (!context.options.dryRun) {
     await writeJsonArtefact(
@@ -215,13 +190,7 @@ export async function setPostWriteReviewCompleted(context: ContinuationContext):
 }
 
 export async function setPostWriteReviewFailed(context: ContinuationContext, reason: string): Promise<void> {
-  context.metadata.postWriteReview = {
-    ...context.metadata.postWriteReview,
-    required: true,
-    status: "failed",
-    reason,
-    artefacts: ["post-write-review-required.json", "post-write-review-status.json"]
-  };
+  context.metadata.postWriteReview = createPostWriteReviewFailed(context.metadata.postWriteReview, reason);
   context.progressLogger.phaseFailed("post-write-review", reason);
   if (!context.options.dryRun) {
     await writeJsonArtefact(context.runDir, "post-write-review-status.json", { status: "failed", reason }, context.artefacts, true);
