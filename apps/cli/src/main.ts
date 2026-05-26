@@ -1,21 +1,7 @@
 #!/usr/bin/env node
 import process from "node:process";
-import { spawn } from "node:child_process";
-import { runCommand, parseArgs, type OpenRunDirectory } from "./runtime.js";
-
-const openRunDirectory: OpenRunDirectory = async (runDir) => {
-  await new Promise<void>((resolve, reject) => {
-    const child = spawn("open", [runDir], { stdio: "ignore", shell: false });
-    child.on("error", reject);
-    child.on("exit", (code, signal) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`Failed to open run directory with open. code=${code ?? "null"} signal=${signal ?? "null"}`));
-      }
-    });
-  });
-};
+import { openRunDirectory } from "../../../packages/adapters/src/open-run-directory.js";
+import { runCommand, parseArgs } from "./runtime.js";
 
 async function main(): Promise<void> {
   try {
