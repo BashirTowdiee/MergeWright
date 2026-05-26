@@ -4,5 +4,8 @@
   "private": true,
   "type": "module",
   "description": "MergeWright Fastify API application boundary.",
-  "main": "../../dist/apps/api/src/server.js"
+  "main": "../../dist/apps/api/src/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
 }
