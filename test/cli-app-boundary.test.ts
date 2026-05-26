@@ -12,6 +12,15 @@ test("CLI app entrypoint delegates open-run behaviour to adapters", async () => 
   assert.equal(entrypoint.includes("node:child_process"), false);
 });
 
+test("CLI app runtime imports focused CLI modules directly", async () => {
+  const runtime = await readFile(join(process.cwd(), "apps/cli/src/runtime.ts"), "utf8");
+
+  assert.equal(runtime.includes("../../../src/cli/run-command.js"), true);
+  assert.equal(runtime.includes("../../../src/cli/parse/parse-args.js"), true);
+  assert.equal(runtime.includes("../../../src/cli/types.js"), true);
+  assert.equal(runtime.includes("../../../src/cli-core.js"), false);
+});
+
 test("root CLI module remains a compatibility boundary", async () => {
   const rootCli = await readFile(join(process.cwd(), "src/cli.ts"), "utf8");
 
