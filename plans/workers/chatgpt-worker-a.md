@@ -47,3 +47,55 @@ stale claims ignored:
 - `chatgpt-worker-c` package-boundary claim was older than 90 minutes and had no newer PR, source branch activity, or worker result found.
 
 next recommended action: Open PR and wait for CI.
+
+## 2026-05-27T00:40:00 Australia/Melbourne
+
+worker-id: chatgpt-worker-a
+
+selected action: Implement next meaningful Stage 3.5 vertical slice by extracting continue-run post-write-review helpers.
+
+active stage: Stage 3.5 Monorepo and CLI boundary refactor.
+
+acceptance criteria advanced:
+- continue-run post-write-review state transition logic now has a dedicated helper module.
+- checks gating logic around pending post-write review has focused regression coverage.
+- extraction continues reducing root continuation-module coupling without changing runtime behaviour.
+
+files touched:
+- src/continue-run/post-write-review.ts
+- test/continue-run-post-write-review.test.ts
+- plans/events/2026-05-27T00-30-00-chatgpt-worker-a-claim.md
+- plans/workers/chatgpt-worker-a.md
+
+PR/branch:
+- branch: agent/chatgpt-worker-a/continue-run-wire-extracted-helpers
+- PR: pending creation
+
+commit/head SHA:
+- pending after PR creation
+
+tests/checks run:
+- Not run locally. The local container cannot access GitHub, and this cycle used GitHub connector writes.
+- Added focused Node test coverage in `test/continue-run-post-write-review.test.ts`; CI should run repository checks after PR creation.
+
+CI status:
+- Not started.
+
+merge status:
+- Not merged.
+
+blockers:
+- None.
+
+conflicting claims considered:
+- Open PR search returned no active PRs before implementation.
+- PR 241 is merged, so the previous workspace lockfile blocker is no longer active.
+- PR 245 is merged, so the previous worker-a phase-guard slice is complete.
+- Existing worker-d blocker notes refer to stale PR 241 state and were not used as active implementation claims.
+
+stale claims ignored:
+- Worker-d PR 241 waiting/blocker notes were stale because PR 241 is now merged.
+- Prior worker-a helper branches are stale, merged, or superseded.
+
+next recommended action:
+- Open PR, wait for CI, then merge if checks pass and branch remains mergeable.
