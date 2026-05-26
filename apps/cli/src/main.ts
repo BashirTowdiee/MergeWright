@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 import process from "node:process";
 import { spawn } from "node:child_process";
-import { runCommand, type OpenRunDirectory } from "../../../src/cli.js";
-import { parseArgs } from "../../../src/cli/parse/parse-args.js";
+import { runCommand, parseArgs, type OpenRunDirectory } from "./runtime.js";
 
 const openRunDirectory: OpenRunDirectory = async (runDir) => {
   await new Promise<void>((resolve, reject) => {
