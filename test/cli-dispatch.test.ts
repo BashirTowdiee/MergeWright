@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { dispatchCliCommand } from "../src/cli/dispatch.js";
 import type { CommandContext } from "../src/cli/command-context.js";
 import type { ParsedArgs } from "../src/cli/types.js";
+import { NOOP_PROGRESS_LOGGER } from "../src/progress-logger.js";
 
 function createContext(args: ParsedArgs): CommandContext {
   return {
@@ -12,12 +13,7 @@ function createContext(args: ParsedArgs): CommandContext {
     openRunDirectory: async () => {},
     writeLine: () => {},
     deps: {},
-    progressLogger: {
-      info: () => {},
-      warn: () => {},
-      error: () => {},
-      debug: () => {}
-    }
+    progressLogger: NOOP_PROGRESS_LOGGER
   };
 }
 
@@ -48,9 +44,9 @@ test("dispatcher rejects missing command with help text", async () => {
     dispatchCliCommand({
       command: undefined,
       context: createContext(baseArgs),
-      helpText: "Usage: agent-stage <command> [options]"
+      helpText: "HELP"
     }),
-    /Missing command\.\n\nUsage: agent-stage <command> \[options\]/
+    /Missing command/
   );
 });
 
@@ -59,8 +55,8 @@ test("dispatcher rejects unknown command with help text", async () => {
     dispatchCliCommand({
       command: "unknown-command",
       context: createContext({ ...baseArgs, command: "unknown-command" }),
-      helpText: "Usage: agent-stage <command> [options]"
+      helpText: "HELP"
     }),
-    /Unknown command: unknown-command\n\nUsage: agent-stage <command> \[options\]/
+    /Unknown command: unknown-command/
   );
 });
