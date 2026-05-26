@@ -37,7 +37,7 @@ export function writeEnabledContinuationPhases(
 
 export function assertAllowWritesTargetsWriteEligiblePhase(
   allowWrites: boolean,
-  writeEnabledPhases: readonly Array<"builder" | "fix">
+  writeEnabledPhases: readonly ("builder" | "fix")[]
 ): void {
   if (allowWrites && writeEnabledPhases.length === 0) {
     throw new Error("--allow-writes requires at least one write-eligible continuation phase: --execute-builder or --execute-fix.");
