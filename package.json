@@ -17,6 +17,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "build:apps": "npm run build --workspaces --if-present --include-workspace-root=false",
+    "build:packages": "npm run build --workspaces --if-present --include-workspace-root=false --workspace packages/*",
     "test": "npm run build && node --test dist/test/**/*.test.js",
     "agent": "npm run mergewright --",
     "mergewright": "npm run build && node dist/apps/cli/src/main.js",
