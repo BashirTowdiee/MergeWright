@@ -12,6 +12,11 @@ interface PackageJson {
 }
 
 interface TsConfigJson {
+  readonly extends?: string;
+  readonly compilerOptions?: {
+    readonly rootDir?: string;
+    readonly outDir?: string;
+  };
   readonly include?: readonly string[];
 }
 
@@ -56,5 +61,16 @@ test("workspace skeleton declares explicit app and package boundaries", async ()
     assert.equal(packageJson.name, expectedName, `${path} should use its workspace package name`);
     assert.equal(packageJson.private, true, `${path} should remain private during migration`);
     assert.equal(packageJson.type, "module", `${path} should match the root ESM module mode`);
+  }
+});
+
+test("app workspace TypeScript configs extend the root config with app-local outputs", async () => {
+  for (const appName of ["api", "cli", "web"] as const) {
+    const tsconfig = await readJson<TsConfigJson>(`apps/${appName}/tsconfig.json`);
+
+    assert.equal(tsconfig.extends, "../../tsconfig.json", `${appName} should extend the root tsconfig`);
+    assert.equal(tsconfig.compilerOptions?.rootDir, "../..", `${appName} should compile from the repository root during migration`);
+    assert.equal(tsconfig.compilerOptions?.outDir, `../../dist/apps/${appName}`, `${appName} should emit under its app dist folder`);
+    assert.deepEqual(tsconfig.include, ["src/**/*.ts", "src/**/*.tsx"], `${appName} should include only app-local source files`);
   }
 });
