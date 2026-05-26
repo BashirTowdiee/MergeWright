@@ -1,1 +1,1 @@
-export const cliDispatchModule = true;
+export {};
