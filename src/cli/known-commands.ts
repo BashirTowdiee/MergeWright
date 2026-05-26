@@ -1,21 +1,3 @@
-export const knownCommands = new Set([
-  "run",
-  "continue-run",
-  "list-runs",
-  "show-run",
-  "open-run",
-  "report-run",
-  "backfill-evidence",
-  "tui",
-  "tui-spike",
-  "init-project",
-  "check-write-safety",
-  "probe-opencode",
-  "import-stage-plan",
-  "run-stage",
-  "accept-stage",
-  "fix-stage",
-  "run-stages",
-  "continue-stages",
-  "reassess-stage-plan"
-]);
+import { commandHandlers } from "./command-registry.js";
+
+export const knownCommands = new Set(Object.keys(commandHandlers));
