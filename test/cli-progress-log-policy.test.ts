@@ -64,8 +64,8 @@ test("creates a no-op logger when progress output must be suppressed", () => {
   );
 
   logger.info("hidden");
-  logger.success("hidden");
-  logger.error("hidden");
+  logger.phaseComplete("hidden");
+  logger.phaseFailed("hidden", new Error("hidden"));
 
   assert.deepEqual(output, []);
 });
