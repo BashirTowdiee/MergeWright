@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { dispatchCliCommand } from "../src/cli/dispatch.js";
 import type { CommandContext } from "../src/cli/command-context.js";
+import { commandHandlers } from "../src/cli/command-registry.js";
+import { knownCommands } from "../src/cli/known-commands.js";
 import type { ParsedArgs } from "../src/cli/types.js";
 import { NOOP_PROGRESS_LOGGER } from "../src/progress-logger.js";
 
@@ -59,4 +61,8 @@ test("dispatcher rejects unknown command with help text", async () => {
     }),
     /Unknown command: unknown-command/
   );
+});
+
+test("known commands are derived from registered command handlers", () => {
+  assert.deepEqual([...knownCommands].sort(), Object.keys(commandHandlers).sort());
 });
