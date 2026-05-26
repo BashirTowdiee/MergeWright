@@ -99,3 +99,54 @@ stale claims ignored:
 
 next recommended action:
 - Open PR, wait for CI, then merge if checks pass and branch remains mergeable.
+
+## 2026-05-27T03:25:00 Australia/Melbourne
+
+worker-id: chatgpt-worker-a
+
+selected action: Add app workspace package build scripts for Stage 3.5.
+
+active stage: Stage 3.5 Monorepo and CLI boundary refactor.
+
+acceptance criteria advanced:
+- app workspace package manifests now expose package-local build commands.
+- `apps/api`, `apps/cli`, and `apps/web` can run `tsc -p tsconfig.json` against app-local TypeScript configs.
+- workspace skeleton tests now guard app build script shape.
+
+files touched:
+- apps/api/package.json
+- apps/cli/package.json
+- apps/web/package.json
+- test/workspace-skeleton.test.ts
+- plans/events/2026-05-27T03-15-00-chatgpt-worker-a-claim.md
+- plans/workers/chatgpt-worker-a.md
+
+PR/branch:
+- branch: agent/chatgpt-worker-a/app-package-build-scripts
+- PR: pending creation
+
+commit/head SHA:
+- pending after PR creation
+
+tests/checks run:
+- Not run locally. The local container could not access GitHub for checkout/install/test execution.
+- Added regression coverage in `test/workspace-skeleton.test.ts`; CI should run repository checks after PR creation.
+
+CI status:
+- Not started.
+
+merge status:
+- Not merged.
+
+blockers:
+- None.
+
+conflicting claims considered:
+- No open PRs existed before implementation or before PR creation.
+- Recent worker-b continue-run helper work was merged and this slice avoids continue-run files.
+
+stale claims ignored:
+- Worker-a PR 247 and worker-b PR 248 waiting states are stale because both PRs are merged.
+
+next recommended action:
+- Open PR, wait for CI, and merge if checks pass and branch remains mergeable.
