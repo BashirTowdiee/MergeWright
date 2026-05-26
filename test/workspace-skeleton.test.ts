@@ -83,6 +83,17 @@ test("app workspace TypeScript configs extend the root config with app-local out
   }
 });
 
+test("package workspace TypeScript configs extend the root config with package-local outputs", async () => {
+  for (const packageName of ["adapters", "application", "config", "domain", "shared"] as const) {
+    const tsconfig = await readJson<TsConfigJson>(`packages/${packageName}/tsconfig.json`);
+
+    assert.equal(tsconfig.extends, "../../tsconfig.json", `${packageName} should extend the root tsconfig`);
+    assert.equal(tsconfig.compilerOptions?.rootDir, "../..", `${packageName} should compile from the repository root during migration`);
+    assert.equal(tsconfig.compilerOptions?.outDir, `../../dist/packages/${packageName}`, `${packageName} should emit under its package dist folder`);
+    assert.deepEqual(tsconfig.include, ["src/**/*.ts", "src/**/*.tsx"], `${packageName} should include only package-local source files`);
+  }
+});
+
 test("app workspace packages expose local build scripts", async () => {
   for (const appName of ["api", "cli", "web"] as const) {
     const packageJson = await readPackageJson(`apps/${appName}`);
