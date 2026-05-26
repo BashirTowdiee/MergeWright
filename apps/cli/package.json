@@ -4,5 +4,8 @@
   "private": true,
   "type": "module",
   "description": "MergeWright command-line application boundary.",
-  "main": "../../dist/apps/cli/src/main.js"
+  "main": "../../dist/apps/cli/src/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
 }

@@ -9,6 +9,7 @@ interface PackageJson {
   readonly private?: boolean;
   readonly type?: string;
   readonly workspaces?: readonly string[];
+  readonly scripts?: Record<string, string>;
 }
 
 interface TsConfigJson {
@@ -72,5 +73,13 @@ test("app workspace TypeScript configs extend the root config with app-local out
     assert.equal(tsconfig.compilerOptions?.rootDir, "../..", `${appName} should compile from the repository root during migration`);
     assert.equal(tsconfig.compilerOptions?.outDir, `../../dist/apps/${appName}`, `${appName} should emit under its app dist folder`);
     assert.deepEqual(tsconfig.include, ["src/**/*.ts", "src/**/*.tsx"], `${appName} should include only app-local source files`);
+  }
+});
+
+test("app workspace packages expose local build scripts", async () => {
+  for (const appName of ["api", "cli", "web"] as const) {
+    const packageJson = await readPackageJson(`apps/${appName}`);
+
+    assert.equal(packageJson.scripts?.build, "tsc -p tsconfig.json", `${appName} should build from its app-local tsconfig`);
   }
 });
