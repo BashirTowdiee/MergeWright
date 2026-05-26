@@ -1,5 +1,4 @@
-import { commandHandlers } from "./cli/command-registry.js";
-import { knownCommands } from "./cli/known-commands.js";
+import { dispatchCliCommand } from "./cli/dispatch.js";
 import { renderHelpText } from "./cli/output/help-text.js";
 import { createCliProgressLogger } from "./cli/output/progress-log-policy.js";
 import { runCheckWriteSafety as runCheckWriteSafetyImpl } from "./cli/run-check-write-safety.js";
@@ -30,22 +29,17 @@ export async function runCommand(
     return;
   }
 
-  if (!args.command) {
-    throw new Error(`Missing command.\n\n${renderHelpText()}`);
-  }
-
-  if (!knownCommands.has(args.command)) {
-    throw new Error(`Unknown command: ${args.command}\n\n${renderHelpText()}`);
-  }
-
-  const handler = commandHandlers[args.command as keyof typeof commandHandlers];
-  await handler({
-    args,
-    orchestratorRoot,
-    platform,
-    openRunDirectory,
-    writeLine,
-    deps,
-    progressLogger
+  await dispatchCliCommand({
+    command: args.command,
+    helpText: renderHelpText(),
+    context: {
+      args,
+      orchestratorRoot,
+      platform,
+      openRunDirectory,
+      writeLine,
+      deps,
+      progressLogger
+    }
   });
 }
