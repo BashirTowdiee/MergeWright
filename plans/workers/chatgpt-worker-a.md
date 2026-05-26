@@ -150,3 +150,54 @@ stale claims ignored:
 
 next recommended action:
 - Open PR, wait for CI, and merge if checks pass and branch remains mergeable.
+
+## 2026-05-27T05:35:00 Australia/Melbourne
+
+worker-id: chatgpt-worker-a
+
+selected action: Add root workspace build orchestration scripts.
+
+active stage: Stage 3.5 Monorepo and CLI boundary refactor.
+
+acceptance criteria advanced:
+- root package scripts now expose explicit app workspace build orchestration.
+- current root `build` behaviour remains unchanged.
+- workspace skeleton tests guard the root orchestration script.
+
+files touched:
+- package.json
+- test/workspace-skeleton.test.ts
+- plans/events/2026-05-27T05-25-00-chatgpt-worker-a-claim.md
+- plans/workers/chatgpt-worker-a.md
+
+PR/branch:
+- branch: agent/chatgpt-worker-a/root-workspace-build-scripts-refresh
+- PR: pending creation
+
+commit/head SHA:
+- pending after PR creation
+
+tests/checks run:
+- Not run locally. This cycle used GitHub connector writes.
+- Added regression coverage in `test/workspace-skeleton.test.ts`; CI should run repository checks after PR creation.
+
+CI status:
+- Not started.
+
+merge status:
+- Not merged.
+
+blockers:
+- None.
+
+conflicting claims considered:
+- Open PR scan returned no open PRs before implementation.
+- PR 250 is merged.
+- This slice avoids continuation and workflow files.
+
+stale claims ignored:
+- Prior worker-a root workspace build branch was superseded by the fresh branch from latest main.
+- Worker-b PR 250 wait/block records are stale because PR 250 is merged.
+
+next recommended action:
+- Open PR, wait for CI, and merge if checks pass and branch remains mergeable.
