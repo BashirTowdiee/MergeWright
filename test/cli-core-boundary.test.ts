@@ -8,7 +8,14 @@ test("cli core remains a compatibility facade", async () => {
   const source = await readFile(join(process.cwd(), "src/cli-core.ts"), "utf8");
 
   assert.match(source, /export \{ runCommand \} from "\.\/cli\/run-command\.js";/);
+  assert.match(source, /from "\.\/cli\/output\/index\.js";/);
   assert.equal(source.includes("dispatchCliCommand"), false);
   assert.equal(source.includes("createCliProgressLogger"), false);
   assert.equal(source.includes("async function runCommand"), false);
+  assert.equal(source.includes("./cli/output/run-summary.js"), false);
+  assert.equal(source.includes("./cli/output/continue-run-summary.js"), false);
+  assert.equal(source.includes("./cli/output/init-project-summary.js"), false);
+  assert.equal(source.includes("./cli/output/write-safety-summary.js"), false);
+  assert.equal(source.includes("./cli/output/run-details-summary.js"), false);
+  assert.equal(source.includes("./cli/output/report-summary.js"), false);
 });
