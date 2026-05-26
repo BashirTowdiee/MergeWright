@@ -201,3 +201,54 @@ stale claims ignored:
 
 next recommended action:
 - Open PR, wait for CI, and merge if checks pass and branch remains mergeable.
+
+## 2026-05-27T14:18:00 Australia/Melbourne
+
+worker-id: chatgpt-worker-a
+
+selected action: Derive known CLI commands from the command registry.
+
+active stage: Stage 3.5 Monorepo and CLI boundary refactor.
+
+acceptance criteria advanced:
+- CLI command registration now has one source of truth.
+- Dispatcher known-command validation is guarded against registry drift.
+- Existing documented CLI command names remain compatible.
+
+files touched:
+- src/cli/known-commands.ts
+- test/cli-dispatch.test.ts
+- plans/events/2026-05-27T14-05-00-chatgpt-worker-a-claim.md
+- plans/events/2026-05-27T14-12-00-chatgpt-worker-a-implemented.md
+- plans/workers/chatgpt-worker-a.md
+
+PR/branch:
+- branch: agent/chatgpt-worker-a/derive-known-commands-from-registry
+- PR: 262
+
+commit/head SHA:
+- PR head: b08e9e909bec1ee62a754f78da735fa40eda1389
+
+tests/checks run:
+- Local checks not run from connector-only environment.
+- CI run 26477461006 started for PR #262.
+
+CI status:
+- In progress.
+
+merge status:
+- Not merged.
+
+blockers:
+- Waiting for CI.
+
+conflicting claims considered:
+- Open PR search returned no open PRs before implementation.
+- PR #260 and PR #261 are merged.
+- Worker-b PR #261 is complete and touched different files.
+
+stale claims ignored:
+- Worker-c and worker-d PR 241 blocker notes are stale because no open PR remains.
+
+next recommended action:
+- Re-check PR #262 CI; merge only if green and mergeable.
