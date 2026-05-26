@@ -4,6 +4,10 @@
   "private": true,
   "description": "AI software delivery harness for reviewable, auditable, merge-ready code changes.",
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "engines": {
     "node": ">=22"
   },
