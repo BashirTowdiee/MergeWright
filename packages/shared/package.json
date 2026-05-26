@@ -3,5 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "MergeWright shared primitives with no product ownership."
+  "description": "MergeWright shared primitives with no product ownership.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
 }
