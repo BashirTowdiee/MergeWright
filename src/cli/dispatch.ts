@@ -1,10 +1,10 @@
 import { commandHandlers } from "./command-registry.js";
+import type { CommandContext } from "./command-context.js";
 import { knownCommands } from "./known-commands.js";
-import type { CommandHandlerContext } from "./command-context.js";
 
 export interface CliDispatchRequest {
   command?: string;
-  context: CommandHandlerContext;
+  context: CommandContext;
   helpText: string;
 }
 
