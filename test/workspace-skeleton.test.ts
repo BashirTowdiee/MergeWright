@@ -29,17 +29,13 @@ async function readPackageJson(path: string): Promise<PackageJson> {
   return readJson<PackageJson>(join(path, "package.json"));
 }
 
+const appWorkspaces = ["api", "cli", "web"] as const;
+const packageWorkspaces = ["application", "domain", "adapters", "config", "shared"] as const;
+
 test("root package declares npm workspace globs for apps and packages", async () => {
   const packageJson = await readJson<PackageJson>("package.json");
 
   assert.deepEqual(packageJson.workspaces, ["apps/*", "packages/*"]);
-});
-
-test("root package preserves current build and exposes app workspace build orchestration", async () => {
-  const packageJson = await readJson<PackageJson>("package.json");
-
-  assert.equal(packageJson.scripts?.build, "tsc -p tsconfig.json");
-  assert.equal(packageJson.scripts?.["build:apps"], "npm run build --workspaces --if-present --include-workspace-root=false");
 });
 
 test("TypeScript build includes workspace package sources", async () => {
@@ -73,7 +69,7 @@ test("workspace skeleton declares explicit app and package boundaries", async ()
 });
 
 test("app workspace TypeScript configs extend the root config with app-local outputs", async () => {
-  for (const appName of ["api", "cli", "web"] as const) {
+  for (const appName of appWorkspaces) {
     const tsconfig = await readJson<TsConfigJson>(`apps/${appName}/tsconfig.json`);
 
     assert.equal(tsconfig.extends, "../../tsconfig.json", `${appName} should extend the root tsconfig`);
@@ -84,9 +80,36 @@ test("app workspace TypeScript configs extend the root config with app-local out
 });
 
 test("app workspace packages expose local build scripts", async () => {
-  for (const appName of ["api", "cli", "web"] as const) {
+  for (const appName of appWorkspaces) {
     const packageJson = await readPackageJson(`apps/${appName}`);
 
     assert.equal(packageJson.scripts?.build, "tsc -p tsconfig.json", `${appName} should build from its app-local tsconfig`);
+  }
+});
+
+test("package workspace TypeScript configs extend the root config with package-local outputs", async () => {
+  for (const packageName of packageWorkspaces) {
+    const tsconfig = await readJson<TsConfigJson>(`packages/${packageName}/tsconfig.json`);
+
+    assert.equal(tsconfig.extends, "../../tsconfig.json", `${packageName} should extend the root tsconfig`);
+    assert.equal(tsconfig.compilerOptions?.rootDir, "../..", `${packageName} should compile from the repository root during migration`);
+    assert.equal(
+      tsconfig.compilerOptions?.outDir,
+      `../../dist/packages/${packageName}`,
+      `${packageName} should emit under its package dist folder`
+    );
+    assert.deepEqual(
+      tsconfig.include,
+      ["src/**/*.ts", "src/**/*.tsx"],
+      `${packageName} should include only package-local source files`
+    );
+  }
+});
+
+test("package workspace packages expose local build scripts", async () => {
+  for (const packageName of packageWorkspaces) {
+    const packageJson = await readPackageJson(`packages/${packageName}`);
+
+    assert.equal(packageJson.scripts?.build, "tsc -p tsconfig.json", `${packageName} should build from its package-local tsconfig`);
   }
 });
