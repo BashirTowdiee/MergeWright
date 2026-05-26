@@ -35,6 +35,13 @@ test("root package declares npm workspace globs for apps and packages", async ()
   assert.deepEqual(packageJson.workspaces, ["apps/*", "packages/*"]);
 });
 
+test("root package preserves current build and exposes app workspace build orchestration", async () => {
+  const packageJson = await readJson<PackageJson>("package.json");
+
+  assert.equal(packageJson.scripts?.build, "tsc -p tsconfig.json");
+  assert.equal(packageJson.scripts?.["build:apps"], "npm run build --workspaces --if-present --include-workspace-root=false");
+});
+
 test("TypeScript build includes workspace package sources", async () => {
   const tsconfig = await readJson<TsConfigJson>("tsconfig.json");
 
