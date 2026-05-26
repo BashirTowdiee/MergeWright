@@ -1,7 +1,7 @@
-import { createProgressLogger, NOOP_PROGRESS_LOGGER } from "./progress-logger.js";
 import { commandHandlers } from "./cli/command-registry.js";
 import { knownCommands } from "./cli/known-commands.js";
 import { renderHelpText } from "./cli/output/help-text.js";
+import { createCliProgressLogger } from "./cli/output/progress-log-policy.js";
 import { runCheckWriteSafety as runCheckWriteSafetyImpl } from "./cli/run-check-write-safety.js";
 import type { ParsedArgs, RunCommandDeps, OpenRunDirectory } from "./cli/types.js";
 
@@ -23,9 +23,7 @@ export async function runCommand(
   writeLine: (line: string) => void = console.log,
   deps: RunCommandDeps = {}
 ): Promise<void> {
-  const jsonOnlyStdout =
-    args.command === "report-run" && (args.jsonOutput === true || (args.prSummary === true && args.stdoutOnly === true));
-  const progressLogger = jsonOnlyStdout ? NOOP_PROGRESS_LOGGER : createProgressLogger(writeLine, { verbose: args.verbose });
+  const progressLogger = createCliProgressLogger(args, writeLine);
 
   if (args.help) {
     writeLine(renderHelpText(args.command));
