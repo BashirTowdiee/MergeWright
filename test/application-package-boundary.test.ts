@@ -8,6 +8,7 @@ const expectedExports = [
   "src/application/commands/app-command.js",
   "src/application/commands/app-command-error.js",
   "src/application/commands/app-command-result.js",
+  "src/application/commands/app-command-service.js",
   "src/application/commands/command-description.js",
   "src/application/commands/command-risk.js",
   "src/application/commands/command-source.js",
@@ -29,6 +30,7 @@ const expectedExports = [
 
 const expectedNamedExports = [
   "APP_COMMAND_ERROR_CODES",
+  "AppCommandService",
   "describeCommand",
   "COMMAND_RISKS",
   "requiresConfirmationForRisk",
