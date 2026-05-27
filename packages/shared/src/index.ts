@@ -1,1 +1,7 @@
-// Package boundary placeholder for staged monorepo migration.
+export {
+  failure,
+  success,
+  type FailureResult,
+  type Result,
+  type SuccessResult
+} from "./result.js";
