@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "../../dist/packages/domain/src/index.js",
+  "types": "../../dist/packages/domain/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "../../dist/packages/domain/src/index.d.ts",
+      "default": "../../dist/packages/domain/src/index.js"
+    }
+  },
   "description": "MergeWright pure domain models, policies, result codes, and risk rules.",
   "scripts": {
     "build": "tsc -p tsconfig.json"

@@ -261,3 +261,61 @@ Stale claims ignored:
 
 Next recommended action:
 - Re-check CI for PR #268 after this planning update; merge only if CI is green, the PR remains mergeable, and no review blockers appear.
+
+## 2026-05-27T17:35:00+10:00
+
+Selected action:
+- Implement Stage 3.5 package manifest entrypoint slice.
+
+Active stage:
+- Stage 3.5 Monorepo and CLI boundary refactor.
+
+Acceptance criteria advanced:
+- Workspace package manifests now expose explicit built JavaScript and type declaration entrypoints.
+- Package manifests now define root `exports` for package-boundary imports during the migration.
+- Regression coverage guards package manifest entrypoint paths against drift.
+
+Files touched:
+- packages/application/package.json
+- packages/domain/package.json
+- packages/adapters/package.json
+- packages/config/package.json
+- packages/shared/package.json
+- test/package-manifest-boundary.test.ts
+- plans/events/2026-05-27T16-45-00-chatgpt-worker-b-claim.md
+- plans/events/2026-05-27T17-05-00-chatgpt-worker-b-claim.md
+- plans/workers/chatgpt-worker-b.md
+
+PR/branch:
+- Branch: agent/chatgpt-worker-b/package-manifest-entrypoints
+- PR: 269
+
+Commit/head SHA:
+- PR head before this worker update: d18e161d3ce142f26e7a6761aa66f043d4132995
+
+Tests/checks run:
+- Inspected operating contract, roadmap, coordination, worker/event files, open/recent PRs, branch diff, package manifests, and claim state.
+- Local `npm run build` and `npm test` could not be run from this connector-only environment.
+- Added `test/package-manifest-boundary.test.ts` for CI to execute.
+
+CI status:
+- CI run 26494872526 is in progress for PR #269 head `d18e161d3ce142f26e7a6761aa66f043d4132995`.
+
+Merge status:
+- PR #269 is open. Initial PR metadata reported `mergeable: false`; re-check after GitHub finishes mergeability calculation and CI.
+
+Blockers:
+- Waiting for CI and mergeability re-check.
+
+Conflicting claims considered:
+- Open PR search returned no open PRs before source changes.
+- Worker-b previous claim matched this exact package manifest slice and was reused after a fresh claim.
+- Worker-a latest worker record targets CLI command validation files, not package manifests.
+- Worker-c latest worker record is stale and superseded by merged workspace work.
+
+Stale claims ignored:
+- Worker-c PR 241 notes are stale because newer Stage 3.5 workspace and package PRs have been merged.
+- Older worker-b notes for PRs #266 and #268 are superseded by merged PR state.
+
+Next recommended action:
+- Re-check PR #269 CI and mergeability. Merge only if CI is green, branch is mergeable, and no review blockers appear.

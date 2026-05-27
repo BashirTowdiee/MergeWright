@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "../../dist/packages/config/src/index.js",
+  "types": "../../dist/packages/config/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "../../dist/packages/config/src/index.d.ts",
+      "default": "../../dist/packages/config/src/index.js"
+    }
+  },
   "description": "MergeWright configuration schemas, loaders, and validation.",
   "scripts": {
     "build": "tsc -p tsconfig.json"
