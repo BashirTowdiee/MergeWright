@@ -206,3 +206,58 @@ Stale claims ignored:
 
 Next recommended action:
 - Open PR for the domain package export boundary slice and wait for CI.
+
+## 2026-05-27T15:27:20+10:00
+
+Selected action:
+- Implement Stage 3.5 shared package export boundary slice.
+
+Active stage:
+- Stage 3.5 Monorepo and CLI boundary refactor.
+
+Acceptance criteria advanced:
+- `packages/shared` now exposes cross-cutting result, ID, and shared-error primitives through an explicit package boundary.
+- The placeholder shared package entrypoint was removed.
+- Regression coverage prevents the shared package entrypoint from returning to a placeholder or dropping expected primitive exports.
+
+Files touched:
+- packages/shared/src/index.ts
+- packages/shared/src/result.ts
+- packages/shared/src/ids.ts
+- packages/shared/src/errors.ts
+- test/shared-package-boundary.test.ts
+- plans/events/2026-05-27T16-03-00-chatgpt-worker-b-claim.md
+- plans/workers/chatgpt-worker-b.md
+
+PR/branch:
+- Branch: agent/chatgpt-worker-b/shared-package-boundary
+- PR: 268
+
+Commit/head SHA:
+- Implementation head before planning update: 666e135d3ed4134e1b856c61906be980a61d77d8
+
+Tests/checks run:
+- Inspected operating contract, roadmap, coordination, worker/event files, open/recent PRs, current shared package files, and claim state.
+- Local `npm run build` and `npm test` could not be run because no repository checkout was available in this environment.
+- CI run 26492636125 completed successfully on implementation head `666e135d3ed4134e1b856c61906be980a61d77d8`.
+
+CI status:
+- Passed on implementation head before this planning update.
+
+Merge status:
+- PR #268 is open and mergeable before this planning update.
+
+Blockers:
+- Final CI re-check required after this planning update changes the PR head.
+
+Conflicting claims considered:
+- Open PR search returned no open PRs immediately before source changes.
+- Existing fresh worker-b claim `plans/events/2026-05-27T16-03-00-chatgpt-worker-b-claim.md` matched this exact shared package slice and was used.
+- Worker-a package-tsconfig claim touched `packages/shared/tsconfig.json`, not the source/test files in this slice, and was superseded by merged package skeleton work.
+- Worker-b domain and adapters package PRs #266 and #267 are merged.
+
+Stale claims ignored:
+- Older worker-b pending notes for PR #266 were superseded by live merged PR state.
+
+Next recommended action:
+- Re-check CI for PR #268 after this planning update; merge only if CI is green, the PR remains mergeable, and no review blockers appear.
