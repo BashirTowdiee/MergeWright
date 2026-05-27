@@ -43,10 +43,28 @@ export {
   type EventedAppCommandServiceOptions
 } from "../../../src/application/commands/evented-app-command-service.js";
 
-export { type AppEvent } from "../../../src/application/events/app-event.js";
-export { type AppEventBus } from "../../../src/application/events/app-event-bus.js";
-export { type AppEventStore } from "../../../src/application/events/event-store.js";
-export { InMemoryEventStore } from "../../../src/application/events/in-memory-event-store.js";
+export {
+  type AppEvent,
+  type AppEventBase,
+  type AppEventType,
+  type CommandFinishedEvent,
+  type CommandStartedEvent,
+  type PhaseFinishedEvent,
+  type PhaseOutputEvent,
+  type PhaseStartedEvent
+} from "../../../src/application/events/app-event.js";
+export {
+  InMemoryAppEventBus,
+  type AppEventBus,
+  type AppEventSubscriber,
+  type AppEventSubscription
+} from "../../../src/application/events/app-event-bus.js";
+export {
+  DefaultEventQueryService,
+  type EventQueryService,
+  type EventReadRepository,
+  type ListEventsInput
+} from "../../../src/application/queries/event-query-service.js";
 
 export { DefaultAddTaskCommentUseCase, type AddTaskCommentUseCase } from "../../../src/application/use-cases/add-task-comment-use-case.js";
 export { DefaultContinueRunUseCase, type ContinueRunUseCase, type ContinueRunUseCaseHandler } from "../../../src/application/use-cases/continue-run-use-case.js";
