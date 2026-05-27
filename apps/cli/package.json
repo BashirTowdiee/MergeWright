@@ -5,6 +5,13 @@
   "type": "module",
   "description": "MergeWright command line app boundary.",
   "main": "../../dist/apps/cli/src/main.js",
+  "types": "../../dist/apps/cli/src/main.d.ts",
+  "exports": {
+    ".": {
+      "types": "../../dist/apps/cli/src/main.d.ts",
+      "default": "../../dist/apps/cli/src/main.js"
+    }
+  },
   "bin": {
     "mergewright": "../../dist/apps/cli/src/main.js"
   },
