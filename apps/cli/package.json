@@ -3,8 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "MergeWright command-line application boundary.",
+  "description": "MergeWright command line app boundary.",
   "main": "../../dist/apps/cli/src/main.js",
+  "bin": {
+    "mergewright": "../../dist/apps/cli/src/main.js"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json"
   }
