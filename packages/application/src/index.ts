@@ -21,6 +21,7 @@ export {
   type AppCommandResult,
   type AppCommandSuccessResult
 } from "../../../src/application/commands/app-command-result.js";
+export { type AppCommandExecutionOptions, type AppCommandService } from "../../../src/application/commands/app-command-service.js";
 export { describeCommand, type CommandDescription } from "../../../src/application/commands/command-description.js";
 export { COMMAND_RISKS, requiresConfirmationForRisk, type CommandRisk } from "../../../src/application/commands/command-risk.js";
 export { type CommandActor, type CommandMetadata, type CommandSource } from "../../../src/application/commands/command-source.js";
