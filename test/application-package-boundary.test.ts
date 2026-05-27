@@ -10,14 +10,15 @@ const expectedExports = [
   "src/application/commands/default-app-command-service.js",
   "src/application/commands/evented-app-command-service.js",
   "src/application/events/app-event.js",
-  "src/application/events/event-store.js",
+  "src/application/events/app-event-bus.js",
+  "src/application/queries/event-query-service.js",
   "src/application/use-cases/start-run-use-case.js",
   "src/application/use-cases/continue-run-use-case.js",
   "src/application/use-cases/select-task-use-case.js",
   "src/application/use-cases/update-coordination-note-use-case.js"
 ];
 
-test("application package exposes command, event, and use-case boundaries", async () => {
+test("application package exposes command, event, query, and use-case boundaries", async () => {
   const entrypoint = await readFile(join(process.cwd(), "packages/application/src/index.ts"), "utf8");
 
   assert.equal(entrypoint.includes("Package boundary placeholder"), false);
