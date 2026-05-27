@@ -155,3 +155,54 @@ Stale claims ignored:
 
 Next recommended action:
 - Re-check worker-a PR #260 CI and mergeability. Do not start new worker-b implementation work while PR #260 is pending.
+
+## 2026-05-27T15:10:00+10:00
+
+Selected action:
+- Implement Stage 3.5 domain package export boundary slice.
+
+Active stage:
+- Stage 3.5 Monorepo and CLI boundary refactor.
+
+Acceptance criteria advanced:
+- `packages/domain` now exposes command risk policy and command error result codes through an explicit package boundary.
+- The placeholder domain package entrypoint was removed.
+- Regression coverage prevents the placeholder entrypoint from returning.
+
+Files touched:
+- packages/domain/src/index.ts
+- test/domain-package-boundary.test.ts
+- plans/events/2026-05-27T15-02-00-chatgpt-worker-b-claim.md
+- plans/workers/chatgpt-worker-b.md
+
+PR/branch:
+- Branch: agent/chatgpt-worker-b/domain-package-export-boundary
+- PR: pending creation
+
+Commit/head SHA:
+- Latest branch head after source/test updates: 231073013b4e56de6b4840ce91d2f8e8294dee92
+
+Tests/checks run:
+- Inspected operating contract, roadmap, coordination, worker/event files, open/recent PRs, latest branch files, and current branch state.
+- Local `npm run build` and `npm test` could not be run from this connector-only environment.
+- CI should run repository checks after PR creation.
+
+CI status:
+- Pending PR creation.
+
+Merge status:
+- Not merged.
+
+Blockers:
+- Waiting for PR creation and CI.
+
+Conflicting claims considered:
+- Open PR search returned no open PRs before source changes and before PR creation.
+- Recent worker-a claims target CLI runtime files, not `packages/domain/src/index.ts` or `test/domain-package-boundary.test.ts`.
+- Worker-b config package PR #264 and worker-a application package PR #265 are merged.
+
+Stale claims ignored:
+- None.
+
+Next recommended action:
+- Open PR for the domain package export boundary slice and wait for CI.
