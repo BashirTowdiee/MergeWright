@@ -6,16 +6,44 @@ import process from "node:process";
 
 const expectedExports = [
   "src/application/commands/app-command.js",
+  "src/application/commands/app-command-error.js",
   "src/application/commands/app-command-result.js",
+  "src/application/commands/command-description.js",
+  "src/application/commands/command-risk.js",
+  "src/application/commands/command-source.js",
+  "src/application/commands/confirmation.js",
   "src/application/commands/default-app-command-service.js",
   "src/application/commands/evented-app-command-service.js",
   "src/application/events/app-event.js",
   "src/application/events/app-event-bus.js",
   "src/application/queries/event-query-service.js",
+  "src/application/use-cases/add-task-comment-use-case.js",
   "src/application/use-cases/start-run-use-case.js",
   "src/application/use-cases/continue-run-use-case.js",
+  "src/application/use-cases/execute-builder-use-case.js",
+  "src/application/use-cases/mark-task-reviewed-use-case.js",
+  "src/application/use-cases/retry-phase-use-case.js",
   "src/application/use-cases/select-task-use-case.js",
   "src/application/use-cases/update-coordination-note-use-case.js"
+];
+
+const expectedNamedExports = [
+  "APP_COMMAND_ERROR_CODES",
+  "describeCommand",
+  "COMMAND_RISKS",
+  "requiresConfirmationForRisk",
+  "getCommandConfirmationState",
+  "DefaultAppCommandService",
+  "EventedAppCommandService",
+  "DefaultEventQueryService",
+  "DefaultAddTaskCommentUseCase",
+  "DefaultContinueRunUseCase",
+  "DefaultExecuteBuilderUseCase",
+  "DefaultMarkTaskReviewedUseCase",
+  "DefaultRetryPhaseUseCase",
+  "DefaultSelectTaskUseCase",
+  "DefaultStartRunUseCase",
+  "DefaultUpdateCoordinationNoteUseCase"
 ];
 
 test("application package exposes command, event, query, and use-case boundaries", async () => {
@@ -28,6 +56,14 @@ test("application package exposes command, event, query, and use-case boundaries
       entrypoint.includes(expectedExport),
       true,
       `Expected packages/application/src/index.ts to export ${expectedExport}`
+    );
+  }
+
+  for (const expectedNamedExport of expectedNamedExports) {
+    assert.equal(
+      entrypoint.includes(expectedNamedExport),
+      true,
+      `Expected packages/application/src/index.ts to expose ${expectedNamedExport}`
     );
   }
 });
