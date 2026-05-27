@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "../../dist/packages/application/src/index.js",
+  "types": "../../dist/packages/application/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "../../dist/packages/application/src/index.d.ts",
+      "default": "../../dist/packages/application/src/index.js"
+    }
+  },
   "description": "MergeWright application services, command use cases, query services, and ports.",
   "scripts": {
     "build": "tsc -p tsconfig.json"
