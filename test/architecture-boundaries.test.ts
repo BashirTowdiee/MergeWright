@@ -6,6 +6,15 @@ import process from "node:process";
 
 const repoRoot = process.cwd();
 const checkedRoots = ["apps", "src/api", "src/tui", "src/web"];
+const tuiRoots = ["src/tui"];
+const forbiddenTuiImports = [
+  "child_process",
+  "node:child_process",
+  "fs",
+  "node:fs",
+  "fs/promises",
+  "node:fs/promises"
+];
 
 async function listSourceFiles(path: string): Promise<string[]> {
   try {
@@ -34,6 +43,10 @@ function importsCliImplementation(contents: string): boolean {
   return contents.includes("../cli.js") || contents.includes("../cli/") || contents.includes("../../cli/") || contents.includes("../../../src/cli/");
 }
 
+function importsForbiddenTuiApi(contents: string): boolean {
+  return forbiddenTuiImports.some((moduleName) => contents.includes(`from "${moduleName}"`) || contents.includes(`from '${moduleName}'`) || contents.includes(`require("${moduleName}")`) || contents.includes(`require('${moduleName}')`));
+}
+
 test("web, API, and UI surfaces do not import CLI implementation files", async () => {
   const files = (await Promise.all(checkedRoots.map((root) => listSourceFiles(join(repoRoot, root))))).flat();
   const violations: string[] = [];
@@ -46,6 +59,22 @@ test("web, API, and UI surfaces do not import CLI implementation files", async (
 
     const contents = await readFile(file, "utf8");
     if (importsCliImplementation(contents)) {
+      violations.push(relativePath);
+    }
+  }
+
+  assert.deepEqual(violations, []);
+});
+
+test("TUI files do not import direct process or filesystem mutation APIs", async () => {
+  const files = (await Promise.all(tuiRoots.map((root) => listSourceFiles(join(repoRoot, root))))).flat();
+  const violations: string[] = [];
+
+  for (const file of files) {
+    const relativePath = relative(repoRoot, file).split(sep).join("/");
+    const contents = await readFile(file, "utf8");
+
+    if (importsForbiddenTuiApi(contents)) {
       violations.push(relativePath);
     }
   }
