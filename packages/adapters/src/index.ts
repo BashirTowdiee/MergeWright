@@ -1,1 +1,1 @@
-export * from "./open-run-directory.js";
+export { openRunDirectory } from "./open-run-directory.js";
