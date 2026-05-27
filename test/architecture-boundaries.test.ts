@@ -7,13 +7,22 @@ import process from "node:process";
 const repoRoot = process.cwd();
 const checkedRoots = ["apps", "src/api", "src/tui", "src/web"];
 const tuiRoots = ["src/tui"];
-const forbiddenTuiImports = [
-  "child_process",
-  "node:child_process",
-  "fs",
-  "node:fs",
-  "fs/promises",
-  "node:fs/promises"
+const forbiddenTuiProcessImports = ["child_process", "node:child_process"];
+const filesystemModules = ["fs", "node:fs", "fs/promises", "node:fs/promises"];
+const forbiddenFileMutationMembers = [
+  "appendFile",
+  "chmod",
+  "chown",
+  "copyFile",
+  "cp",
+  "mkdir",
+  "rename",
+  "rm",
+  "rmdir",
+  "truncate",
+  "unlink",
+  "utimes",
+  "writeFile"
 ];
 
 async function listSourceFiles(path: string): Promise<string[]> {
@@ -43,8 +52,43 @@ function importsCliImplementation(contents: string): boolean {
   return contents.includes("../cli.js") || contents.includes("../cli/") || contents.includes("../../cli/") || contents.includes("../../../src/cli/");
 }
 
-function importsForbiddenTuiApi(contents: string): boolean {
-  return forbiddenTuiImports.some((moduleName) => contents.includes(`from "${moduleName}"`) || contents.includes(`from '${moduleName}'`) || contents.includes(`require("${moduleName}")`) || contents.includes(`require('${moduleName}')`));
+function importsProcessApi(contents: string): boolean {
+  return forbiddenTuiProcessImports.some((moduleName) => importsModule(contents, moduleName));
+}
+
+function importsModule(contents: string, moduleName: string): boolean {
+  return contents.includes(`from "${moduleName}"`) || contents.includes(`from '${moduleName}'`) || contents.includes(`require("${moduleName}")`) || contents.includes(`require('${moduleName}')`);
+}
+
+function importsFilesystemMutationApi(contents: string): boolean {
+  return filesystemModules.some((moduleName) => importsFilesystemMutationMember(contents, moduleName));
+}
+
+function importsFilesystemMutationMember(contents: string, moduleName: string): boolean {
+  if (contents.includes(`import * as`) && importsModule(contents, moduleName)) {
+    return true;
+  }
+
+  if (contents.includes(`import fs from "${moduleName}"`) || contents.includes(`import fs from '${moduleName}'`)) {
+    return true;
+  }
+
+  const escapedModuleName = moduleName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const importPattern = new RegExp(`import\\s+\\{([^}]+)\\}\\s+from\\s+["']${escapedModuleName}["']`, "g");
+  const matches = contents.matchAll(importPattern);
+
+  for (const match of matches) {
+    const importedMembers = match[1]
+      .split(",")
+      .map((member) => member.trim().split(/\s+as\s+/)[0]?.trim())
+      .filter(Boolean);
+
+    if (importedMembers.some((member) => forbiddenFileMutationMembers.includes(member))) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 test("web, API, and UI surfaces do not import CLI implementation files", async () => {
@@ -74,7 +118,7 @@ test("TUI files do not import direct process or filesystem mutation APIs", async
     const relativePath = relative(repoRoot, file).split(sep).join("/");
     const contents = await readFile(file, "utf8");
 
-    if (importsForbiddenTuiApi(contents)) {
+    if (importsProcessApi(contents) || importsFilesystemMutationApi(contents)) {
       violations.push(relativePath);
     }
   }
