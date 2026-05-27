@@ -5,6 +5,13 @@
   "type": "module",
   "description": "MergeWright Fastify API application boundary.",
   "main": "../../dist/apps/api/src/server.js",
+  "types": "../../dist/apps/api/src/server.d.ts",
+  "exports": {
+    ".": {
+      "types": "../../dist/apps/api/src/server.d.ts",
+      "default": "../../dist/apps/api/src/server.js"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json"
   }
