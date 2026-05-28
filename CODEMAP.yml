@@ -1,0 +1,284 @@
+version: 1
+last_updated: 2026-05-28
+project:
+  name: mergewright
+  type: npm-workspaces-typescript-monorepo
+  purpose: CLI delivery harness for staged, auditable AI-assisted software delivery.
+
+commands:
+  setup:
+    - npm install
+  build:
+    - npm run build
+    - npm run build:apps
+    - npm run build:packages
+  test:
+    - npm test
+  cli:
+    - npm run mergewright -- --help
+    - npm run agent -- --help
+  docs:
+    - npm run docs:dev
+    - npm run docs:build
+    - npm run docs:preview
+    - npm run docs:check
+
+source_of_truth:
+  - README.md
+  - AGENTS.md
+  - CODEMAP.yml
+  - package.json
+  - tsconfig.json
+  - docs/architecture/overview.md
+  - docs/cli/commands.md
+  - CONTRIBUTING.md
+  - SECURITY.md
+  - src/config/types.ts
+  - config.example.json
+
+areas:
+  - id: apps.cli
+    path: apps/cli
+    purpose: CLI app workspace boundary and binary entry wrapper.
+    public_entrypoints:
+      - apps/cli/src/main.ts
+      - apps/cli/src/runtime.ts
+    important_files:
+      - apps/cli/package.json
+      - apps/cli/tsconfig.json
+    tests:
+      - test/cli-app-boundary.test.ts
+      - test/cli-package-boundary.test.ts
+
+  - id: apps.api
+    path: apps/api
+    purpose: API app workspace boundary manifest (implementation currently lives under src/api).
+    public_entrypoints:
+      - src/api/create-api-server.ts
+      - src/api/run-api-schemas.ts
+    important_files:
+      - apps/api/package.json
+      - apps/api/tsconfig.json
+    tests:
+      - test/api-server.test.ts
+      - test/app-manifest-boundary.test.ts
+
+  - id: apps.web
+    path: apps/web
+    purpose: Web app workspace boundary manifest (client model code under src/web).
+    public_entrypoints:
+      - src/web/api-client.ts
+      - src/web/run-view-model.ts
+    important_files:
+      - apps/web/package.json
+      - apps/web/tsconfig.json
+    tests:
+      - test/web-api-client.test.ts
+
+  - id: packages.application
+    path: packages/application
+    purpose: Application services, command/event/query contracts, use cases.
+    public_entrypoints:
+      - packages/application/src/index.ts
+    important_files:
+      - packages/application/package.json
+      - packages/application/src/index.ts
+    tests:
+      - test/application-package-boundary.test.ts
+
+  - id: packages.domain
+    path: packages/domain
+    purpose: Domain policy exports and risk/error code contracts.
+    public_entrypoints:
+      - packages/domain/src/index.ts
+    important_files:
+      - packages/domain/package.json
+      - packages/domain/src/index.ts
+    tests:
+      - test/domain-package-boundary.test.ts
+
+  - id: packages.adapters
+    path: packages/adapters
+    purpose: Process-bound adapters used by app boundaries.
+    public_entrypoints:
+      - packages/adapters/src/index.ts
+      - packages/adapters/src/open-run-directory.ts
+    important_files:
+      - packages/adapters/package.json
+    tests:
+      - test/adapters-package-boundary.test.ts
+      - test/open-run-directory-adapter.test.ts
+
+  - id: packages.config
+    path: packages/config
+    purpose: Config loading/validation boundary exports.
+    public_entrypoints:
+      - packages/config/src/index.ts
+    important_files:
+      - packages/config/package.json
+      - src/config/load-config.ts
+      - src/config/validate-config.ts
+      - src/config/types.ts
+    tests:
+      - test/config-package-boundary.test.ts
+      - test/config.test.ts
+      - test/config-files.test.ts
+
+  - id: packages.shared
+    path: packages/shared
+    purpose: Shared primitives (result, ids, error helpers).
+    public_entrypoints:
+      - packages/shared/src/index.ts
+    important_files:
+      - packages/shared/src/result.ts
+      - packages/shared/src/ids.ts
+      - packages/shared/src/errors.ts
+    tests:
+      - test/shared-package-boundary.test.ts
+
+  - id: src.cli
+    path: src/cli
+    purpose: CLI command parsing, dispatch, output summaries.
+    public_entrypoints:
+      - src/cli.ts
+      - src/cli-core.ts
+      - src/cli/run-command.ts
+    important_files:
+      - src/cli/command-registry.ts
+      - src/cli/known-commands.ts
+      - src/cli/commands
+    tests:
+      - test/cli.test.ts
+      - test/cli-dispatch.test.ts
+      - test/cli-core-boundary.test.ts
+
+  - id: src.workflows
+    path: src/workflows
+    purpose: Classic run and stage-plan orchestration, continuation, auto-chain.
+    public_entrypoints:
+      - src/runner.ts
+      - src/stage-runner.ts
+      - src/stage-plan.ts
+      - src/continue-run.ts
+    important_files:
+      - src/workflows/classic-run
+      - src/workflows/stage-plan
+      - src/workflows/continuation
+      - src/workflows/auto-chain
+    tests:
+      - test/runner.test.ts
+      - test/stage-plan.test.ts
+      - test/stage-runner.test.ts
+      - test/continue-run.test.ts
+      - test/auto-chain.test.ts
+
+  - id: src.application
+    path: src/application
+    purpose: Use cases, command service, events, queries, read-models.
+    public_entrypoints:
+      - src/application/commands/app-command.ts
+      - src/application/commands/default-app-command-service.ts
+      - src/application/events/app-event-bus.ts
+    important_files:
+      - src/application/use-cases
+      - src/application/queries
+      - src/application/read-models
+    tests:
+      - test/app-command-service.test.ts
+      - test/evented-app-command-service.test.ts
+      - test/*use-case*.test.ts
+
+  - id: src.safety-and-evidence
+    path: src/safety
+    purpose: Write safety, git safety checks, write audit, evidence policy support.
+    public_entrypoints:
+      - src/write-safety.ts
+      - src/write-audit.ts
+      - src/safety/write-safety.ts
+      - src/safety/write-audit.ts
+    important_files:
+      - src/evidence
+      - src/git.ts
+      - src/git-inspection.ts
+    tests:
+      - test/write-safety.test.ts
+      - test/write-audit.test.ts
+      - test/check-evidence.test.ts
+
+  - id: src.reporting
+    path: src/reporting
+    purpose: Change report generation, scoring, formatting, PR summary output.
+    public_entrypoints:
+      - src/change-report.ts
+      - src/reporting/change-report-generator.ts
+      - src/reporting/pr-summary.ts
+    important_files:
+      - src/reporting/change-report-policy.ts
+      - src/reporting/scope-drift.ts
+    tests:
+      - test/change-report.test.ts
+      - test/change-report-evidence.test.ts
+
+  - id: src.tui
+    path: src/tui
+    purpose: Ink/React terminal UI read-model and interaction surface.
+    public_entrypoints:
+      - src/tui/index.tsx
+      - src/tui/App.tsx
+      - src/tui/SelectableApp.tsx
+    important_files:
+      - src/tui/components
+      - src/tui/panes
+      - src/tui/overlays
+      - src/tui/hooks
+    tests:
+      - test/tui-architecture-boundary.test.ts
+      - test/tui-boundary.test.ts
+      - test/tui-*.test.ts
+
+  - id: docs
+    path: docs
+    purpose: Product, architecture, workflow, safety, and command documentation.
+    public_entrypoints:
+      - docs/README.md
+      - docs/architecture/overview.md
+      - docs/cli/commands.md
+    important_files:
+      - docs/workflows/classic-run.md
+      - docs/workflows/stage-plan.md
+      - docs/safety/write-safety.md
+
+  - id: docs-site
+    path: docs-site
+    purpose: Astro docs site project.
+    public_entrypoints:
+      - docs-site/package.json
+    important_files:
+      - docs-site/package-lock.json
+
+  - id: configs
+    path: configs
+    purpose: Example/project config templates for orchestrator runs.
+    public_entrypoints:
+      - config.example.json
+      - configs/acme.example.json
+      - configs/acme.execution-backends.example.json
+      - configs/rn-fastify-next.json
+    tests:
+      - test/config-files.test.ts
+
+  - id: tests
+    path: test
+    purpose: Unit, integration, and boundary tests for architecture and behavior.
+    public_entrypoints:
+      - test/**/*.test.ts
+    important_files:
+      - test/architecture-boundaries.test.ts
+      - test/package-manifest-boundary.test.ts
+      - test/v2-acceptance.test.ts
+
+boundary_rules:
+  - "TUI must not import child_process/process execution or write-capable fs APIs."
+  - "UI/API/Web surfaces must not import CLI implementation internals."
+  - "Workspace package boundaries are explicit exports from packages/*/src/index.ts and matching package.json entrypoints."
+  - "When boundary files/manifests change, update matching boundary tests."
