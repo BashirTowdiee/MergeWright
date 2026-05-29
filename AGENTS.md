@@ -36,7 +36,7 @@
 - `test/`: boundary and behavior tests.
 - `docs/`: architecture, workflows, safety, and command docs.
 - `configs/`: checked-in example/project configs (`*.example.json` mostly).
-- `stages/`, `runs/`, `prompts/`, `plans/`: delivery workflow inputs/artefacts and planning records.
+- `stages/`, `runs/`, `prompts/`: delivery workflow inputs/artefacts.
 
 ## Architecture Rules
 - Keep CLI parsing/dispatch in CLI modules; do not move delivery policy into presentation glue.
