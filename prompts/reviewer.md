@@ -101,5 +101,9 @@ Machine-readable verdict block required:
 - Include exactly one fenced JSON block marked `json reviewer-verdict`.
 - For PASS, set verdict to PASS and leave blockingIssues empty.
 - For FAIL, set verdict to FAIL and include blockingIssues.
+- Include `evidenceChecked` array with objects: `{ "artefact": string, "status": "verified" | "missing" | "inconclusive", "note"?: string }`.
 - Include `acceptanceCriteria` array with objects: `{ "criterion": string, "status": "pass" | "fail" | "unknown", "evidence"?: string }`.
+- Include `testsObserved` array with objects: `{ "test": string, "outcome": "pass" | "fail" | "not_run" | "unknown", "evidence"?: string }`.
+- Include `riskLevel` as `low`, `medium`, or `high`.
+- Include `recommendedFixPrompt` when a minimal corrective prompt is clear.
 - Every listed structured acceptance criterion must appear once in `acceptanceCriteria`.

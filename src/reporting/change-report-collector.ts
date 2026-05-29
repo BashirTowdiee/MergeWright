@@ -1,7 +1,14 @@
 import { readFile, stat } from "node:fs/promises";
 import type { EvidenceStageContract } from "../evidence/evidence-manifest.js";
 import { readEvidenceManifestIfExists } from "../evidence/evidence-store.js";
-import { parseReviewerOutput, type ReviewerAcceptanceCriterionResult, type ReviewerIssue } from "../reviewer-output.js";
+import {
+  parseReviewerOutput,
+  type ReviewerAcceptanceCriterionResult,
+  type ReviewerEvidenceCheck,
+  type ReviewerIssue,
+  type ReviewerRiskLevel,
+  type ReviewerTestObservation
+} from "../reviewer-output.js";
 import type { ChecksStatus, ChangeReport, OptionalJsonResult, RunMetadataWithAutoChain, WriteAuditSummary } from "./change-report-types.js";
 import {
   readAvailableEvidenceReportReviewer,
@@ -57,7 +64,11 @@ export async function collectReportInputs(runDir: string): Promise<{
     const evidenceReviewer = readAvailableEvidenceReportReviewer(evidenceManifest);
     return {
       ...evidenceReviewer,
-      acceptanceCriteria: evidenceReviewer.acceptanceCriteria ?? parsedReviewer.acceptanceCriteria
+      evidenceChecked: evidenceReviewer.evidenceChecked ?? parsedReviewer.evidenceChecked,
+      acceptanceCriteria: evidenceReviewer.acceptanceCriteria ?? parsedReviewer.acceptanceCriteria,
+      testsObserved: evidenceReviewer.testsObserved ?? parsedReviewer.testsObserved,
+      riskLevel: evidenceReviewer.riskLevel ?? parsedReviewer.riskLevel,
+      recommendedFixPrompt: evidenceReviewer.recommendedFixPrompt ?? parsedReviewer.recommendedFixPrompt
     };
   })();
   const checksResult = evidenceManifest?.checks
@@ -92,7 +103,11 @@ async function parseReviewer(reviewerPath: string): Promise<{
   verdict: "PASS" | "FAIL" | "unavailable";
   blockingIssues: ReviewerIssue[];
   nonBlockingIssues: ReviewerIssue[];
+  evidenceChecked?: ReviewerEvidenceCheck[];
   acceptanceCriteria?: ReviewerAcceptanceCriterionResult[];
+  testsObserved?: ReviewerTestObservation[];
+  riskLevel?: ReviewerRiskLevel;
+  recommendedFixPrompt?: string;
   available: boolean;
 }> {
   const raw = await readOptionalText(reviewerPath);
@@ -105,7 +120,11 @@ async function parseReviewer(reviewerPath: string): Promise<{
       verdict: parsed.verdict,
       blockingIssues: parsed.blockingIssues,
       nonBlockingIssues: parsed.nonBlockingIssues,
+      evidenceChecked: parsed.evidenceChecked,
       acceptanceCriteria: parsed.acceptanceCriteria,
+      testsObserved: parsed.testsObserved,
+      riskLevel: parsed.riskLevel,
+      recommendedFixPrompt: parsed.recommendedFixPrompt,
       available: true
     };
   } catch {

@@ -38,6 +38,12 @@ export function formatChangeReportMarkdown(report: ChangeReport): string {
   lines.push(...renderIssueLines(report.reviewer.blockingIssues));
   lines.push("- Non-blocking issues:");
   lines.push(...renderIssueLines(report.reviewer.nonBlockingIssues));
+  lines.push(`- Reviewer risk level: ${report.reviewer.riskLevel ?? "None"}`);
+  lines.push("- Evidence checked:");
+  lines.push(...renderEvidenceCheckedLines(report.reviewer.evidenceChecked ?? []));
+  lines.push("- Tests observed:");
+  lines.push(...renderTestsObservedLines(report.reviewer.testsObserved ?? []));
+  lines.push(`- Recommended fix prompt: ${report.reviewer.recommendedFixPrompt ?? "None"}`);
 
   lines.push("", "## Checks", `- State: ${report.checks.state}`, "- Failed checks:");
   lines.push(...renderListLines(report.checks.failedChecks));
@@ -110,6 +116,20 @@ function renderAutoChainLines(autoChain: ChangeReport["autoChain"]): string[] {
 
 function readPhaseStatus(report: ChangeReport, phaseName: string): string {
   return report.phases[phaseName] ?? "unknown";
+}
+
+function renderEvidenceCheckedLines(items: NonNullable<ChangeReport["reviewer"]["evidenceChecked"]>): string[] {
+  if (items.length === 0) {
+    return ["- None"];
+  }
+  return items.map((item) => `- [${item.status}] ${item.artefact}${item.note ? ` - ${item.note}` : ""}`);
+}
+
+function renderTestsObservedLines(items: NonNullable<ChangeReport["reviewer"]["testsObserved"]>): string[] {
+  if (items.length === 0) {
+    return ["- None"];
+  }
+  return items.map((item) => `- [${item.outcome}] ${item.test}${item.evidence ? ` - ${item.evidence}` : ""}`);
 }
 
 function renderAcceptanceCriteriaLines(items: ChangeReport["acceptanceCriteria"]["results"]): string[] {

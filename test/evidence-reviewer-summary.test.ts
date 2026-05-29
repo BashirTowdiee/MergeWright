@@ -54,3 +54,23 @@ test("createEvidenceAcceptanceSummary maps reviewer acceptance criteria", () => 
     ]
   });
 });
+
+test("createEvidenceReviewerSummary preserves reviewer verdict v2 fields", () => {
+  const summary = createEvidenceReviewerSummary({
+    artefactPath: "reviewer-output-last-message.md",
+    markdown: reviewerMarkdown({
+      verdict: "FAIL",
+      blockingIssues: [{ severity: "high", summary: "blocking", files: ["src/a.ts"] }],
+      nonBlockingIssues: [],
+      evidenceChecked: [{ artefact: "run.json", status: "verified", note: "present" }],
+      testsObserved: [{ test: "npm test", outcome: "fail", evidence: "failing suite" }],
+      riskLevel: "high",
+      recommendedFixPrompt: "Fix tests and rerun checks."
+    })
+  });
+
+  assert.deepEqual(summary.evidenceChecked, [{ artefact: "run.json", status: "verified", note: "present" }]);
+  assert.deepEqual(summary.testsObserved, [{ test: "npm test", outcome: "fail", evidence: "failing suite" }]);
+  assert.equal(summary.riskLevel, "high");
+  assert.equal(summary.recommendedFixPrompt, "Fix tests and rerun checks.");
+});

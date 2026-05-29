@@ -55,11 +55,23 @@ export interface ChangeReport {
     verdict: "PASS" | "FAIL" | "unavailable";
     blockingIssues: Array<{ severity: string; summary: string; files: string[] }>;
     nonBlockingIssues: Array<{ severity: string; summary: string; files: string[] }>;
+    evidenceChecked?: Array<{
+      artefact: string;
+      status: "verified" | "missing" | "inconclusive";
+      note?: string;
+    }>;
     acceptanceCriteria?: Array<{
       criterion: string;
       status: "pass" | "fail" | "unknown";
       evidence?: string;
     }>;
+    testsObserved?: Array<{
+      test: string;
+      outcome: "pass" | "fail" | "not_run" | "unknown";
+      evidence?: string;
+    }>;
+    riskLevel?: "low" | "medium" | "high";
+    recommendedFixPrompt?: string;
   };
   acceptanceCriteria: {
     expected: number;

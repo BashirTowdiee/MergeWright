@@ -101,7 +101,27 @@ export async function backfillEvidenceFromRunArtefacts(
         verdict: reviewer.verdict,
         artefactPath: "reviewer-output-last-message.md",
         blockingIssues: reviewer.blockingIssues.map(mapReviewerIssue),
-        nonBlockingIssues: reviewer.nonBlockingIssues.map(mapReviewerIssue)
+        nonBlockingIssues: reviewer.nonBlockingIssues.map(mapReviewerIssue),
+        ...(reviewer.evidenceChecked
+          ? {
+              evidenceChecked: reviewer.evidenceChecked.map((item) => ({
+                artefact: item.artefact,
+                status: item.status,
+                ...(item.note ? { note: item.note } : {})
+              }))
+            }
+          : {}),
+        ...(reviewer.testsObserved
+          ? {
+              testsObserved: reviewer.testsObserved.map((item) => ({
+                test: item.test,
+                outcome: item.outcome,
+                ...(item.evidence ? { evidence: item.evidence } : {})
+              }))
+            }
+          : {}),
+        ...(reviewer.riskLevel ? { riskLevel: reviewer.riskLevel } : {}),
+        ...(reviewer.recommendedFixPrompt ? { recommendedFixPrompt: reviewer.recommendedFixPrompt } : {})
       };
       if (reviewer.acceptanceCriteria && reviewer.acceptanceCriteria.length > 0) {
         next.acceptance = {

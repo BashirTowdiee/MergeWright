@@ -45,12 +45,28 @@ export interface EvidenceReviewSummary {
   artefactPath?: string;
   blockingIssues?: EvidenceIssueSummary[];
   nonBlockingIssues?: EvidenceIssueSummary[];
+  evidenceChecked?: EvidenceCheckSummary[];
+  testsObserved?: EvidenceTestObservation[];
+  riskLevel?: "low" | "medium" | "high";
+  recommendedFixPrompt?: string;
 }
 
 export interface EvidenceIssueSummary {
   summary: string;
   severity?: "low" | "medium" | "high" | "critical";
   files?: string[];
+}
+
+export interface EvidenceCheckSummary {
+  artefact: string;
+  status: "verified" | "missing" | "inconclusive";
+  note?: string;
+}
+
+export interface EvidenceTestObservation {
+  test: string;
+  outcome: "pass" | "fail" | "not_run" | "unknown";
+  evidence?: string;
 }
 
 export interface EvidenceAcceptanceSummary {

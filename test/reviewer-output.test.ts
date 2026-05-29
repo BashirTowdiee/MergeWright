@@ -70,6 +70,37 @@ test("valid PASS with acceptance criteria mapping", () => {
   ]);
 });
 
+test("valid FAIL with reviewer verdict v2 fields", () => {
+  const parsed = parseReviewerOutput(
+    wrapVerdict(`{
+  "verdict": "FAIL",
+  "blockingIssues": [
+    { "severity": "high", "summary": "critical", "files": ["src/a.ts"] }
+  ],
+  "nonBlockingIssues": [],
+  "evidenceChecked": [
+    { "artefact": "write-audit/builder/summary.json", "status": "verified", "note": "contains changed files" },
+    { "artefact": "reviewer-output-last-message.md", "status": "inconclusive" }
+  ],
+  "acceptanceCriteria": [
+    { "criterion": "criterion-a", "status": "fail", "evidence": "missing route test" }
+  ],
+  "testsObserved": [
+    { "test": "npm test", "outcome": "fail", "evidence": "1 failing test" },
+    { "test": "npm run build", "outcome": "pass" }
+  ],
+  "riskLevel": "high",
+  "recommendedFixPrompt": "Add tests for route auth and rerun npm test."
+}`)
+  );
+
+  assert.equal(parsed.verdict, "FAIL");
+  assert.equal(parsed.evidenceChecked?.length, 2);
+  assert.equal(parsed.testsObserved?.length, 2);
+  assert.equal(parsed.riskLevel, "high");
+  assert.equal(parsed.recommendedFixPrompt, "Add tests for route auth and rerun npm test.");
+});
+
 test("missing reviewer verdict block", () => {
   assert.throws(() => parseReviewerOutput("no block"), {
     message: 'Reviewer output parse error: missing required fenced block "```json reviewer-verdict".'
@@ -281,6 +312,74 @@ test("PASS verdict rejects fail or unknown acceptance criteria statuses", () => 
       ),
     {
       message: 'Reviewer output parse error: "PASS" verdict requires all acceptanceCriteria statuses to be "pass".'
+    }
+  );
+});
+
+test("evidenceChecked must be an array when provided", () => {
+  assert.throws(
+    () =>
+      parseReviewerOutput(
+        wrapVerdict(`{
+  "verdict": "FAIL",
+  "blockingIssues": [{"severity":"high","summary":"x","files":["a.ts"]}],
+  "nonBlockingIssues": [],
+  "evidenceChecked": "bad"
+}`)
+      ),
+    {
+      message: 'Reviewer output parse error: "evidenceChecked" must be an array when provided.'
+    }
+  );
+});
+
+test("testsObserved entry rejects unsupported outcome", () => {
+  assert.throws(
+    () =>
+      parseReviewerOutput(
+        wrapVerdict(`{
+  "verdict": "FAIL",
+  "blockingIssues": [{"severity":"high","summary":"x","files":["a.ts"]}],
+  "nonBlockingIssues": [],
+  "testsObserved": [{"test":"npm test","outcome":"flaky"}]
+}`)
+      ),
+    {
+      message: 'Reviewer output parse error: testsObserved[0].outcome must be "pass", "fail", "not_run", or "unknown".'
+    }
+  );
+});
+
+test("riskLevel rejects unsupported value", () => {
+  assert.throws(
+    () =>
+      parseReviewerOutput(
+        wrapVerdict(`{
+  "verdict": "FAIL",
+  "blockingIssues": [{"severity":"high","summary":"x","files":["a.ts"]}],
+  "nonBlockingIssues": [],
+  "riskLevel": "critical"
+}`)
+      ),
+    {
+      message: 'Reviewer output parse error: "riskLevel" must be "low", "medium", or "high" when provided.'
+    }
+  );
+});
+
+test("recommendedFixPrompt must be non-empty when provided", () => {
+  assert.throws(
+    () =>
+      parseReviewerOutput(
+        wrapVerdict(`{
+  "verdict": "FAIL",
+  "blockingIssues": [{"severity":"high","summary":"x","files":["a.ts"]}],
+  "nonBlockingIssues": [],
+  "recommendedFixPrompt": "   "
+}`)
+      ),
+    {
+      message: 'Reviewer output parse error: "recommendedFixPrompt" must be a non-empty string when provided.'
     }
   );
 });

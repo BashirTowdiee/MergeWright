@@ -1,5 +1,11 @@
 import { parseReviewerOutput } from "../reviewer-output.js";
-import type { EvidenceAcceptanceSummary, EvidenceIssueSummary, EvidenceReviewSummary } from "./evidence-manifest.js";
+import type {
+  EvidenceAcceptanceSummary,
+  EvidenceCheckSummary,
+  EvidenceIssueSummary,
+  EvidenceReviewSummary,
+  EvidenceTestObservation
+} from "./evidence-manifest.js";
 
 export function createEvidenceReviewerSummary(input: { markdown: string; artefactPath?: string }): EvidenceReviewSummary {
   try {
@@ -8,7 +14,11 @@ export function createEvidenceReviewerSummary(input: { markdown: string; artefac
       verdict: decision.verdict,
       artefactPath: input.artefactPath,
       blockingIssues: decision.blockingIssues.map(toEvidenceIssueSummary),
-      nonBlockingIssues: decision.nonBlockingIssues.map(toEvidenceIssueSummary)
+      nonBlockingIssues: decision.nonBlockingIssues.map(toEvidenceIssueSummary),
+      ...(decision.evidenceChecked ? { evidenceChecked: decision.evidenceChecked.map(toEvidenceCheckSummary) } : {}),
+      ...(decision.testsObserved ? { testsObserved: decision.testsObserved.map(toEvidenceTestObservation) } : {}),
+      ...(decision.riskLevel ? { riskLevel: decision.riskLevel } : {}),
+      ...(decision.recommendedFixPrompt ? { recommendedFixPrompt: decision.recommendedFixPrompt } : {})
     };
   } catch {
     return {
@@ -18,6 +28,26 @@ export function createEvidenceReviewerSummary(input: { markdown: string; artefac
       nonBlockingIssues: []
     };
   }
+}
+
+function toEvidenceCheckSummary(check: { artefact: string; status: "verified" | "missing" | "inconclusive"; note?: string }): EvidenceCheckSummary {
+  return {
+    artefact: check.artefact,
+    status: check.status,
+    ...(check.note ? { note: check.note } : {})
+  };
+}
+
+function toEvidenceTestObservation(input: {
+  test: string;
+  outcome: "pass" | "fail" | "not_run" | "unknown";
+  evidence?: string;
+}): EvidenceTestObservation {
+  return {
+    test: input.test,
+    outcome: input.outcome,
+    ...(input.evidence ? { evidence: input.evidence } : {})
+  };
 }
 
 export function createEvidenceAcceptanceSummary(input: { markdown: string }): EvidenceAcceptanceSummary | undefined {

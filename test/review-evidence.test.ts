@@ -20,7 +20,10 @@ test("updateEvidenceReviewSummary persists reviewer summary from reviewer output
       verdict: "PASS",
       blockingIssues: [],
       nonBlockingIssues: [],
-      acceptanceCriteria: [{ criterion: "criterion-a", status: "pass", evidence: "test output" }]
+      acceptanceCriteria: [{ criterion: "criterion-a", status: "pass", evidence: "test output" }],
+      evidenceChecked: [{ artefact: "checks-status.json", status: "verified" }],
+      testsObserved: [{ test: "npm test", outcome: "pass" }],
+      riskLevel: "low"
     }),
     "utf8"
   );
@@ -30,6 +33,9 @@ test("updateEvidenceReviewSummary persists reviewer summary from reviewer output
 
   assert.equal(updated.reviewer?.verdict, "PASS");
   assert.equal(updated.reviewer?.artefactPath, "reviewer-output-last-message.md");
+  assert.deepEqual(updated.reviewer?.evidenceChecked, [{ artefact: "checks-status.json", status: "verified" }]);
+  assert.deepEqual(updated.reviewer?.testsObserved, [{ test: "npm test", outcome: "pass" }]);
+  assert.equal(updated.reviewer?.riskLevel, "low");
   assert.deepEqual(updated.acceptance, {
     status: "pass",
     criteria: [{ criterion: "criterion-a", status: "pass", evidence: "test output" }]

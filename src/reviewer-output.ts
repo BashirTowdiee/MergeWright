@@ -6,6 +6,14 @@ export interface ReviewerIssue {
   files: string[];
 }
 
+export type ReviewerEvidenceCheckStatus = "verified" | "missing" | "inconclusive";
+
+export interface ReviewerEvidenceCheck {
+  artefact: string;
+  status: ReviewerEvidenceCheckStatus;
+  note?: string;
+}
+
 export type ReviewerAcceptanceCriterionStatus = "pass" | "fail" | "unknown";
 
 export interface ReviewerAcceptanceCriterionResult {
@@ -14,11 +22,25 @@ export interface ReviewerAcceptanceCriterionResult {
   evidence?: string;
 }
 
+export type ReviewerTestOutcome = "pass" | "fail" | "not_run" | "unknown";
+
+export interface ReviewerTestObservation {
+  test: string;
+  outcome: ReviewerTestOutcome;
+  evidence?: string;
+}
+
+export type ReviewerRiskLevel = "low" | "medium" | "high";
+
 export interface ReviewerDecision {
   verdict: ReviewerVerdict;
   blockingIssues: ReviewerIssue[];
   nonBlockingIssues: ReviewerIssue[];
+  evidenceChecked?: ReviewerEvidenceCheck[];
   acceptanceCriteria?: ReviewerAcceptanceCriterionResult[];
+  testsObserved?: ReviewerTestObservation[];
+  riskLevel?: ReviewerRiskLevel;
+  recommendedFixPrompt?: string;
 }
 
 const VERDICT_BLOCK_REGEX = /```json reviewer-verdict\s*\n([\s\S]*?)\n```/g;
@@ -66,7 +88,11 @@ function validateReviewerDecision(value: unknown): ReviewerDecision {
   const nonBlockingIssues = value.nonBlockingIssues.map((issue, index) =>
     validateIssue(issue, `nonBlockingIssues[${index}]`)
   );
+  const evidenceChecked = validateEvidenceChecked(value.evidenceChecked);
   const acceptanceCriteria = validateAcceptanceCriteria(value.acceptanceCriteria);
+  const testsObserved = validateTestsObserved(value.testsObserved);
+  const riskLevel = validateRiskLevel(value.riskLevel);
+  const recommendedFixPrompt = validateRecommendedFixPrompt(value.recommendedFixPrompt);
 
   if (verdict === "FAIL" && blockingIssues.length === 0) {
     throw new Error('Reviewer output parse error: "FAIL" verdict requires at least one blocking issue.');
@@ -79,7 +105,11 @@ function validateReviewerDecision(value: unknown): ReviewerDecision {
     verdict,
     blockingIssues,
     nonBlockingIssues,
-    ...(acceptanceCriteria ? { acceptanceCriteria } : {})
+    ...(evidenceChecked ? { evidenceChecked } : {}),
+    ...(acceptanceCriteria ? { acceptanceCriteria } : {}),
+    ...(testsObserved ? { testsObserved } : {}),
+    ...(riskLevel ? { riskLevel } : {}),
+    ...(recommendedFixPrompt ? { recommendedFixPrompt } : {})
   };
 }
 
@@ -119,6 +149,42 @@ function validateAcceptanceCriteria(value: unknown): ReviewerAcceptanceCriterion
   return value.map((entry, index) => validateAcceptanceCriterionResult(entry, `acceptanceCriteria[${index}]`));
 }
 
+function validateEvidenceChecked(value: unknown): ReviewerEvidenceCheck[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    throw new Error('Reviewer output parse error: "evidenceChecked" must be an array when provided.');
+  }
+  return value.map((entry, index) => validateEvidenceCheck(entry, `evidenceChecked[${index}]`));
+}
+
+function validateEvidenceCheck(value: unknown, path: string): ReviewerEvidenceCheck {
+  if (!isRecord(value)) {
+    throw new Error(`Reviewer output parse error: ${path} must be an object.`);
+  }
+
+  const artefact = value.artefact;
+  const status = value.status;
+  const note = value.note;
+
+  if (typeof artefact !== "string" || artefact.trim().length === 0) {
+    throw new Error(`Reviewer output parse error: ${path}.artefact must be a non-empty string.`);
+  }
+  if (status !== "verified" && status !== "missing" && status !== "inconclusive") {
+    throw new Error(`Reviewer output parse error: ${path}.status must be "verified", "missing", or "inconclusive".`);
+  }
+  if (note !== undefined && (typeof note !== "string" || note.trim().length === 0)) {
+    throw new Error(`Reviewer output parse error: ${path}.note must be a non-empty string when provided.`);
+  }
+
+  return {
+    artefact: artefact.trim(),
+    status,
+    ...(typeof note === "string" ? { note: note.trim() } : {})
+  };
+}
+
 function validateAcceptanceCriterionResult(value: unknown, path: string): ReviewerAcceptanceCriterionResult {
   if (!isRecord(value)) {
     throw new Error(`Reviewer output parse error: ${path} must be an object.`);
@@ -143,6 +209,62 @@ function validateAcceptanceCriterionResult(value: unknown, path: string): Review
     status,
     ...(typeof evidence === "string" ? { evidence: evidence.trim() } : {})
   };
+}
+
+function validateTestsObserved(value: unknown): ReviewerTestObservation[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    throw new Error('Reviewer output parse error: "testsObserved" must be an array when provided.');
+  }
+  return value.map((entry, index) => validateTestObservation(entry, `testsObserved[${index}]`));
+}
+
+function validateTestObservation(value: unknown, path: string): ReviewerTestObservation {
+  if (!isRecord(value)) {
+    throw new Error(`Reviewer output parse error: ${path} must be an object.`);
+  }
+
+  const testName = value.test;
+  const outcome = value.outcome;
+  const evidence = value.evidence;
+
+  if (typeof testName !== "string" || testName.trim().length === 0) {
+    throw new Error(`Reviewer output parse error: ${path}.test must be a non-empty string.`);
+  }
+  if (outcome !== "pass" && outcome !== "fail" && outcome !== "not_run" && outcome !== "unknown") {
+    throw new Error(`Reviewer output parse error: ${path}.outcome must be "pass", "fail", "not_run", or "unknown".`);
+  }
+  if (evidence !== undefined && (typeof evidence !== "string" || evidence.trim().length === 0)) {
+    throw new Error(`Reviewer output parse error: ${path}.evidence must be a non-empty string when provided.`);
+  }
+
+  return {
+    test: testName.trim(),
+    outcome,
+    ...(typeof evidence === "string" ? { evidence: evidence.trim() } : {})
+  };
+}
+
+function validateRiskLevel(value: unknown): ReviewerRiskLevel | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value !== "low" && value !== "medium" && value !== "high") {
+    throw new Error('Reviewer output parse error: "riskLevel" must be "low", "medium", or "high" when provided.');
+  }
+  return value;
+}
+
+function validateRecommendedFixPrompt(value: unknown): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error('Reviewer output parse error: "recommendedFixPrompt" must be a non-empty string when provided.');
+  }
+  return value.trim();
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

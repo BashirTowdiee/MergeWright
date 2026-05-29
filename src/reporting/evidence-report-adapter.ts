@@ -36,6 +36,15 @@ export function readEvidenceReportReviewer(manifest: EvidenceManifest): ChangeRe
     verdict: verdict === "PASS" || verdict === "FAIL" ? verdict : "unavailable",
     blockingIssues: mapIssues(manifest.reviewer?.blockingIssues),
     nonBlockingIssues: mapIssues(manifest.reviewer?.nonBlockingIssues),
+    ...(manifest.reviewer?.evidenceChecked?.length
+      ? {
+          evidenceChecked: manifest.reviewer.evidenceChecked.map((item) => ({
+            artefact: item.artefact,
+            status: item.status,
+            ...(item.note ? { note: item.note } : {})
+          }))
+        }
+      : {}),
     ...(manifest.acceptance?.criteria?.length
       ? {
           acceptanceCriteria: manifest.acceptance.criteria.map((item) => ({
@@ -44,7 +53,18 @@ export function readEvidenceReportReviewer(manifest: EvidenceManifest): ChangeRe
             ...(item.evidence ? { evidence: item.evidence } : {})
           }))
         }
-      : {})
+      : {}),
+    ...(manifest.reviewer?.testsObserved?.length
+      ? {
+          testsObserved: manifest.reviewer.testsObserved.map((item) => ({
+            test: item.test,
+            outcome: item.outcome,
+            ...(item.evidence ? { evidence: item.evidence } : {})
+          }))
+        }
+      : {}),
+    ...(manifest.reviewer?.riskLevel ? { riskLevel: manifest.reviewer.riskLevel } : {}),
+    ...(manifest.reviewer?.recommendedFixPrompt ? { recommendedFixPrompt: manifest.reviewer.recommendedFixPrompt } : {})
   };
 }
 

@@ -128,9 +128,29 @@ export async function generateChangeReport(input: { runDir: string; policy?: Cha
       verdict: collected.reviewer.verdict,
       blockingIssues: collected.reviewer.blockingIssues,
       nonBlockingIssues: collected.reviewer.nonBlockingIssues,
+      ...(collected.reviewer.evidenceChecked?.length
+        ? {
+            evidenceChecked: collected.reviewer.evidenceChecked
+          }
+        : {}),
       ...(collected.reviewer.acceptanceCriteria?.length
         ? {
             acceptanceCriteria: collected.reviewer.acceptanceCriteria
+          }
+        : {}),
+      ...(collected.reviewer.testsObserved?.length
+        ? {
+            testsObserved: collected.reviewer.testsObserved
+          }
+        : {}),
+      ...(collected.reviewer.riskLevel
+        ? {
+            riskLevel: collected.reviewer.riskLevel
+          }
+        : {}),
+      ...(collected.reviewer.recommendedFixPrompt
+        ? {
+            recommendedFixPrompt: collected.reviewer.recommendedFixPrompt
           }
         : {})
     },

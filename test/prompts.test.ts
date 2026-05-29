@@ -186,6 +186,10 @@ test("reviewer template is evidence-focused and preserves verdict contract", () 
   assert.match(template, /Safe to proceed: yes\/no/);
   assert.match(template, /Machine-readable verdict block required/);
   assert.match(template, /json reviewer-verdict/);
+  assert.match(template, /Include `evidenceChecked` array/);
+  assert.match(template, /Include `testsObserved` array/);
+  assert.match(template, /Include `riskLevel` as `low`, `medium`, or `high`\./);
+  assert.match(template, /Include `recommendedFixPrompt`/);
 
   assert.ok(template.indexOf("## Write-safety and change evidence") < template.indexOf("## Builder result summary"));
   assert.ok(template.indexOf("## Test results") < template.indexOf("## Builder result summary"));

@@ -305,6 +305,37 @@ test("malformed reviewer output becomes unavailable without crashing", async () 
   assert.equal(report.riskSignals.includes("Reviewer output unavailable or unparsable."), true);
 });
 
+test("reviewer verdict v2 fields are preserved in report output", async () => {
+  const runDir = await createRunFixture({
+    reviewerRaw: `\`\`\`json reviewer-verdict
+${JSON.stringify(
+  {
+    verdict: "FAIL",
+    blockingIssues: [{ severity: "high", summary: "missing evidence", files: ["src/routes/api.ts"] }],
+    nonBlockingIssues: [],
+    evidenceChecked: [{ artefact: "write-audit/builder/summary.json", status: "verified" }],
+    acceptanceCriteria: [{ criterion: "criterion-a", status: "fail", evidence: "not implemented" }],
+    testsObserved: [{ test: "npm test", outcome: "fail", evidence: "failing suite" }],
+    riskLevel: "high",
+    recommendedFixPrompt: "Implement criterion-a and rerun npm test."
+  },
+  null,
+  2
+)}
+\`\`\``
+  });
+
+  const report = await generateChangeReport({ runDir });
+  assert.equal(report.reviewer.riskLevel, "high");
+  assert.deepEqual(report.reviewer.evidenceChecked, [
+    { artefact: "write-audit/builder/summary.json", status: "verified" }
+  ]);
+  assert.deepEqual(report.reviewer.testsObserved, [
+    { test: "npm test", outcome: "fail", evidence: "failing suite" }
+  ]);
+  assert.equal(report.reviewer.recommendedFixPrompt, "Implement criterion-a and rerun npm test.");
+});
+
 test("malformed checks-status.json becomes unknown with malformed signal", async () => {
   const runDir = await createRunFixture({ checksRaw: "{not-json" });
   const report = await generateChangeReport({ runDir });
