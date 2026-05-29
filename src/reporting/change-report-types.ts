@@ -55,6 +55,23 @@ export interface ChangeReport {
     verdict: "PASS" | "FAIL" | "unavailable";
     blockingIssues: Array<{ severity: string; summary: string; files: string[] }>;
     nonBlockingIssues: Array<{ severity: string; summary: string; files: string[] }>;
+    acceptanceCriteria?: Array<{
+      criterion: string;
+      status: "pass" | "fail" | "unknown";
+      evidence?: string;
+    }>;
+  };
+  acceptanceCriteria: {
+    expected: number;
+    passed: number;
+    failed: number;
+    unknown: number;
+    results: Array<{
+      criterion: string;
+      status: "pass" | "fail" | "unknown";
+      evidence?: string;
+      source: "reviewer" | "missing";
+    }>;
   };
   checks: {
     state: "passed" | "failed" | "skipped" | "unknown";

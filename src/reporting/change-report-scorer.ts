@@ -13,11 +13,23 @@ export function classifyStatus(input: {
   autoChainFinalStatus: string;
   risk: ChangeRiskLevel;
   scopeDriftWarnings: string[];
+  hasContractScopeBlockers: boolean;
+  hasUnknownAcceptanceCriteria: boolean;
+  hasFailedAcceptanceCriteria: boolean;
   score: number;
   policy: ChangeReportPolicy;
 }): CommitReadinessStatus {
   if (input.runStatus === "failed") {
     return "BLOCKED";
+  }
+  if (input.hasContractScopeBlockers) {
+    return "BLOCKED";
+  }
+  if (input.hasUnknownAcceptanceCriteria) {
+    return "BLOCKED";
+  }
+  if (input.hasFailedAcceptanceCriteria) {
+    return "NEEDS_FIX";
   }
   if (input.postWriteReviewRequired && (input.postWriteReviewStatus === "pending" || input.postWriteReviewStatus === "failed")) {
     return "BLOCKED";
@@ -113,6 +125,8 @@ export function buildRiskSignals(input: {
   changedFiles: string[];
   runJsonMalformed: boolean;
   writeAuditMalformed: boolean;
+  acceptanceCriteriaFailedCount: number;
+  acceptanceCriteriaUnknownCount: number;
 }): string[] {
   const signals: string[] = [];
   if (!input.reviewerAvailable) {
@@ -147,6 +161,12 @@ export function buildRiskSignals(input: {
   }
   if (input.changedFiles.some((file) => isHighRiskFile(file))) {
     signals.push("High-risk files were changed.");
+  }
+  if (input.acceptanceCriteriaFailedCount > 0) {
+    signals.push(`Acceptance criteria failed: ${input.acceptanceCriteriaFailedCount}.`);
+  }
+  if (input.acceptanceCriteriaUnknownCount > 0) {
+    signals.push(`Acceptance criteria unresolved (unknown): ${input.acceptanceCriteriaUnknownCount}.`);
   }
   return dedupeSort(signals);
 }

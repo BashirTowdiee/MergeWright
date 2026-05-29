@@ -44,6 +44,15 @@ function buildValidPlan(): StagePlan {
         acceptanceCriteria: ["criterion 2"],
         checks: ["npm test"],
         expectedOutputs: ["output.md"],
+        contract: {
+          allowedPaths: ["src/**"],
+          forbiddenPaths: ["package-lock.json"],
+          requiredCommands: ["npm test"],
+          requiredEvidence: ["git.diff"],
+          review: {
+            checklist: ["verify command examples"]
+          }
+        },
         revision: 1
       }
     ]
@@ -123,6 +132,18 @@ test("empty commitSha fails validation", () => {
   const plan = buildValidPlan();
   plan.stages[1].commitSha = "";
   assert.throws(() => validateStagePlan(plan), /commitSha must be a non-empty string/);
+});
+
+test("contract fields must have the expected shapes when present", () => {
+  const plan = buildValidPlan();
+  (plan.stages[0] as unknown as Record<string, unknown>).contract = { allowedPaths: "src/**" };
+  assert.throws(() => validateStagePlan(plan), /contract.allowedPaths must be an array/);
+});
+
+test("contract.review must be an object when present", () => {
+  const plan = buildValidPlan();
+  (plan.stages[0] as unknown as Record<string, unknown>).contract = { review: "invalid" };
+  assert.throws(() => validateStagePlan(plan), /contract.review must be an object/);
 });
 
 test("docs stage plan example fixture validates", async () => {

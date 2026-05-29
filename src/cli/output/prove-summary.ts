@@ -10,6 +10,7 @@ export function formatProveSummaryLines(result: ProveResult): string[] {
     `- risk: ${result.report.risk}`,
     `- reviewer verdict: ${result.report.reviewer.verdict}`,
     `- checks: ${result.report.checks.state}`,
+    `- acceptance criteria: ${result.report.acceptanceCriteria.passed} pass, ${result.report.acceptanceCriteria.failed} fail, ${result.report.acceptanceCriteria.unknown} unknown`,
     `- next action: ${result.nextAction}`,
     "- blockers:"
   ];

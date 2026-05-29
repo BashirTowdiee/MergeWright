@@ -45,6 +45,31 @@ test("valid FAIL", () => {
   assert.equal(parsed.blockingIssues[0].severity, "high");
 });
 
+test("valid PASS with acceptance criteria mapping", () => {
+  const parsed = parseReviewerOutput(
+    wrapVerdict(`{
+  "verdict": "PASS",
+  "blockingIssues": [],
+  "nonBlockingIssues": [],
+  "acceptanceCriteria": [
+    {
+      "criterion": "CLI help shows mergewright",
+      "status": "pass",
+      "evidence": "Verified with npm run mergewright -- --help"
+    }
+  ]
+}`)
+  );
+
+  assert.deepEqual(parsed.acceptanceCriteria, [
+    {
+      criterion: "CLI help shows mergewright",
+      status: "pass",
+      evidence: "Verified with npm run mergewright -- --help"
+    }
+  ]);
+});
+
 test("missing reviewer verdict block", () => {
   assert.throws(() => parseReviewerOutput("no block"), {
     message: 'Reviewer output parse error: missing required fenced block "```json reviewer-verdict".'
@@ -220,6 +245,42 @@ test("invalid non-object issue entry fails", () => {
       ),
     {
       message: "Reviewer output parse error: blockingIssues[0] must be an object."
+    }
+  );
+});
+
+test("acceptanceCriteria must be an array when provided", () => {
+  assert.throws(
+    () =>
+      parseReviewerOutput(
+        wrapVerdict(`{
+  "verdict": "PASS",
+  "blockingIssues": [],
+  "nonBlockingIssues": [],
+  "acceptanceCriteria": "bad"
+}`)
+      ),
+    {
+      message: 'Reviewer output parse error: "acceptanceCriteria" must be an array when provided.'
+    }
+  );
+});
+
+test("PASS verdict rejects fail or unknown acceptance criteria statuses", () => {
+  assert.throws(
+    () =>
+      parseReviewerOutput(
+        wrapVerdict(`{
+  "verdict": "PASS",
+  "blockingIssues": [],
+  "nonBlockingIssues": [],
+  "acceptanceCriteria": [
+    { "criterion": "A", "status": "unknown" }
+  ]
+}`)
+      ),
+    {
+      message: 'Reviewer output parse error: "PASS" verdict requires all acceptanceCriteria statuses to be "pass".'
     }
   );
 });

@@ -26,6 +26,18 @@ export interface StageScope {
   exclude: string[];
 }
 
+export interface StageContractReview {
+  checklist: string[];
+}
+
+export interface StageContract {
+  allowedPaths?: string[];
+  forbiddenPaths?: string[];
+  requiredCommands?: string[];
+  requiredEvidence?: string[];
+  review?: StageContractReview;
+}
+
 export interface Stage {
   id: string;
   index: number;
@@ -38,6 +50,7 @@ export interface Stage {
   acceptanceCriteria: string[];
   checks: string[];
   expectedOutputs: string[];
+  contract?: StageContract;
   revision: number;
   commitSha?: string;
 }

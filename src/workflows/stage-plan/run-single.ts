@@ -10,6 +10,7 @@ import { writeJson, writePhaseOutputs, writeStageReport } from "./artefacts.js";
 import { asStageExecutionError } from "./errors.js";
 import { persistPlan, findStage, validateDependencies } from "./plan-state.js";
 import { buildStagePrompt } from "./prompts.js";
+import { persistStageContractEvidence } from "./stage-contract.js";
 import type { RunStagePlanOptions, RunStagePlanResult } from "./types.js";
 
 export async function runSingleStageFromPlanWorkflow(options: RunStagePlanOptions): Promise<RunStagePlanResult> {
@@ -63,6 +64,7 @@ export async function runSingleStageFromPlanWorkflow(options: RunStagePlanOption
       progressLogger
     });
 
+    await persistStageContractEvidence(runResult.runDir, stage);
     await writePhaseOutputs(stageArtefactsDir, runResult.runDir);
     await writeStageReport({ stageArtefactsDir, plan, stage, runDir: runResult.runDir, finalStatus: "review_required", failure: undefined });
 

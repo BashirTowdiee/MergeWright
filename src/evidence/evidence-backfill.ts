@@ -103,6 +103,22 @@ export async function backfillEvidenceFromRunArtefacts(
         blockingIssues: reviewer.blockingIssues.map(mapReviewerIssue),
         nonBlockingIssues: reviewer.nonBlockingIssues.map(mapReviewerIssue)
       };
+      if (reviewer.acceptanceCriteria && reviewer.acceptanceCriteria.length > 0) {
+        next.acceptance = {
+          status: reviewer.acceptanceCriteria.every((item) => item.status === "pass")
+            ? "pass"
+            : reviewer.acceptanceCriteria.some((item) => item.status === "fail")
+              ? "fail"
+              : "unknown",
+          criteria: reviewer.acceptanceCriteria.map((item) => ({
+            criterion: item.criterion,
+            status: item.status,
+            ...(item.evidence ? { evidence: item.evidence } : {})
+          }))
+        };
+      } else {
+        delete next.acceptance;
+      }
     } catch {
       diagnostics.reviewerMalformed = true;
       diagnostics.malformedArtefacts.push("reviewer-output-last-message.md");
@@ -112,9 +128,11 @@ export async function backfillEvidenceFromRunArtefacts(
         blockingIssues: [],
         nonBlockingIssues: []
       };
+      delete next.acceptance;
     }
   } else {
     diagnostics.missingArtefacts.push("reviewer-output-last-message.md");
+    delete next.acceptance;
   }
 
   next.checks = mapChecks(checks.value, checks.malformed);

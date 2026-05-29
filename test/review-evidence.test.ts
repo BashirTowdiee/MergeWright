@@ -16,7 +16,12 @@ test("updateEvidenceReviewSummary persists reviewer summary from reviewer output
   await writeEvidenceManifest(runDir, createEvidenceManifest({ runId: "run-123", workspace: "/tmp/workspace" }));
   await writeFile(
     path.join(runDir, "reviewer-output-last-message.md"),
-    reviewerMarkdown({ verdict: "PASS", blockingIssues: [], nonBlockingIssues: [] }),
+    reviewerMarkdown({
+      verdict: "PASS",
+      blockingIssues: [],
+      nonBlockingIssues: [],
+      acceptanceCriteria: [{ criterion: "criterion-a", status: "pass", evidence: "test output" }]
+    }),
     "utf8"
   );
 
@@ -25,7 +30,12 @@ test("updateEvidenceReviewSummary persists reviewer summary from reviewer output
 
   assert.equal(updated.reviewer?.verdict, "PASS");
   assert.equal(updated.reviewer?.artefactPath, "reviewer-output-last-message.md");
+  assert.deepEqual(updated.acceptance, {
+    status: "pass",
+    criteria: [{ criterion: "criterion-a", status: "pass", evidence: "test output" }]
+  });
   assert.deepEqual(persisted.reviewer, updated.reviewer);
+  assert.deepEqual(persisted.acceptance, updated.acceptance);
 });
 
 test("updateEvidenceReviewSummary records UNKNOWN when reviewer output is missing", async () => {

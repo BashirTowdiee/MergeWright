@@ -35,7 +35,16 @@ export function readEvidenceReportReviewer(manifest: EvidenceManifest): ChangeRe
   return {
     verdict: verdict === "PASS" || verdict === "FAIL" ? verdict : "unavailable",
     blockingIssues: mapIssues(manifest.reviewer?.blockingIssues),
-    nonBlockingIssues: mapIssues(manifest.reviewer?.nonBlockingIssues)
+    nonBlockingIssues: mapIssues(manifest.reviewer?.nonBlockingIssues),
+    ...(manifest.acceptance?.criteria?.length
+      ? {
+          acceptanceCriteria: manifest.acceptance.criteria.map((item) => ({
+            criterion: item.criterion,
+            status: item.status,
+            ...(item.evidence ? { evidence: item.evidence } : {})
+          }))
+        }
+      : {})
   };
 }
 

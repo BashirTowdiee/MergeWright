@@ -29,6 +29,15 @@
         "Unit tests cover the default provider path."
       ],
       "checks": ["npm test", "npm run build"],
+      "contract": {
+        "allowedPaths": ["src/**", "test/**"],
+        "forbiddenPaths": ["package-lock.json"],
+        "requiredCommands": ["npm test", "npm run build"],
+        "requiredEvidence": ["git.diff", "checks.unit"],
+        "review": {
+          "checklist": ["Verify provider-neutral naming in exported types."]
+        }
+      },
       "expectedOutputs": [
         "Provider contract types",
         "Default provider adapter",

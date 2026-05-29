@@ -1,5 +1,5 @@
 version: 1
-last_updated: 2026-05-29
+last_updated: 2026-05-30
 project:
   name: mergewright
   type: npm-workspaces-typescript-monorepo
@@ -166,11 +166,13 @@ areas:
     important_files:
       - src/workflows/classic-run
       - src/workflows/stage-plan
+      - src/workflows/stage-plan/stage-contract.ts
       - src/workflows/continuation
       - src/workflows/auto-chain
     tests:
       - test/runner.test.ts
       - test/stage-plan.test.ts
+      - test/stage-plan-renderer.test.ts
       - test/stage-runner.test.ts
       - test/continue-run.test.ts
       - test/auto-chain.test.ts
@@ -219,10 +221,14 @@ areas:
       - src/reporting/change-report-policy.ts
       - src/reporting/scope-drift.ts
       - src/reporting/prove-report.ts
+      - src/reporting/stage-contract-scope.ts
+      - src/reporting/reviewer-acceptance.ts
     tests:
       - test/change-report.test.ts
       - test/change-report-evidence.test.ts
       - test/prove-report.test.ts
+      - test/stage-contract-scope.test.ts
+      - test/reviewer-acceptance.test.ts
 
   - id: src.tui
     path: src/tui

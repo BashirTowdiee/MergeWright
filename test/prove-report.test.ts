@@ -18,6 +18,7 @@ function makeReport(overrides: Partial<ChangeReport> = {}): ChangeReport {
     untrackedFiles: [],
     evidence: { available: true, status: "pass", completedAt: "2026-05-29T00:00:00.000Z" },
     reviewer: { verdict: "PASS", blockingIssues: [], nonBlockingIssues: [] },
+    acceptanceCriteria: { expected: 0, passed: 0, failed: 0, unknown: 0, results: [] },
     checks: { state: "passed", failedChecks: [] },
     writeSafety: { state: "passed" },
     postWriteReview: { required: false, status: "completed" },

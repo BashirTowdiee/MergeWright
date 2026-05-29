@@ -12,6 +12,12 @@ import {
 } from "./change-report-scorer.js";
 import type { ChangeReport, ChangeReportPolicy } from "./change-report-types.js";
 import { buildScopeDriftWarnings } from "./scope-drift.js";
+import {
+  buildStageContractScopeBlocker,
+  buildStageContractScopeWarning,
+  evaluateStageContractScope
+} from "./stage-contract-scope.js";
+import { summarizeReviewerAcceptanceCriteria } from "./reviewer-acceptance.js";
 
 export async function generateChangeReport(input: { runDir: string; policy?: ChangeReportPolicy }): Promise<ChangeReport> {
   const runDir = path.resolve(input.runDir);
@@ -30,6 +36,21 @@ export async function generateChangeReport(input: { runDir: string; policy?: Cha
     untrackedFiles: collected.untrackedFiles,
     policy
   });
+  const contractScope = evaluateStageContractScope({
+    contract: collected.stageContract,
+    changedFiles: collected.changedFiles,
+    untrackedFiles: collected.untrackedFiles
+  });
+  const contractScopeWarning = buildStageContractScopeWarning(contractScope.outOfScopeMatches);
+  const contractScopeBlocker = buildStageContractScopeBlocker(contractScope.forbiddenMatches);
+  const acceptanceCriteria = summarizeReviewerAcceptanceCriteria({
+    stageContract: collected.stageContract,
+    reviewerAcceptanceCriteria: collected.reviewer.acceptanceCriteria
+  });
+  const combinedScopeDriftWarnings = dedupeSort([
+    ...scopeDriftWarnings,
+    ...(contractScopeWarning ? [contractScopeWarning] : [])
+  ]);
   const computedRiskSignals = buildRiskSignals({
     reviewerVerdict: collected.reviewer.verdict,
     reviewerAvailable: collected.reviewer.available,
@@ -40,7 +61,9 @@ export async function generateChangeReport(input: { runDir: string; policy?: Cha
     untrackedFiles: collected.untrackedFiles,
     changedFiles: collected.changedFiles,
     runJsonMalformed: collected.runJsonMalformed,
-    writeAuditMalformed: collected.writeAuditMalformed
+    writeAuditMalformed: collected.writeAuditMalformed,
+    acceptanceCriteriaFailedCount: acceptanceCriteria.failed,
+    acceptanceCriteriaUnknownCount: acceptanceCriteria.unknown
   });
 
   const computedRisk = classifyRisk({ changedFiles: collected.changedFiles, writeSafetyState, postWriteReviewStatus, policy });
@@ -54,7 +77,7 @@ export async function generateChangeReport(input: { runDir: string; policy?: Cha
     postWriteReviewRequired,
     postWriteReviewStatus,
     risk,
-    scopeDriftWarningCount: scopeDriftWarnings.length,
+    scopeDriftWarningCount: combinedScopeDriftWarnings.length,
     policy
   });
   const finalStatus = classifyStatus({
@@ -65,7 +88,10 @@ export async function generateChangeReport(input: { runDir: string; policy?: Cha
     postWriteReviewStatus,
     autoChainFinalStatus: typeof run?.autoChain?.finalStatus === "string" ? run.autoChain.finalStatus : "",
     risk,
-    scopeDriftWarnings,
+    scopeDriftWarnings: combinedScopeDriftWarnings,
+    hasContractScopeBlockers: contractScope.forbiddenMatches.length > 0,
+    hasUnknownAcceptanceCriteria: acceptanceCriteria.unknown > 0,
+    hasFailedAcceptanceCriteria: acceptanceCriteria.failed > 0,
     score,
     policy
   });
@@ -79,7 +105,11 @@ export async function generateChangeReport(input: { runDir: string; policy?: Cha
   });
   const suggestedCommitMessage = suggestCommitMessage(run?.stageName ?? null);
   const phases = flattenPhases(run);
-  const riskSignals = dedupeSort([...(collected.evidenceRisk?.riskSignals ?? []), ...computedRiskSignals]);
+  const riskSignals = dedupeSort([
+    ...(collected.evidenceRisk?.riskSignals ?? []),
+    ...computedRiskSignals,
+    ...(contractScopeBlocker ? [contractScopeBlocker] : [])
+  ]);
 
   const report: ChangeReport = {
     version: 1,
@@ -97,8 +127,14 @@ export async function generateChangeReport(input: { runDir: string; policy?: Cha
     reviewer: {
       verdict: collected.reviewer.verdict,
       blockingIssues: collected.reviewer.blockingIssues,
-      nonBlockingIssues: collected.reviewer.nonBlockingIssues
+      nonBlockingIssues: collected.reviewer.nonBlockingIssues,
+      ...(collected.reviewer.acceptanceCriteria?.length
+        ? {
+            acceptanceCriteria: collected.reviewer.acceptanceCriteria
+          }
+        : {})
     },
+    acceptanceCriteria,
     checks: collected.checks,
     writeSafety: { state: writeSafetyState },
     postWriteReview: {
@@ -115,7 +151,7 @@ export async function generateChangeReport(input: { runDir: string; policy?: Cha
           }
         }
       : {}),
-    scopeDriftWarnings,
+    scopeDriftWarnings: combinedScopeDriftWarnings,
     riskSignals,
     manualReviewChecklist,
     suggestedCommitMessage

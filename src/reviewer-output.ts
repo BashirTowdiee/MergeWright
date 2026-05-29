@@ -6,10 +6,19 @@ export interface ReviewerIssue {
   files: string[];
 }
 
+export type ReviewerAcceptanceCriterionStatus = "pass" | "fail" | "unknown";
+
+export interface ReviewerAcceptanceCriterionResult {
+  criterion: string;
+  status: ReviewerAcceptanceCriterionStatus;
+  evidence?: string;
+}
+
 export interface ReviewerDecision {
   verdict: ReviewerVerdict;
   blockingIssues: ReviewerIssue[];
   nonBlockingIssues: ReviewerIssue[];
+  acceptanceCriteria?: ReviewerAcceptanceCriterionResult[];
 }
 
 const VERDICT_BLOCK_REGEX = /```json reviewer-verdict\s*\n([\s\S]*?)\n```/g;
@@ -57,15 +66,20 @@ function validateReviewerDecision(value: unknown): ReviewerDecision {
   const nonBlockingIssues = value.nonBlockingIssues.map((issue, index) =>
     validateIssue(issue, `nonBlockingIssues[${index}]`)
   );
+  const acceptanceCriteria = validateAcceptanceCriteria(value.acceptanceCriteria);
 
   if (verdict === "FAIL" && blockingIssues.length === 0) {
     throw new Error('Reviewer output parse error: "FAIL" verdict requires at least one blocking issue.');
+  }
+  if (verdict === "PASS" && acceptanceCriteria?.some((item) => item.status !== "pass")) {
+    throw new Error('Reviewer output parse error: "PASS" verdict requires all acceptanceCriteria statuses to be "pass".');
   }
 
   return {
     verdict,
     blockingIssues,
-    nonBlockingIssues
+    nonBlockingIssues,
+    ...(acceptanceCriteria ? { acceptanceCriteria } : {})
   };
 }
 
@@ -92,6 +106,42 @@ function validateIssue(value: unknown, path: string): ReviewerIssue {
     severity,
     summary: summary.trim(),
     files
+  };
+}
+
+function validateAcceptanceCriteria(value: unknown): ReviewerAcceptanceCriterionResult[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    throw new Error('Reviewer output parse error: "acceptanceCriteria" must be an array when provided.');
+  }
+  return value.map((entry, index) => validateAcceptanceCriterionResult(entry, `acceptanceCriteria[${index}]`));
+}
+
+function validateAcceptanceCriterionResult(value: unknown, path: string): ReviewerAcceptanceCriterionResult {
+  if (!isRecord(value)) {
+    throw new Error(`Reviewer output parse error: ${path} must be an object.`);
+  }
+
+  const criterion = value.criterion;
+  const status = value.status;
+  const evidence = value.evidence;
+
+  if (typeof criterion !== "string" || criterion.trim().length === 0) {
+    throw new Error(`Reviewer output parse error: ${path}.criterion must be a non-empty string.`);
+  }
+  if (status !== "pass" && status !== "fail" && status !== "unknown") {
+    throw new Error(`Reviewer output parse error: ${path}.status must be "pass", "fail", or "unknown".`);
+  }
+  if (evidence !== undefined && (typeof evidence !== "string" || evidence.trim().length === 0)) {
+    throw new Error(`Reviewer output parse error: ${path}.evidence must be a non-empty string when provided.`);
+  }
+
+  return {
+    criterion: criterion.trim(),
+    status,
+    ...(typeof evidence === "string" ? { evidence: evidence.trim() } : {})
   };
 }
 

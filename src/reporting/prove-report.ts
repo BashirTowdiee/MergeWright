@@ -57,7 +57,12 @@ function collectBlockers(report: ChangeReport): string[] {
     .map((signal) => `risk signal: ${signal}`)
     .sort((a, b) => a.localeCompare(b));
 
-  return dedupeSort([...reviewerBlockers, ...failedChecks, ...highSignalRisk]);
+  const acceptanceBlockers = report.acceptanceCriteria.results
+    .filter((item) => item.status === "fail" || item.status === "unknown")
+    .map((item) => `acceptance criterion ${item.status}: ${item.criterion}`)
+    .sort((a, b) => a.localeCompare(b));
+
+  return dedupeSort([...reviewerBlockers, ...failedChecks, ...acceptanceBlockers, ...highSignalRisk]);
 }
 
 const HIGH_SIGNAL_PATTERN = /(fail|blocked|unknown|unavailable|malformed|high-risk|scope drift|untracked)/i;

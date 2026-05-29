@@ -21,6 +21,9 @@ export interface ReviewerPromptTemplateInput {
 }
 
 export function buildReviewerPromptVariables(input: ReviewerPromptTemplateInput): TemplateVariables {
+  const stageAcceptanceCriteria =
+    input.baseVariables.stage_acceptance_criteria || extractAcceptanceCriteriaFromStageInstruction(input.baseVariables.stage_instruction);
+
   return {
     ...input.baseVariables,
     planner_prompt: input.plannerPrompt || "[not available]",
@@ -34,6 +37,7 @@ export function buildReviewerPromptVariables(input: ReviewerPromptTemplateInput)
       ? (input.executedMessage ?? "Builder executed. Review planner output, extracted builder prompt, and builder execution results.")
       : (input.notExecutedMessage ?? "Builder was not executed in Stage E. Limit review to planner output and extracted builder prompt artefacts."),
     stage_e_execution_scope: input.stageExecutionScope,
+    stage_acceptance_criteria: stageAcceptanceCriteria,
     write_audit_context: input.writeAuditContext,
     test_output: input.testOutput,
     git_diff: input.gitDiff,
@@ -43,4 +47,35 @@ export function buildReviewerPromptVariables(input: ReviewerPromptTemplateInput)
 
 export function renderReviewerPromptTemplate(input: ReviewerPromptTemplateInput): string {
   return renderTemplate(input.template, buildReviewerPromptVariables(input));
+}
+
+function extractAcceptanceCriteriaFromStageInstruction(stageInstruction: string | undefined): string {
+  if (!stageInstruction) {
+    return "- [not available]";
+  }
+
+  const lines = stageInstruction.split(/\r?\n/);
+  const headingIndex = lines.findIndex((line) => /^#{1,6}\s*Acceptance Criteria\s*$/i.test(line.trim()));
+  if (headingIndex === -1) {
+    return "- [not available]";
+  }
+
+  const criteria: string[] = [];
+  for (let index = headingIndex + 1; index < lines.length; index += 1) {
+    const line = lines[index].trim();
+    if (/^#{1,6}\s+\S/.test(line)) {
+      break;
+    }
+    const bullet = line.match(/^[-*]\s+(.+)$/);
+    if (bullet) {
+      criteria.push(`- ${bullet[1].trim()}`);
+      continue;
+    }
+    const numbered = line.match(/^\d+\.\s+(.+)$/);
+    if (numbered) {
+      criteria.push(`- ${numbered[1].trim()}`);
+    }
+  }
+
+  return criteria.length > 0 ? criteria.join("\n") : "- [not available]";
 }

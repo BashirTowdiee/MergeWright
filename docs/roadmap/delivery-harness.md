@@ -140,7 +140,7 @@ Gap:
 
 The old plan put TUI late. The repo now already has a TUI baseline, so the updated order is:
 
-Progress note (as of 2026-05-29): DH-1, DH-2, and DH-3 are implemented. DH-4 is the active next slice.
+Progress note (as of 2026-05-30): DH-1 through DH-7 are implemented. DH-8 is the active next slice.
 
 1. DH-1 Evidence manifest foundation
 2. DH-2 Evidence backfill from existing artefacts
@@ -475,6 +475,8 @@ Acceptance:
 ## DH-7: Acceptance criteria mapping
 
 Goal: reviewer output must address each stage acceptance criterion.
+
+Status: implemented.
 
 Acceptance:
 

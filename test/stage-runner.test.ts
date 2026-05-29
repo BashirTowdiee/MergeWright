@@ -3,6 +3,8 @@ import { access, mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { createEvidenceManifest } from "../src/evidence/evidence-manifest.js";
+import { readEvidenceManifest, writeEvidenceManifest } from "../src/evidence/evidence-store.js";
 import type { GitClient } from "../src/git.js";
 import type { StagePlan, StageStatus } from "../src/stage-plan.js";
 import { acceptStageFromPlan, fixStageFromPlan, runSingleStageFromPlan } from "../src/stage-runner.js";
@@ -44,6 +46,15 @@ function makePlan(stage2Status: StageStatus, depStatus: StageStatus = "accepted"
         acceptanceCriteria: ["contract extracted"],
         checks: ["npm test"],
         expectedOutputs: ["contract.ts"],
+        contract: {
+          allowedPaths: ["src/providers/**"],
+          forbiddenPaths: ["package-lock.json"],
+          requiredCommands: ["npm test"],
+          requiredEvidence: ["git.diff", "checks.unit"],
+          review: {
+            checklist: ["verify command examples"]
+          }
+        },
         revision: 1
       }
     ]
@@ -279,6 +290,54 @@ test("successful run updates selected stage, regenerates markdown, and writes ar
   await access(path.join(artefactsDir, "reviewer-output.md"));
   await access(path.join(artefactsDir, "checks-output.txt"));
   await access(path.join(artefactsDir, "stage-report.md"));
+});
+
+test("successful run stores active stage contract in run evidence when evidence manifest exists", async () => {
+  const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "run-stage-evidence-contract-"));
+  const stagePlanDir = path.join(orchestratorRoot, ".artifacts/runs/provider-switching");
+  await mkdir(stagePlanDir, { recursive: true });
+  const stagePlanPath = path.join(stagePlanDir, "stage-plan.json");
+  await writeFile(stagePlanPath, `${JSON.stringify(makePlan("pending"), null, 2)}\n`, "utf8");
+  const cfgPath = await writeFixtureConfig(orchestratorRoot, orchestratorRoot);
+  const runDir = path.join(orchestratorRoot, "fake-run");
+  await mkdir(runDir, { recursive: true });
+  await writeEvidenceManifest(runDir, createEvidenceManifest({ runId: "run-123", workspace: orchestratorRoot }));
+
+  await runSingleStageFromPlan({
+    stageId: "stage-01-provider-contract",
+    stagePlanArg: stagePlanPath,
+    configArg: cfgPath,
+    orchestratorRoot,
+    allowWrites: false,
+    dryRun: false,
+    verbose: false,
+    streamCodex: false,
+    runHandler: async () =>
+      ({
+        stageName: "stage-01-provider-contract",
+        orchestratorRoot,
+        targetWorkspaceRoot: orchestratorRoot,
+        configPath: cfgPath,
+        runDir,
+        artefacts: [],
+        dryRun: false,
+        checksState: "executed",
+        allowWrites: false,
+        writeSafetyState: "not checked",
+        writeEnabledPhases: []
+      }) as Awaited<ReturnType<typeof import("../src/runner.js").runStage>>
+  });
+
+  const evidence = await readEvidenceManifest(runDir);
+  assert.deepEqual(evidence.stageContract, {
+    objective: "Extract provider contract",
+    allowedPaths: ["src/providers/**"],
+    forbiddenPaths: ["package-lock.json"],
+    requiredCommands: ["npm test"],
+    requiredEvidence: ["checks.unit", "git.diff"],
+    acceptanceCriteria: ["contract extracted"],
+    reviewChecklist: ["verify command examples"]
+  });
 });
 
 test("failure marks only selected stage failed when execution started", async () => {

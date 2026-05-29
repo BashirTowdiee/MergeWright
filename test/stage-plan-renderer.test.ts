@@ -26,6 +26,15 @@ function buildPlan(): StagePlan {
         acceptanceCriteria: ["All touch points listed"],
         checks: ["npm test"],
         expectedOutputs: ["docs/audit.md"],
+        contract: {
+          allowedPaths: ["src/providers/**"],
+          forbiddenPaths: ["package-lock.json"],
+          requiredCommands: ["npm test"],
+          requiredEvidence: ["git.diff", "checks.unit"],
+          review: {
+            checklist: ["verify command examples"]
+          }
+        },
         revision: 1
       },
       {
@@ -84,6 +93,21 @@ test("renders scope include and exclude", () => {
   assert.match(markdown, /- src\/providers/);
   assert.match(markdown, /### Scope Exclude/);
   assert.match(markdown, /- dist/);
+});
+
+test("renders contract summary when present", () => {
+  const markdown = renderStagePlanMarkdown(buildPlan());
+  assert.match(markdown, /### Contract/);
+  assert.match(markdown, /- allowedPaths:/);
+  assert.match(markdown, /  - src\/providers\/\*\*/);
+  assert.match(markdown, /- forbiddenPaths:/);
+  assert.match(markdown, /  - package-lock.json/);
+  assert.match(markdown, /- requiredCommands:/);
+  assert.match(markdown, /  - npm test/);
+  assert.match(markdown, /- requiredEvidence:/);
+  assert.match(markdown, /  - checks.unit/);
+  assert.match(markdown, /- review.checklist:/);
+  assert.match(markdown, /  - verify command examples/);
 });
 
 test("renders commitSha when present", () => {

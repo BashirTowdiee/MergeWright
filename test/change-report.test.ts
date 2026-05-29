@@ -3,6 +3,8 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { createEvidenceManifest } from "../src/evidence/evidence-manifest.js";
+import { writeEvidenceManifest } from "../src/evidence/evidence-store.js";
 import {
   DEFAULT_CHANGE_REPORT_POLICY,
   formatChangeReportJson,
@@ -533,6 +535,104 @@ test("custom penalties and thresholds alter score/status but hard rules still ov
   assert.equal(blocked.status, "BLOCKED");
 });
 
+test("stage contract forbidden paths block readiness", async () => {
+  const runDir = await createRunFixture({
+    reviewer: "PASS",
+    checksState: "executed",
+    changedFiles: [],
+    changedFilesAddedByPhase: []
+  });
+  const manifest = createEvidenceManifest({ runId: "run-123", workspace: "/tmp/workspace" });
+  await writeEvidenceManifest(runDir, {
+    ...manifest,
+    git: {
+      ...manifest.git,
+      changedFiles: ["package-lock.json"],
+      untrackedFiles: [],
+      unexpectedFiles: []
+    },
+    stageContract: {
+      objective: "Contract test",
+      allowedPaths: ["src/**"],
+      forbiddenPaths: ["package-lock.json"],
+      requiredCommands: [],
+      requiredEvidence: [],
+      acceptanceCriteria: [],
+      reviewChecklist: []
+    }
+  });
+
+  const report = await generateChangeReport({ runDir });
+  assert.equal(report.status, "BLOCKED");
+  assert.equal(report.riskSignals.some((signal) => signal.includes("Forbidden files changed by stage contract")), true);
+});
+
+test("unknown stage acceptance criteria block readiness", async () => {
+  const runDir = await createRunFixture({
+    reviewerRaw:
+      '```json reviewer-verdict\n{"verdict":"FAIL","blockingIssues":[{"severity":"high","summary":"Unable to verify criterion coverage","files":["src/routes/api.ts"]}],"nonBlockingIssues":[],"acceptanceCriteria":[{"criterion":"criterion-a","status":"pass"}]}\n```',
+    checksState: "executed",
+    changedFiles: [],
+    changedFilesAddedByPhase: []
+  });
+  const manifest = createEvidenceManifest({ runId: "run-123", workspace: "/tmp/workspace" });
+  await writeEvidenceManifest(runDir, {
+    ...manifest,
+    git: {
+      ...manifest.git,
+      changedFiles: ["src/routes/api.ts"],
+      untrackedFiles: [],
+      unexpectedFiles: []
+    },
+    stageContract: {
+      objective: "Contract test",
+      allowedPaths: ["src/**"],
+      forbiddenPaths: [],
+      requiredCommands: [],
+      requiredEvidence: [],
+      acceptanceCriteria: ["criterion-a", "criterion-b"],
+      reviewChecklist: []
+    }
+  });
+
+  const report = await generateChangeReport({ runDir });
+  assert.equal(report.acceptanceCriteria.expected, 2);
+  assert.equal(report.acceptanceCriteria.unknown, 1);
+  assert.equal(report.status, "BLOCKED");
+  assert.equal(report.riskSignals.some((signal) => signal.includes("Acceptance criteria unresolved")), true);
+});
+
+test("stage contract allowed paths warning is emitted for out-of-scope changes", async () => {
+  const runDir = await createRunFixture({
+    reviewer: "PASS",
+    checksState: "executed",
+    changedFiles: [],
+    changedFilesAddedByPhase: []
+  });
+  const manifest = createEvidenceManifest({ runId: "run-123", workspace: "/tmp/workspace" });
+  await writeEvidenceManifest(runDir, {
+    ...manifest,
+    git: {
+      ...manifest.git,
+      changedFiles: ["docs/notes.md"],
+      untrackedFiles: [],
+      unexpectedFiles: []
+    },
+    stageContract: {
+      objective: "Contract test",
+      allowedPaths: ["src/**"],
+      forbiddenPaths: [],
+      requiredCommands: [],
+      requiredEvidence: [],
+      acceptanceCriteria: [],
+      reviewChecklist: []
+    }
+  });
+
+  const report = await generateChangeReport({ runDir });
+  assert.equal(report.scopeDriftWarnings.some((warning) => warning.includes("outside stage contract allowedPaths")), true);
+});
+
 test("markdown formatter includes required sections and fields", async () => {
   const runDir = await createRunFixture({
     reviewer: "FAIL",
@@ -586,6 +686,7 @@ test("markdown formatter renders None for empty lists and is deterministic", () 
     changedFiles: ["z.ts", "a.ts"],
     untrackedFiles: ["tmp-z", "tmp-a"],
     reviewer: { verdict: "PASS", blockingIssues: [], nonBlockingIssues: [] },
+    acceptanceCriteria: { expected: 0, passed: 0, failed: 0, unknown: 0, results: [] },
     checks: { state: "passed", failedChecks: [] },
     writeSafety: { state: "passed" },
     postWriteReview: { required: false, status: "completed" },
@@ -617,6 +718,7 @@ test("json formatter returns valid json with trailing newline and does not mutat
     changedFiles: ["b.ts", "a.ts"],
     untrackedFiles: [],
     reviewer: { verdict: "PASS", blockingIssues: [], nonBlockingIssues: [] },
+    acceptanceCriteria: { expected: 0, passed: 0, failed: 0, unknown: 0, results: [] },
     checks: { state: "passed", failedChecks: [] },
     writeSafety: { state: "passed" },
     postWriteReview: { required: false, status: "completed" },
@@ -707,6 +809,7 @@ test("pr summary formatter renders None for empty lists and non-ready status not
     changedFiles: [],
     untrackedFiles: [],
     reviewer: { verdict: "PASS", blockingIssues: [], nonBlockingIssues: [] },
+    acceptanceCriteria: { expected: 0, passed: 0, failed: 0, unknown: 0, results: [] },
     checks: { state: "skipped", failedChecks: [] },
     writeSafety: { state: "passed" },
     postWriteReview: { required: false, status: "completed" },

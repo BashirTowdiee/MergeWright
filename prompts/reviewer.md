@@ -21,6 +21,10 @@ Run Dir: {{run_dir}}
 
 {{stage_specific_review_checklist}}
 
+## Structured acceptance criteria
+
+{{stage_acceptance_criteria}}
+
 ## Write-safety and change evidence
 
 {{write_audit_context}}
@@ -74,6 +78,7 @@ Use this as planning context only. Do not treat it as proof that implementation 
 11. Confirm failures are explicit and not hidden by broad catch blocks or swallowed errors.
 12. If builder did not run, explicitly state review limitations.
 13. Confirm no review-to-fix/git/test/build execution occurred unless requested by the selected phase flags.
+14. Produce an acceptance criteria mapping in the verdict JSON with one entry for each criterion above using `pass`, `fail`, or `unknown`.
 
 ## Reject if
 
@@ -96,3 +101,5 @@ Machine-readable verdict block required:
 - Include exactly one fenced JSON block marked `json reviewer-verdict`.
 - For PASS, set verdict to PASS and leave blockingIssues empty.
 - For FAIL, set verdict to FAIL and include blockingIssues.
+- Include `acceptanceCriteria` array with objects: `{ "criterion": string, "status": "pass" | "fail" | "unknown", "evidence"?: string }`.
+- Every listed structured acceptance criterion must appear once in `acceptanceCriteria`.

@@ -1,6 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
+import type { EvidenceStageContract } from "../evidence/evidence-manifest.js";
 import { readEvidenceManifestIfExists } from "../evidence/evidence-store.js";
-import { parseReviewerOutput, type ReviewerIssue } from "../reviewer-output.js";
+import { parseReviewerOutput, type ReviewerAcceptanceCriterionResult, type ReviewerIssue } from "../reviewer-output.js";
 import type { ChecksStatus, ChangeReport, OptionalJsonResult, RunMetadataWithAutoChain, WriteAuditSummary } from "./change-report-types.js";
 import {
   readAvailableEvidenceReportReviewer,
@@ -24,6 +25,7 @@ export async function collectReportInputs(runDir: string): Promise<{
   writeSafety: ChangeReport["writeSafety"] | null;
   postWriteReview: ChangeReport["postWriteReview"] | null;
   evidenceRisk: Pick<ChangeReport, "risk" | "riskSignals"> | null;
+  stageContract: EvidenceStageContract | null;
   checksMalformed: boolean;
   writeAuditMalformed: boolean;
 }> {
@@ -34,6 +36,7 @@ export async function collectReportInputs(runDir: string): Promise<{
   const stageText = await readOptionalText(`${runDir}/01-stage-input.md`);
   const evidenceManifest = await readEvidenceManifestIfExists(runDir);
   const evidenceFiles = evidenceManifest ? readEvidenceReportFiles(evidenceManifest) : { changedFiles: [], untrackedFiles: [] };
+  const parsedReviewer = await parseReviewer(`${runDir}/reviewer-output-last-message.md`);
 
   const builderSummaryResult = await readOptionalJson<WriteAuditSummary>(`${runDir}/write-audit/builder/summary.json`);
   const fixSummaryResult = await readOptionalJson<WriteAuditSummary>(`${runDir}/write-audit/fix/summary.json`);
@@ -47,9 +50,16 @@ export async function collectReportInputs(runDir: string): Promise<{
     ...evidenceFiles.untrackedFiles
   ]);
 
-  const reviewer = evidenceManifest?.reviewer
-    ? readAvailableEvidenceReportReviewer(evidenceManifest)
-    : await parseReviewer(`${runDir}/reviewer-output-last-message.md`);
+  const reviewer = (() => {
+    if (!evidenceManifest?.reviewer) {
+      return parsedReviewer;
+    }
+    const evidenceReviewer = readAvailableEvidenceReportReviewer(evidenceManifest);
+    return {
+      ...evidenceReviewer,
+      acceptanceCriteria: evidenceReviewer.acceptanceCriteria ?? parsedReviewer.acceptanceCriteria
+    };
+  })();
   const checksResult = evidenceManifest?.checks
     ? { ...readEvidenceReportChecks(evidenceManifest), malformed: false }
     : await parseChecks(`${runDir}/checks-status.json`);
@@ -72,6 +82,7 @@ export async function collectReportInputs(runDir: string): Promise<{
     writeSafety: evidenceManifest?.writeSafety ? readEvidenceReportWriteSafety(evidenceManifest) : null,
     postWriteReview: evidenceManifest?.postWriteReview ? readEvidenceReportPostWriteReview(evidenceManifest) : null,
     evidenceRisk: evidenceManifest?.risk ? readEvidenceReportRisk(evidenceManifest) : null,
+    stageContract: evidenceManifest?.stageContract ?? null,
     checksMalformed: checksResult.malformed,
     writeAuditMalformed: builderSummaryResult.malformed || fixSummaryResult.malformed
   };
@@ -81,6 +92,7 @@ async function parseReviewer(reviewerPath: string): Promise<{
   verdict: "PASS" | "FAIL" | "unavailable";
   blockingIssues: ReviewerIssue[];
   nonBlockingIssues: ReviewerIssue[];
+  acceptanceCriteria?: ReviewerAcceptanceCriterionResult[];
   available: boolean;
 }> {
   const raw = await readOptionalText(reviewerPath);
@@ -93,6 +105,7 @@ async function parseReviewer(reviewerPath: string): Promise<{
       verdict: parsed.verdict,
       blockingIssues: parsed.blockingIssues,
       nonBlockingIssues: parsed.nonBlockingIssues,
+      acceptanceCriteria: parsed.acceptanceCriteria,
       available: true
     };
   } catch {

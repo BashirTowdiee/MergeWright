@@ -22,6 +22,7 @@ const REVIEW_CHECKLIST_HEADING = /^#{1,6}\s*(?:stage-specific\s+)?(?:review\s+)?
 const REVIEWER_VARIABLE_BUDGETS: Record<string, number> = {
   stage_instruction: 80_000,
   stage_specific_review_checklist: 80_000,
+  stage_acceptance_criteria: 80_000,
   planner_output: 60_000,
   extracted_builder_prompt: 60_000,
   builder_output: 90_000,

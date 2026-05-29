@@ -37,6 +37,7 @@ function reviewerVariables(overrides: Record<string, string> = {}): Record<strin
     stage_e_execution_scope: "scope",
     builder_execution_state: "state",
     stage_instruction: "stage",
+    stage_acceptance_criteria: "- criterion 1",
     planner_output: "planner",
     extracted_builder_prompt: "builder prompt",
     builder_output: "builder output",
@@ -170,6 +171,7 @@ test("reviewer template is evidence-focused and preserves verdict contract", () 
   assert.match(template, /Do not PASS based only on planner or builder summaries/);
   assert.match(template, /## Stage contract/);
   assert.match(template, /## Stage-specific review checklist/);
+  assert.match(template, /## Structured acceptance criteria/);
   assert.match(template, /## Planner summary/);
   assert.match(template, /## Builder instructions summary/);
   assert.match(template, /## Builder result summary/);

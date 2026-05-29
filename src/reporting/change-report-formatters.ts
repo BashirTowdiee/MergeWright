@@ -41,6 +41,16 @@ export function formatChangeReportMarkdown(report: ChangeReport): string {
 
   lines.push("", "## Checks", `- State: ${report.checks.state}`, "- Failed checks:");
   lines.push(...renderListLines(report.checks.failedChecks));
+  lines.push(
+    "",
+    "## Acceptance Criteria",
+    `- Expected: ${report.acceptanceCriteria.expected}`,
+    `- Passed: ${report.acceptanceCriteria.passed}`,
+    `- Failed: ${report.acceptanceCriteria.failed}`,
+    `- Unknown: ${report.acceptanceCriteria.unknown}`,
+    "- Results:"
+  );
+  lines.push(...renderAcceptanceCriteriaLines(report.acceptanceCriteria.results));
 
   lines.push("", "## Changed Files");
   lines.push(...renderListLines(report.changedFiles));
@@ -100,6 +110,17 @@ function renderAutoChainLines(autoChain: ChangeReport["autoChain"]): string[] {
 
 function readPhaseStatus(report: ChangeReport, phaseName: string): string {
   return report.phases[phaseName] ?? "unknown";
+}
+
+function renderAcceptanceCriteriaLines(items: ChangeReport["acceptanceCriteria"]["results"]): string[] {
+  if (items.length === 0) {
+    return ["- None"];
+  }
+  return items.map((item) => {
+    const source = item.source === "missing" ? "missing from reviewer output" : "reviewer";
+    const evidence = item.evidence ? ` | evidence: ${item.evidence}` : "";
+    return `- [${item.status}] ${item.criterion} (${source})${evidence}`;
+  });
 }
 
 function dedupeSort(values: string[]): string[] {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createEvidenceReviewerSummary } from "../src/evidence/reviewer-summary.js";
+import { createEvidenceAcceptanceSummary, createEvidenceReviewerSummary } from "../src/evidence/reviewer-summary.js";
 
 function reviewerMarkdown(json: object): string {
   return ["Review result", "```json reviewer-verdict", JSON.stringify(json), "```"].join("\n");
@@ -30,5 +30,27 @@ test("createEvidenceReviewerSummary returns UNKNOWN for missing verdict", () => 
     artefactPath: undefined,
     blockingIssues: [],
     nonBlockingIssues: []
+  });
+});
+
+test("createEvidenceAcceptanceSummary maps reviewer acceptance criteria", () => {
+  const summary = createEvidenceAcceptanceSummary({
+    markdown: reviewerMarkdown({
+      verdict: "FAIL",
+      blockingIssues: [{ severity: "high", summary: "blocking", files: ["src/a.ts"] }],
+      nonBlockingIssues: [],
+      acceptanceCriteria: [
+        { criterion: "criterion-a", status: "pass", evidence: "ok" },
+        { criterion: "criterion-b", status: "unknown" }
+      ]
+    })
+  });
+
+  assert.deepEqual(summary, {
+    status: "unknown",
+    criteria: [
+      { criterion: "criterion-a", status: "pass", evidence: "ok" },
+      { criterion: "criterion-b", status: "unknown" }
+    ]
   });
 });

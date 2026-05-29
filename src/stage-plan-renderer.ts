@@ -16,6 +16,7 @@ function renderStageRow(stage: Stage): string {
 }
 
 function renderStageDetail(stage: Stage): string {
+  const contractLines = renderContractSummary(stage);
   const lines = [
     `## Stage ${stage.index}: ${stage.title}`,
     `- id: ${stage.id}`,
@@ -40,12 +41,41 @@ function renderStageDetail(stage: Stage): string {
     renderList(stage.scope.include),
     "",
     "### Scope Exclude",
-    renderList(stage.scope.exclude)
+    renderList(stage.scope.exclude),
+    "",
+    "### Contract",
+    ...contractLines
   ];
   if (stage.commitSha !== undefined) {
     lines.push("", `- commitSha: ${stage.commitSha}`);
   }
   return lines.join("\n");
+}
+
+function renderContractSummary(stage: Stage): string[] {
+  if (!stage.contract) {
+    return ["- (none)"];
+  }
+  const lines = [
+    "- allowedPaths:",
+    ...renderNestedList(stage.contract.allowedPaths ?? []),
+    "- forbiddenPaths:",
+    ...renderNestedList(stage.contract.forbiddenPaths ?? []),
+    "- requiredCommands:",
+    ...renderNestedList(stage.contract.requiredCommands ?? []),
+    "- requiredEvidence:",
+    ...renderNestedList(stage.contract.requiredEvidence ?? []),
+    "- review.checklist:",
+    ...renderNestedList(stage.contract.review?.checklist ?? [])
+  ];
+  return lines;
+}
+
+function renderNestedList(items: string[]): string[] {
+  if (items.length === 0) {
+    return ["  - (none)"];
+  }
+  return items.map((item) => `  - ${item}`);
 }
 
 export function renderStagePlanMarkdown(plan: StagePlan): string {

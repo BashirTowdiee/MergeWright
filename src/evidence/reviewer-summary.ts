@@ -1,5 +1,5 @@
 import { parseReviewerOutput } from "../reviewer-output.js";
-import type { EvidenceIssueSummary, EvidenceReviewSummary } from "./evidence-manifest.js";
+import type { EvidenceAcceptanceSummary, EvidenceIssueSummary, EvidenceReviewSummary } from "./evidence-manifest.js";
 
 export function createEvidenceReviewerSummary(input: { markdown: string; artefactPath?: string }): EvidenceReviewSummary {
   try {
@@ -17,6 +17,28 @@ export function createEvidenceReviewerSummary(input: { markdown: string; artefac
       blockingIssues: [],
       nonBlockingIssues: []
     };
+  }
+}
+
+export function createEvidenceAcceptanceSummary(input: { markdown: string }): EvidenceAcceptanceSummary | undefined {
+  try {
+    const decision = parseReviewerOutput(input.markdown);
+    if (!decision.acceptanceCriteria || decision.acceptanceCriteria.length === 0) {
+      return undefined;
+    }
+    const criteria = decision.acceptanceCriteria.map((item) => ({
+      criterion: item.criterion,
+      status: item.status,
+      ...(item.evidence ? { evidence: item.evidence } : {})
+    }));
+    const status = criteria.every((item) => item.status === "pass")
+      ? "pass"
+      : criteria.some((item) => item.status === "fail")
+        ? "fail"
+        : "unknown";
+    return { status, criteria };
+  } catch {
+    return undefined;
   }
 }
 

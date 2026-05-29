@@ -2,6 +2,7 @@ import {
   STAGE_PLAN_SCHEMA_VERSION,
   STAGE_PLAN_STATUSES,
   STAGE_STATUSES,
+  type StageContract,
   type Stage,
   type StagePlan,
   type StagePlanSource,
@@ -30,6 +31,40 @@ function assertStringArray(value: unknown, field: string): string[] {
     }
   }
   return [...value];
+}
+
+function parseOptionalStageContract(value: unknown, field: string): StageContract | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!isRecord(value)) {
+    throw new Error(`Invalid stage plan: ${field} must be an object`);
+  }
+
+  const contract: StageContract = {};
+
+  if (value.allowedPaths !== undefined) {
+    contract.allowedPaths = assertStringArray(value.allowedPaths, `${field}.allowedPaths`);
+  }
+  if (value.forbiddenPaths !== undefined) {
+    contract.forbiddenPaths = assertStringArray(value.forbiddenPaths, `${field}.forbiddenPaths`);
+  }
+  if (value.requiredCommands !== undefined) {
+    contract.requiredCommands = assertStringArray(value.requiredCommands, `${field}.requiredCommands`);
+  }
+  if (value.requiredEvidence !== undefined) {
+    contract.requiredEvidence = assertStringArray(value.requiredEvidence, `${field}.requiredEvidence`);
+  }
+  if (value.review !== undefined) {
+    if (!isRecord(value.review)) {
+      throw new Error(`Invalid stage plan: ${field}.review must be an object`);
+    }
+    contract.review = {
+      checklist: value.review.checklist === undefined ? [] : assertStringArray(value.review.checklist, `${field}.review.checklist`)
+    };
+  }
+
+  return Object.keys(contract).length > 0 ? contract : undefined;
 }
 
 function assertPositiveInteger(value: unknown, field: string): number {
@@ -71,6 +106,8 @@ function parseStage(input: unknown, index: number): Stage {
     throw new Error(`Invalid stage plan: ${field}.scope must be an object`);
   }
 
+  const contract = parseOptionalStageContract(input.contract, `${field}.contract`);
+
   const parsed: Stage = {
     id: assertNonEmptyString(input.id, `${field}.id`),
     index: assertPositiveInteger(input.index, `${field}.index`),
@@ -86,6 +123,7 @@ function parseStage(input: unknown, index: number): Stage {
     acceptanceCriteria: assertStringArray(input.acceptanceCriteria, `${field}.acceptanceCriteria`),
     checks: assertStringArray(input.checks, `${field}.checks`),
     expectedOutputs: assertStringArray(input.expectedOutputs, `${field}.expectedOutputs`),
+    ...(contract !== undefined ? { contract } : {}),
     revision: assertPositiveInteger(input.revision, `${field}.revision`)
   };
 
@@ -200,6 +238,17 @@ export function serialiseStagePlan(plan: StagePlan): string {
         acceptanceCriteria: [...stage.acceptanceCriteria],
         checks: [...stage.checks],
         expectedOutputs: [...stage.expectedOutputs],
+        ...(stage.contract
+          ? {
+              contract: {
+                ...(stage.contract.allowedPaths ? { allowedPaths: [...stage.contract.allowedPaths] } : {}),
+                ...(stage.contract.forbiddenPaths ? { forbiddenPaths: [...stage.contract.forbiddenPaths] } : {}),
+                ...(stage.contract.requiredCommands ? { requiredCommands: [...stage.contract.requiredCommands] } : {}),
+                ...(stage.contract.requiredEvidence ? { requiredEvidence: [...stage.contract.requiredEvidence] } : {}),
+                ...(stage.contract.review ? { review: { checklist: [...stage.contract.review.checklist] } } : {})
+              }
+            }
+          : {}),
         revision: stage.revision
       };
       if (stage.commitSha !== undefined) {
