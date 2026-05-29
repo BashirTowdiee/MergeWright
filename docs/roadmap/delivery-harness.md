@@ -12,7 +12,7 @@ MergeWright is already positioned as an AI software delivery harness in the READ
 - Reviewer output already has a strict fenced `json reviewer-verdict` parser with `PASS` or `FAIL`, blocking issues, and non-blocking issues.
 - The TUI is no longer only aspirational. A read-only TUI command exists and can render a fixture or load real run data from the configured runs root.
 
-The main missing foundation is still a canonical `evidence.json` manifest. Current reports and TUI read from existing artefacts such as `run.json`, write-audit summaries, `checks-status.json`, and reviewer output. That works, but it means evidence is still reconstructed after the fact rather than recorded through one typed evidence model.
+The canonical `evidence.json` manifest foundation is now in place and report generation can prefer it when present. The next missing operator-facing slice is a dedicated read-only readiness command (`prove`) with explicit pass/fail exit semantics.
 
 ## Strategic direction
 
@@ -110,8 +110,7 @@ Implemented:
 
 Gap:
 
-- Reports do not yet consume a canonical evidence manifest.
-- Missing evidence is partially inferred from absent artefacts, not represented through one typed model.
+- There is no dedicated read-only `prove` command yet; readiness is still exposed indirectly through full report generation.
 
 ### Reviewer baseline
 
@@ -135,12 +134,13 @@ Implemented:
 
 Gap:
 
-- TUI does not yet read `evidence.json` because the manifest does not exist.
 - TUI does not yet show merge-readiness/prove output from a canonical evaluator.
 
 ## Revised milestone order
 
 The old plan put TUI late. The repo now already has a TUI baseline, so the updated order is:
+
+Progress note (as of 2026-05-29): DH-1, DH-2, and DH-3 are implemented. DH-4 is the active next slice.
 
 1. DH-1 Evidence manifest foundation
 2. DH-2 Evidence backfill from existing artefacts

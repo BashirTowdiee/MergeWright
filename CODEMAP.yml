@@ -1,5 +1,5 @@
 version: 1
-last_updated: 2026-05-28
+last_updated: 2026-05-29
 project:
   name: mergewright
   type: npm-workspaces-typescript-monorepo
@@ -147,10 +147,13 @@ areas:
       - src/cli/command-registry.ts
       - src/cli/known-commands.ts
       - src/cli/commands
+      - src/cli/commands/prove.command.ts
+      - src/cli/output/prove-summary.ts
     tests:
       - test/cli.test.ts
       - test/cli-dispatch.test.ts
       - test/cli-core-boundary.test.ts
+      - test/cli-progress-log-policy.test.ts
 
   - id: src.workflows
     path: src/workflows
@@ -215,9 +218,11 @@ areas:
     important_files:
       - src/reporting/change-report-policy.ts
       - src/reporting/scope-drift.ts
+      - src/reporting/prove-report.ts
     tests:
       - test/change-report.test.ts
       - test/change-report-evidence.test.ts
+      - test/prove-report.test.ts
 
   - id: src.tui
     path: src/tui

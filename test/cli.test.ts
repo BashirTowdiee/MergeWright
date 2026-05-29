@@ -12,6 +12,7 @@ test("top-level help contains command list and safety notes", async () => {
   assert.match(text, /Commands:/);
   assert.match(text, /run <stage-name>/);
   assert.match(text, /continue-run <run-id>/);
+  assert.match(text, /prove <run-id>/);
   assert.match(text, /report-run <run-id>/);
   assert.match(text, /read-only sandbox/);
   assert.match(text, /No auto-commit or auto-push/);
@@ -590,6 +591,16 @@ test("report-run help shows report generation behavior", async () => {
   assert.match(text, /--pr-summary/);
 });
 
+test("prove help shows read-only readiness behavior", async () => {
+  const output: string[] = [];
+  await runCommand(parseArgs(["prove", "--help"]), process.cwd(), "linux", async () => {}, (line) => output.push(line));
+  const text = output.join("\n");
+  assert.match(text, /Usage: agent-stage prove/);
+  assert.match(text, /Does not execute Codex/);
+  assert.match(text, /Does not write report artefacts/);
+  assert.match(text, /Exits 0 only when readiness status is READY/);
+});
+
 test("init-project help shows workspace and force options", async () => {
   const output: string[] = [];
   await runCommand(parseArgs(["init-project", "--help"]), process.cwd(), "linux", async () => {}, (line) => output.push(line));
@@ -974,14 +985,40 @@ test("report-run rejects missing config", () => {
   );
 });
 
-test("non-report commands reject report flags", () => {
+test("prove parses run id, config, and --json", () => {
+  const args = parseArgs(["prove", "run-1", "--config", "configs/acme.json", "--json"]);
+  assert.equal(args.command, "prove");
+  assert.equal(args.runId, "run-1");
+  assert.equal(args.configArg, "configs/acme.json");
+  assert.equal(args.jsonOutput, true);
+});
+
+test("prove rejects missing run id", () => {
+  assert.throws(
+    () => parseArgs(["prove", "--config", "configs/acme.json"]),
+    /prove requires <run-id>/
+  );
+});
+
+test("prove rejects missing config", () => {
+  assert.throws(
+    () => parseArgs(["prove", "run-1"]),
+    /Missing required --config <config-path>/
+  );
+});
+
+test("non-report/prove commands reject JSON and report-only flags", () => {
   assert.throws(
     () => parseArgs(["list-runs", "--config", "configs/acme.json", "--json"]),
-    /--json is supported for report-run and probe-opencode/
+    /--json is supported for report-run, prove, and probe-opencode/
   );
   assert.throws(
     () => parseArgs(["show-run", "run-1", "--config", "configs/acme.json", "--stdout-only"]),
-    /--pr-summary and --stdout-only are only supported for report-run/
+    /--pr-summary and --stdout-only are only supported for report-run\./
+  );
+  assert.throws(
+    () => parseArgs(["prove", "run-1", "--config", "configs/acme.json", "--pr-summary"]),
+    /--pr-summary and --stdout-only are only supported for report-run\./
   );
 });
 
@@ -2290,6 +2327,190 @@ test("report-run does not call run/continue/check-write-safety/auto-chain handle
   let autoChainCalls = 0;
   await runCommand(
     parseArgs(["report-run", fixture.runId, "--config", fixture.configArg]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    () => {},
+    {
+      checkWriteSafetyHandler: async () => {
+        checkSafetyCalls += 1;
+        throw new Error("should not be called");
+      },
+      autoChainHandler: async () => {
+        autoChainCalls += 1;
+        throw new Error("should not be called");
+      }
+    }
+  );
+  assert.equal(checkSafetyCalls, 0);
+  assert.equal(autoChainCalls, 0);
+});
+
+test("prove ready case prints summary, writes no artefacts, and succeeds", async () => {
+  const fixture = await makeReportRunFixture();
+  await writeFile(
+    path.join(fixture.runDir, "write-audit/builder/summary.json"),
+    JSON.stringify({ post: { changedFiles: [], untrackedFiles: [] }, changedFilesAddedByPhase: [] }, null, 2),
+    "utf8"
+  );
+
+  const output: string[] = [];
+  await runCommand(
+    parseArgs(["prove", fixture.runId, "--config", fixture.configArg]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    (line) => output.push(line)
+  );
+
+  const text = output.join("\n");
+  assert.match(text, /Merge Readiness Proof/);
+  assert.match(text, /- ready: true/);
+  assert.match(text, /- status: READY/);
+  assert.match(text, /- reviewer verdict: PASS/);
+  assert.match(text, /- checks: passed/);
+
+  await assert.rejects(() => readFile(path.join(fixture.runDir, "run-report.md"), "utf8"));
+  await assert.rejects(() => readFile(path.join(fixture.runDir, "run-report.json"), "utf8"));
+  await assert.rejects(() => readFile(path.join(fixture.runDir, "pr-summary.md"), "utf8"));
+});
+
+test("prove --json ready case emits JSON-only wrapper with embedded report", async () => {
+  const fixture = await makeReportRunFixture();
+  await writeFile(
+    path.join(fixture.runDir, "write-audit/builder/summary.json"),
+    JSON.stringify({ post: { changedFiles: [], untrackedFiles: [] }, changedFilesAddedByPhase: [] }, null, 2),
+    "utf8"
+  );
+
+  const output: string[] = [];
+  await runCommand(
+    parseArgs(["prove", fixture.runId, "--config", fixture.configArg, "--json"]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    (line) => output.push(line)
+  );
+  assert.equal(output.length, 1);
+  const stdout = output[0];
+  const parsed = JSON.parse(stdout) as {
+    version: number;
+    runId: string;
+    ready: boolean;
+    exitCode: number;
+    nextAction: string;
+    report: { status: string };
+  };
+  assert.equal(parsed.version, 1);
+  assert.equal(parsed.runId, fixture.runId);
+  assert.equal(parsed.ready, true);
+  assert.equal(parsed.exitCode, 0);
+  assert.equal(typeof parsed.nextAction, "string");
+  assert.equal(parsed.report.status, "READY");
+  assert.doesNotMatch(stdout, /\[prove\]/);
+  assert.doesNotMatch(stdout, /Merge Readiness Proof/);
+});
+
+test("prove returns non-zero path for NEEDS_FIX after printing output", async () => {
+  const fixture = await makeReportRunFixture();
+  await writeFile(
+    path.join(fixture.runDir, "checks-status.json"),
+    JSON.stringify({ state: "failed", failedChecks: ["npm test"] }, null, 2),
+    "utf8"
+  );
+
+  const output: string[] = [];
+  await assert.rejects(
+    () =>
+      runCommand(
+        parseArgs(["prove", fixture.runId, "--config", fixture.configArg]),
+        fixture.orchestratorRoot,
+        "linux",
+        async () => {},
+        (line) => output.push(line)
+      ),
+    /prove failed: NEEDS_FIX/
+  );
+  const text = output.join("\n");
+  assert.match(text, /- status: NEEDS_FIX/);
+  assert.match(text, /- ready: false/);
+});
+
+test("prove returns non-zero path for NEEDS_REVIEW after printing output", async () => {
+  const fixture = await makeReportRunFixture();
+  await writeFile(path.join(fixture.runDir, "reviewer-output-last-message.md"), "", "utf8");
+  await writeFile(
+    path.join(fixture.runDir, "write-audit/builder/summary.json"),
+    JSON.stringify({ post: { changedFiles: [], untrackedFiles: [] }, changedFilesAddedByPhase: [] }, null, 2),
+    "utf8"
+  );
+
+  const output: string[] = [];
+  await assert.rejects(
+    () =>
+      runCommand(
+        parseArgs(["prove", fixture.runId, "--config", fixture.configArg]),
+        fixture.orchestratorRoot,
+        "linux",
+        async () => {},
+        (line) => output.push(line)
+      ),
+    /prove failed: NEEDS_REVIEW/
+  );
+  const text = output.join("\n");
+  assert.match(text, /- status: NEEDS_REVIEW/);
+  assert.match(text, /- ready: false/);
+});
+
+test("prove returns non-zero path for BLOCKED after printing output", async () => {
+  const fixture = await makeReportRunFixture();
+  const runJsonPath = path.join(fixture.runDir, "run.json");
+  const runJson = JSON.parse(await readFile(runJsonPath, "utf8")) as Record<string, unknown>;
+  runJson.status = "failed";
+  await writeFile(runJsonPath, JSON.stringify(runJson, null, 2), "utf8");
+
+  const output: string[] = [];
+  await assert.rejects(
+    () =>
+      runCommand(
+        parseArgs(["prove", fixture.runId, "--config", fixture.configArg]),
+        fixture.orchestratorRoot,
+        "linux",
+        async () => {},
+        (line) => output.push(line)
+      ),
+    /prove failed: BLOCKED/
+  );
+  const text = output.join("\n");
+  assert.match(text, /- status: BLOCKED/);
+  assert.match(text, /- ready: false/);
+});
+
+test("prove fails clearly when run directory is missing", async () => {
+  const fixture = await makeReportRunFixture();
+  await assert.rejects(
+    () =>
+      runCommand(
+        parseArgs(["prove", "missing-run-id", "--config", fixture.configArg]),
+        fixture.orchestratorRoot,
+        "linux",
+        async () => {}
+      ),
+    /Run does not exist: missing-run-id/
+  );
+});
+
+test("prove does not call run/continue/check-write-safety/auto-chain handlers", async () => {
+  const fixture = await makeReportRunFixture();
+  await writeFile(
+    path.join(fixture.runDir, "write-audit/builder/summary.json"),
+    JSON.stringify({ post: { changedFiles: [], untrackedFiles: [] }, changedFilesAddedByPhase: [] }, null, 2),
+    "utf8"
+  );
+  let checkSafetyCalls = 0;
+  let autoChainCalls = 0;
+  await runCommand(
+    parseArgs(["prove", fixture.runId, "--config", fixture.configArg]),
     fixture.orchestratorRoot,
     "linux",
     async () => {},

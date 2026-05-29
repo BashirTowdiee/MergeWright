@@ -92,6 +92,23 @@ export function renderHelpText(command?: string): string {
     ].join("\n");
   }
 
+  if (command === "prove") {
+    return [
+      "Usage: agent-stage prove <run-id> --config <config-path> [--json] [--verbose]",
+      "",
+      "Computes read-only merge-readiness proof for an existing run.",
+      "  --config <config-path>   Required. No implicit default is used.",
+      "  --json                   Prints JSON-only proof wrapper to stdout (machine-readable).",
+      "",
+      "Notes:",
+      "  - Does not execute Codex.",
+      "  - Does not run checks.",
+      "  - Does not mutate target workspace.",
+      "  - Does not write report artefacts.",
+      "  - Exits 0 only when readiness status is READY."
+    ].join("\n");
+  }
+
   if (command === "report-run") {
     return [
       "Usage: agent-stage report-run <run-id> --config <config-path> [--json] [--pr-summary] [--stdout-only] [--force] [--verbose]",
@@ -322,6 +339,7 @@ export function renderHelpText(command?: string): string {
     "  list-runs --config <config-path>",
     "  show-run <run-id> --config <config-path>",
     "  open-run <run-id> --config <config-path>",
+    "  prove <run-id> --config <config-path> [--json] [--verbose]",
     "  report-run <run-id> --config <config-path> [--json] [--pr-summary] [--stdout-only] [--force] [--verbose]",
     "  backfill-evidence <run-id> --config <config-path> [--dry-run] [--verbose]",
     "  init-project <name> --workspace <path> [--force] [--verbose]",

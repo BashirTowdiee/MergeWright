@@ -16,6 +16,7 @@ export function parseCommandPositionals(argv: string[], parsed: ParsedArgs): Com
     command === "open-run" ||
     command === "continue-run" ||
     command === "report-run" ||
+    command === "prove" ||
     command === "backfill-evidence"
   ) {
     parsed.runId = firstArg && !firstArg.startsWith("-") ? firstArg : undefined;
@@ -32,6 +33,7 @@ export function parseCommandPositionals(argv: string[], parsed: ParsedArgs): Com
           command === "open-run" ||
           command === "continue-run" ||
           command === "report-run" ||
+          command === "prove" ||
           command === "backfill-evidence"
         ? firstArg && firstArg.startsWith("-")
           ? [firstArg, ...tail]

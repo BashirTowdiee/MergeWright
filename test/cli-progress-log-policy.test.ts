@@ -14,6 +14,18 @@ test("suppresses progress logging for report-run JSON stdout", () => {
   );
 });
 
+test("suppresses progress logging for prove JSON output", () => {
+  assert.equal(
+    shouldSuppressProgressLogger({
+      command: "prove",
+      jsonOutput: true,
+      prSummary: false,
+      stdoutOnly: false
+    }),
+    true
+  );
+});
+
 test("suppresses progress logging for report-run PR summary stdout-only output", () => {
   assert.equal(
     shouldSuppressProgressLogger({

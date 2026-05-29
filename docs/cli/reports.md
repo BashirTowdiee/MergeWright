@@ -15,3 +15,16 @@ Options behavior:
 - `--json --pr-summary --stdout-only` is rejected
 
 `run` and `continue-run` support `--generate-report` to produce reports after completion.
+
+## prove
+
+```bash
+npm run agent -- prove <run-id> --config <config-path> [--json] [--verbose]
+```
+
+Behavior:
+
+- computes readiness from the existing report pipeline without writing artefacts
+- exits `0` only when status is `READY`
+- exits non-zero for `NEEDS_REVIEW`, `NEEDS_FIX`, and `BLOCKED`
+- `--json` prints a machine-readable proof wrapper with the embedded `report`

@@ -9,6 +9,7 @@ import { handleContinueRunCommand } from "./commands/continue-run.command.js";
 import { handleListRunsCommand } from "./commands/list-runs.command.js";
 import { handleShowRunCommand } from "./commands/show-run.command.js";
 import { handleOpenRunCommand } from "./commands/open-run.command.js";
+import { handleProveCommand } from "./commands/prove.command.js";
 import { handleReportRunCommand } from "./commands/report-run.command.js";
 import { handleTuiCommand } from "./commands/tui.command.js";
 import { handleTuiSpikeCommand } from "./commands/tui-spike.command.js";
@@ -30,6 +31,7 @@ export const commandHandlers = {
   "list-runs": handleListRunsCommand,
   "show-run": handleShowRunCommand,
   "open-run": handleOpenRunCommand,
+  "prove": handleProveCommand,
   "report-run": handleReportRunCommand,
   "tui": handleTuiCommand,
   "tui-spike": handleTuiSpikeCommand,

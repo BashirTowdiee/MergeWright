@@ -5,6 +5,9 @@ type ProgressLogPolicyArgs = Pick<ParsedArgs, "command" | "jsonOutput" | "prSumm
 type ProgressLoggerArgs = ProgressLogPolicyArgs & Pick<ParsedArgs, "verbose">;
 
 export function shouldSuppressProgressLogger(args: ProgressLogPolicyArgs): boolean {
+  if (args.command === "prove" && args.jsonOutput === true) {
+    return true;
+  }
   return args.command === "report-run" && (args.jsonOutput === true || (args.prSummary === true && args.stdoutOnly === true));
 }
 
