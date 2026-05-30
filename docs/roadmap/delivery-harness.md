@@ -2,17 +2,25 @@
 
 ## Current repo review status
 
-Last reviewed: 2026-05-21.
+Last reviewed: 2026-05-30.
 
-MergeWright is already positioned as an AI software delivery harness in the README and architecture docs. The repository also has more runtime surface than the original roadmap assumed:
+MergeWright is positioned as a local-first AI software delivery harness. It owns the delivery path around agent-generated work: contracts, evidence, review gates, fix loops, reports, and merge-readiness decisions.
 
-- `run`, `continue-run`, run inspection, `report-run`, write-safety checks, Stage Plan commands, `tui`, and `tui-spike` are registered CLI commands.
-- `report-run` already generates Change Report and optional PR summary artefacts from existing run artefacts.
-- The reporting layer already computes a readiness-style status, score, risk level, reviewer verdict, checks state, write-safety state, post-write-review state, scope drift warnings, risk signals, manual review checklist, and suggested commit message.
-- Reviewer output already has a strict fenced `json reviewer-verdict` parser with `PASS` or `FAIL`, blocking issues, and non-blocking issues.
-- The TUI is no longer only aspirational. A read-only TUI command exists and can render a fixture or load real run data from the configured runs root.
+Implemented runtime surface includes:
 
-The canonical `evidence.json` manifest foundation is now in place and report generation can prefer it when present. The next missing operator-facing slice is a dedicated read-only readiness command (`prove`) with explicit pass/fail exit semantics.
+- Classic run workflow: `run`, `continue-run`.
+- Run inspection: `list-runs`, `show-run`, `open-run`.
+- Change reporting: `report-run` with Markdown, JSON, and optional PR summary output.
+- Readiness proof: `prove`.
+- Run comparison: `compare-runs`.
+- Review modes: focused assurance reviews.
+- Project scaffolding: `init-project`.
+- Safety: `check-write-safety`.
+- Backend utility: `probe-opencode`.
+- Stage Plan workflow: `import-stage-plan`, `run-stage`, `run-stages`, `continue-stages`, `accept-stage`, `fix-stage`, `reassess-stage-plan`.
+- Legacy TUI commands: `tui`, `tui-spike`.
+
+The web app is the intended primary human interface. It should run and supervise CLI-equivalent workflows through the Fastify API and shared application services. The CLI remains the scriptable automation surface. The TUI is superseded spike/client code and should not receive new product feature investment.
 
 ## Strategic direction
 
@@ -38,16 +46,19 @@ intent
   -> checks
   -> diff audit
   -> change report
+  -> prove/readiness result
   -> PR-ready summary
+  -> team-visible review UI
 ```
 
-Core positioning:
+Operator model:
 
 ```text
-Coding agents write code.
-Agent runtimes coordinate workers.
-MergeWright proves whether the change is acceptable.
+Web app -> Fastify API -> application service -> domain/use case -> adapters
+CLI     -> application service -> domain/use case -> adapters
 ```
+
+The web app should be the main operator cockpit for running CLI-equivalent workflows, inspecting artefacts, reviewing blockers, previewing safe actions, and showing team-visible review evidence.
 
 ## Design principles
 
@@ -69,6 +80,9 @@ MergeWright proves whether the change is acceptable.
 6. **Artefacts are the product**
    - Every run should leave a durable record of what changed, why, how it was reviewed, what failed, what was fixed, and what remains risky.
 
+7. **Web is the primary human interface**
+   - Humans should use the web app as the primary control room. The web app should expose CLI-equivalent workflows through API/application services, not by parsing CLI stdout or duplicating orchestration logic.
+
 ## Implemented baseline
 
 ### CLI and workflow baseline
@@ -77,40 +91,23 @@ Implemented:
 
 - Classic run workflow: `run`, `continue-run`.
 - Run inspection: `list-runs`, `show-run`, `open-run`.
-- Change reporting: `report-run` with Markdown, JSON, and optional PR summary output.
+- Change reporting: `report-run`.
+- Readiness proof: `prove`.
+- Run comparison: `compare-runs`.
+- Focused review modes.
 - Project scaffolding: `init-project`.
 - Safety: `check-write-safety`.
 - Backend utility: `probe-opencode`.
-- Stage Plan workflow: `import-stage-plan`, `run-stage`, `run-stages`, `continue-stages`, `accept-stage`, `fix-stage`, `reassess-stage-plan`.
-- TUI surface: `tui`, `tui-spike`.
+- Stage Plan workflow commands.
 
 ### Reporting baseline
 
 Implemented:
 
-- Change Report type with:
-  - status
-  - score
-  - risk
-  - changed files
-  - untracked files
-  - reviewer verdict
-  - blocking and non-blocking reviewer issues
-  - checks state
-  - failed checks
-  - write-safety state
-  - post-write-review status
-  - auto-chain summary when available
-  - scope drift warnings
-  - risk signals
-  - manual review checklist
-  - suggested commit message
+- Change Report type with status, score, risk, changed files, reviewer verdict, checks state, write-safety state, scope drift warnings, risk signals, manual review checklist, and suggested commit message.
 - Report collector reconstructs evidence from existing artefacts.
+- Report generation can prefer `evidence.json` when present.
 - PR summary writer exists.
-
-Gap:
-
-- There is no dedicated read-only `prove` command yet; readiness is still exposed indirectly through full report generation.
 
 ### Reviewer baseline
 
@@ -118,29 +115,27 @@ Implemented:
 
 - Reviewer output parser requires exactly one fenced `json reviewer-verdict` block.
 - Parser validates verdict, blocking issues, non-blocking issues, issue severity, summary, and files.
+- Reviewer verdict v2 supports evidence checked, tests observed, acceptance criteria mapping, risk level, and recommended fix prompt.
 - `FAIL` requires at least one blocking issue.
 
-Gap:
-
-- Current reviewer schema does not yet include evidence checked, tests observed, acceptance criteria mapping, risk level, or recommended fix prompt.
-
-### TUI baseline
+### Legacy TUI baseline
 
 Implemented:
 
 - Read-only TUI command exists.
 - TUI can use fixture mode or load run data from the configured runs root.
-- TUI read model maps runs, phases, artefacts, safe actions, blocked reason, warnings, and reviewer findings.
+- TUI read model maps runs, phases, artefacts, safe actions, blocked reason, warnings, reviewer findings, and readiness data.
 
-Gap:
+Status:
 
-- Run-to-run comparison and side-by-side readiness drift views are not yet implemented.
+- Superseded as a product path.
+- Keep compiling while reusable read-model, command, event, and safety abstractions are extracted.
+- Do not add new TUI product features.
+- Remove or quarantine `src/tui/**` after the web app has useful run-inspection parity.
 
 ## Revised milestone order
 
-The old plan put TUI late. The repo now already has a TUI baseline, so the updated order is:
-
-Progress note (as of 2026-05-30): DH-1 through DH-12 are implemented. DH-13 is the active next slice.
+Progress note as of 2026-05-30: DH-1 through DH-12 are implemented. DH-13 is the active next slice.
 
 1. DH-1 Evidence manifest foundation
 2. DH-2 Evidence backfill from existing artefacts
@@ -151,7 +146,7 @@ Progress note (as of 2026-05-30): DH-1 through DH-12 are implemented. DH-13 is t
 7. DH-7 Acceptance criteria mapping
 8. DH-8 Reviewer verdict v2
 9. DH-9 Evidence-first reviewer prompt hardening
-10. DH-10 TUI integration with evidence and prove result
+10. DH-10 Web/API readiness surface using evidence and prove results
 11. DH-11 Run comparison
 12. DH-12 Parallel focused reviews
 13. DH-13 Runner contract hardening
@@ -167,96 +162,24 @@ Target file:
 .artifacts/runs/<run-id>/evidence.json
 ```
 
-Initial shape:
-
-```ts
-export type EvidenceManifest = {
-  version: 1;
-  runId: string;
-  stageId?: string;
-  projectName?: string | null;
-  stageName?: string | null;
-  status: 'in_progress' | 'needs_review' | 'needs_fix' | 'pass' | 'fail' | 'unknown';
-  workspace: string | null;
-  startedAt: string;
-  completedAt?: string;
-  git: {
-    headBefore?: string;
-    headAfter?: string;
-    statusBefore?: string;
-    statusAfter?: string;
-    changedFiles: string[];
-    untrackedFiles: string[];
-    unexpectedFiles: string[];
-  };
-  commands: EvidenceCommand[];
-  artefacts: EvidenceArtefact[];
-  reviewer?: EvidenceReviewerSummary;
-  checks?: EvidenceChecksSummary;
-  writeSafety?: EvidenceWriteSafetySummary;
-  postWriteReview?: EvidencePostWriteReviewSummary;
-  stageContract?: EvidenceStageContract;
-  readiness?: EvidenceReadinessSummary;
-  risk?: EvidenceRiskSummary;
-};
-```
+Status: implemented.
 
 Acceptance:
 
 - Manifest types and read/write/update helpers exist under `src/evidence/`.
 - `evidence.json` is created for classic `run` dry-run and execution paths.
 - `evidence.json` is created for Stage Plan stage runs where a run/stage artefact directory exists.
-- Existing `run.json`, write-audit, checks, report, and TUI behaviour remains compatible.
+- Existing `run.json`, write-audit, checks, report, and legacy TUI behaviour remains compatible.
 - No orchestration, backend, safety, auto-chain, or commit behaviour changes.
 - Tests cover create/read/update and missing file behaviour.
 
-Builder prompt:
-
-```text
-Implement DH-1 Evidence Manifest Foundation for MergeWright.
-
-Goal:
-Add a canonical evidence manifest without changing orchestration behaviour.
-
-Scope:
-1. Add evidence manifest types under src/evidence/.
-2. Add read/write/update helpers for evidence.json.
-3. Create evidence.json for classic run dry-run and execution paths.
-4. Create evidence.json for Stage Plan stage execution where a run/stage artefact directory exists.
-5. Populate only baseline fields that are already available: runId, projectName, stageName, status, workspace, startedAt, completedAt when known, git defaults, commands empty array, artefacts empty or known artefacts.
-6. Do not move report-run to evidence manifest yet.
-7. Do not implement prove yet.
-8. Do not change runner behaviour, safety gates, auto-chain behaviour, status semantics, or commit behaviour.
-
-Acceptance:
-- npm run build passes.
-- npm test passes.
-- New unit tests cover evidence manifest create/read/update helpers.
-- Existing run tests assert evidence.json exists only where reliable.
-- Existing reports and TUI still work.
-```
-
-Reviewer prompt:
-
-```text
-Review DH-1 Evidence Manifest Foundation.
-
-Check:
-1. evidence.json is additive and does not replace existing artefacts.
-2. Manifest helpers are typed and tested.
-3. Missing fields use explicit empty/default values where JSON consumers need stability.
-4. Existing run, Stage Plan, report, TUI, safety, and auto-chain behaviour did not regress.
-5. No backend execution behaviour changed.
-6. npm run build and npm test pass.
-
-Return PASS or FAIL with severity-ranked findings and minimal fix guidance.
-```
-
 ## DH-2: Evidence backfill from existing artefacts
 
-Goal: populate `evidence.json` from the artefacts MergeWright already writes.
+Goal: populate `evidence.json` from artefacts that MergeWright already writes.
 
-Use existing sources:
+Status: implemented.
+
+Sources:
 
 - `run.json`
 - `01-stage-input.md`
@@ -274,96 +197,24 @@ Acceptance:
 - Checks summary matches current checks parsing behaviour.
 - Malformed artefacts are represented as missing or malformed evidence, not ignored.
 
-Builder prompt:
-
-```text
-Implement DH-2 Evidence Backfill from Existing Artefacts.
-
-Goal:
-Populate evidence.json from artefacts that MergeWright already writes, without changing execution behaviour.
-
-Scope:
-1. Add evidence backfill/collector helpers under src/evidence/.
-2. Reuse existing report collector logic where possible rather than duplicating parsing rules.
-3. Populate git.changedFiles and git.untrackedFiles from write-audit summaries.
-4. Populate reviewer summary from reviewer-output-last-message.md using the existing parser.
-5. Populate checks summary from checks-status.json using existing semantics.
-6. Represent malformed or missing artefacts explicitly.
-7. Do not change report scoring yet.
-
-Acceptance:
-- npm run build passes.
-- npm test passes.
-- Evidence backfill tests cover complete artefacts, missing reviewer, malformed checks, malformed write audit.
-- Current report-run output remains unchanged.
-```
-
-Reviewer prompt:
-
-```text
-Review DH-2 Evidence Backfill.
-
-Check:
-1. existing parsing semantics are preserved.
-2. no report collector regression was introduced.
-3. malformed artefacts are represented explicitly.
-4. changed/untracked files match existing report behaviour.
-5. tests cover missing and malformed artefacts.
-
-Return PASS or FAIL.
-```
-
 ## DH-3: Report integration with evidence manifest
 
 Goal: make `report-run` prefer `evidence.json` when present, while preserving support for old runs.
 
+Status: implemented.
+
 Acceptance:
 
 - `report-run` reads `evidence.json` when available.
-- Old runs without `evidence.json` still use current collector path.
+- Old runs without `evidence.json` still use the legacy collector path.
 - Report output remains compatible.
 - Missing evidence appears clearly where report content depends on it.
 
-Builder prompt:
-
-```text
-Implement DH-3 Report Integration with Evidence Manifest.
-
-Goal:
-Make report-run consume evidence.json when available, with backwards compatibility for old runs.
-
-Scope:
-1. Add a report input adapter from EvidenceManifest to existing ChangeReport generation inputs.
-2. Use evidence.json as the preferred source when present.
-3. Fall back to current collectReportInputs behaviour when evidence.json is missing.
-4. Preserve ChangeReport version 1 output shape unless a version bump is explicitly required.
-5. Keep --json, --pr-summary, --stdout-only, and --force behaviours unchanged.
-
-Acceptance:
-- npm run build passes.
-- npm test passes.
-- report-run tests cover evidence-backed run and legacy run.
-- PR summary remains compatible.
-```
-
-Reviewer prompt:
-
-```text
-Review DH-3 Report Integration.
-
-Check:
-1. legacy runs without evidence.json still work.
-2. evidence-backed reports do not change public output accidentally.
-3. missing evidence is visible and not overclaimed.
-4. report-run flags and JSON-only behaviour are preserved.
-5. tests cover legacy and evidence-backed paths.
-
-Return PASS or FAIL.
-```
-
 ## DH-4: `prove` command
 
-Goal: expose a read-only merge-readiness decision using the existing Change Report scorer first, then migrate to a dedicated readiness evaluator later if needed.
+Goal: expose a read-only merge-readiness decision.
+
+Status: implemented.
 
 Command:
 
@@ -372,7 +223,7 @@ npm run mergewright -- prove <run-id> --config configs/my-app.json
 npm run mergewright -- prove <run-id> --config configs/my-app.json --json
 ```
 
-Initial semantics:
+Semantics:
 
 - Generate or compute the same readiness basis as `report-run`.
 - `READY` exits 0.
@@ -387,53 +238,13 @@ Acceptance:
 - JSON output is machine-readable and has no progress noise.
 - Tests cover READY and non-ready cases.
 
-Builder prompt:
-
-```text
-Implement DH-4 prove command.
-
-Goal:
-Expose MergeWright's merge-readiness decision as a read-only CLI command using the existing Change Report scoring path.
-
-Scope:
-1. Add `prove` to known commands, parser, help text, and command registry.
-2. Usage: prove <run-id> --config <config-path> [--json]
-3. Resolve run directory like report-run.
-4. Prefer evidence.json when DH-3 exists; otherwise use existing generateChangeReport path.
-5. Human output must include status, score, risk, reviewer verdict, checks state, risk signals or blockers, and suggested next action.
-6. --json output must be JSON-only.
-7. Exit 0 only for READY. Exit non-zero for NEEDS_REVIEW, NEEDS_FIX, BLOCKED, and errors.
-8. Do not write report artefacts unless a future explicit flag is added.
-9. Do not invoke AI, checks, git mutation, or workspace writes.
-
-Acceptance:
-- npm run build passes.
-- npm test passes.
-- CLI tests cover help, ready, fail, and --json.
-- report-run behaviour is unchanged.
-```
-
-Reviewer prompt:
-
-```text
-Review DH-4 prove command.
-
-Check:
-1. prove is read-only.
-2. exit codes match readiness status.
-3. --json is clean JSON only.
-4. human output is actionable but not noisy.
-5. no report artefacts are written by default.
-6. report-run behaviour is unchanged.
-
-Return PASS or FAIL.
-```
-
 ## DH-5: Stage contract schema
 
 Goal: make Stage Plan stages enforceable.
 
-Optional contract fields:
+Status: implemented.
+
+Optional contract fields include:
 
 ```yaml
 allowedPaths:
@@ -465,6 +276,8 @@ Acceptance:
 
 Goal: classify changed files using contract `allowedPaths` and `forbiddenPaths`.
 
+Status: implemented.
+
 Acceptance:
 
 - Forbidden changes block readiness.
@@ -490,16 +303,6 @@ Acceptance:
 Goal: extend the existing reviewer verdict schema without losing strict parsing.
 
 Status: implemented.
-
-Current schema:
-
-```ts
-export interface ReviewerDecision {
-  verdict: 'PASS' | 'FAIL';
-  blockingIssues: ReviewerIssue[];
-  nonBlockingIssues: ReviewerIssue[];
-}
-```
 
 Target additions:
 
@@ -539,18 +342,20 @@ Acceptance:
 - No reviewer template places summaries before evidence.
 - No reviewer context is accidentally removed.
 
-## DH-10: TUI integration with evidence and prove result
+## DH-10: Web/API readiness surface using evidence and prove results
 
-Goal: upgrade the existing TUI to display evidence and readiness.
+Goal: expose evidence and readiness through the API/web path so the web app can become the main human interface for CLI-equivalent workflows.
 
-Status: implemented.
+Status: partially implemented through API and web client foundations.
 
 Acceptance:
 
-- TUI reads evidence manifest when present.
-- TUI falls back to current run read model when evidence is missing.
-- TUI displays readiness status, score/risk, checks state, reviewer verdict, changed file count, and missing evidence warnings.
-- TUI remains read-only.
+- Fastify routes expose run list, run detail, artefacts, and command submission through application services.
+- Web client consumes API schemas for run list, run detail, artefacts, and commands.
+- Web view models use generic read models, not TUI-owned types.
+- Web/API surfaces do not parse CLI stdout.
+- Web/API surfaces do not duplicate orchestration logic.
+- Legacy TUI readiness views remain compatibility-only and are not the active product path.
 
 ## DH-11: Run comparison
 
@@ -597,6 +402,8 @@ Acceptance:
 
 Goal: keep execution backends replaceable.
 
+Status: active next slice.
+
 Runner responsibilities only:
 
 - execute prompt
@@ -623,6 +430,8 @@ Acceptance:
 
 Goal: use CAO as optional infrastructure, not as the product centre.
 
+Status: future.
+
 Acceptance:
 
 - CAO output is normalised into MergeWright artefacts.
@@ -638,12 +447,14 @@ Acceptance:
 - Do not auto-merge or auto-accept changes without explicit human policy.
 - Do not treat loose reviewer prose as proof.
 - Do not hide missing checks or missing evidence in reports.
+- Do not revive the TUI as the primary human interface.
+- Do not make the web app parse CLI stdout as product state.
 
 ## Current recommended next step
 
 Start with DH-13 runner contract hardening.
 
-The evidence-first flow now covers manifest, report, prove, TUI readiness views, run comparison, and focused mode reviews. The next leverage point is hardening backend runner contracts so orchestration policy remains backend-agnostic.
+The evidence-first flow now covers manifest, report, prove, run comparison, and focused mode reviews. The next leverage point is hardening backend runner contracts so orchestration policy remains backend-agnostic while the API/web path becomes the main human control surface.
 
 Success looks like:
 
