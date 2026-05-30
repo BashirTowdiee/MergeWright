@@ -26,7 +26,7 @@ MergeWright already has a strong local-first delivery-harness foundation:
 - bounded fix loops
 - run artefacts and change reports
 - reviewer verdict parsing
-- TUI direction for local supervision
+- web-first interface direction over CLI-compatible workflows
 - provider abstraction direction
 
 ### Enterprise gap
@@ -173,7 +173,7 @@ Add a lightweight web console for teams to review runs, evidence, policy decisio
 - Add an API and data store for runs, evidence metadata, policies, approvals, and users.
 - Add an artefact store for logs, reports, diffs, and evidence packs.
 - Build a web UI focused on run timeline, policy decision, changed files, reviewer findings, and approvals.
-- Keep the TUI as the best local cockpit and the web UI as the shared team surface.
+- Make the web app the main local and shared review cockpit for CLI-equivalent workflows; keep the CLI as the automation surface and treat the TUI as superseded.
 
 ### Low-level implementation
 
