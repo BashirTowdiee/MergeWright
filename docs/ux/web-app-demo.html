@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MergeWright Web App Demo</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #111827;
+      --panel-2: #172033;
+      --panel-3: #0f172a;
+      --border: #25324a;
+      --text: #e5edf8;
+      --muted: #93a4bd;
+      --soft: #cbd5e1;
+      --green: #35d07f;
+      --amber: #f6c453;
+      --red: #fb7185;
+      --blue: #60a5fa;
+      --purple: #a78bfa;
+      --cyan: #22d3ee;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+      --radius: 18px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(96, 165, 250, 0.20), transparent 32rem),
+        radial-gradient(circle at top right, rgba(167, 139, 250, 0.16), transparent 34rem),
+        var(--bg);
+      color: var(--text);
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      min-height: 100vh;
+    }
+
+    aside {
+      border-right: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.88);
+      padding: 24px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+
+    main {
+      padding: 24px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      font-weight: 800;
+      box-shadow: var(--shadow);
+    }
+
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 24px; letter-spacing: -0.03em; }
+    h2 { font-size: 17px; letter-spacing: -0.02em; }
+    h3 { font-size: 14px; color: var(--soft); }
+    p { color: var(--muted); line-height: 1.5; }
+
+    .eyebrow {
+      color: var(--cyan);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.13em;
+      font-weight: 700;
+    }
+
+    .nav-section { margin: 24px 0; }
+    .nav-title { font-size: 11px; text-transform: uppercase; color: #64748b; letter-spacing: 0.12em; margin-bottom: 10px; }
+    .nav-item {
+      padding: 10px 12px;
+      border-radius: 12px;
+      color: var(--soft);
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+    .nav-item.active { background: rgba(96, 165, 250, 0.13); color: #fff; border: 1px solid rgba(96, 165, 250, 0.28); }
+    .count { color: var(--muted); font-size: 12px; }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .command-bar {
+      background: linear-gradient(180deg, rgba(17, 24, 39, 0.98), rgba(15, 23, 42, 0.98));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .command-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1fr auto;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .field {
+      background: #0b1222;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      color: var(--soft);
+      font-size: 13px;
+    }
+
+    .button {
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 14px;
+      color: #07111f;
+      background: linear-gradient(135deg, var(--green), #6ee7b7);
+      font-weight: 800;
+      cursor: default;
+      white-space: nowrap;
+    }
+
+    .ghost-button {
+      border: 1px solid var(--border);
+      background: #0b1222;
+      color: var(--soft);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-weight: 700;
+    }
+
+    .status-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .metric, .card, .panel {
+      background: rgba(17, 24, 39, 0.94);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .metric { padding: 14px; }
+    .metric strong { display: block; font-size: 22px; margin-top: 6px; }
+    .metric span { color: var(--muted); font-size: 12px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(340px, 0.9fr);
+      gap: 18px;
+    }
+
+    .card, .panel { padding: 18px; }
+    .stack { display: grid; gap: 18px; }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .muted { color: var(--muted); }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-size: 12px;
+      font-weight: 750;
+      border: 1px solid transparent;
+    }
+    .pill.green { background: rgba(53, 208, 127, 0.12); color: var(--green); border-color: rgba(53, 208, 127, 0.35); }
+    .pill.amber { background: rgba(246, 196, 83, 0.12); color: var(--amber); border-color: rgba(246, 196, 83, 0.35); }
+    .pill.red { background: rgba(251, 113, 133, 0.12); color: var(--red); border-color: rgba(251, 113, 133, 0.35); }
+    .pill.blue { background: rgba(96, 165, 250, 0.12); color: var(--blue); border-color: rgba(96, 165, 250, 0.35); }
+    .pill.purple { background: rgba(167, 139, 250, 0.12); color: var(--purple); border-color: rgba(167, 139, 250, 0.35); }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .phase {
+      background: var(--panel-3);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      min-height: 112px;
+    }
+    .phase .dot { width: 10px; height: 10px; border-radius: 999px; margin-bottom: 10px; }
+    .phase.passed .dot { background: var(--green); }
+    .phase.running .dot { background: var(--blue); box-shadow: 0 0 0 5px rgba(96, 165, 250, 0.10); }
+    .phase.blocked .dot { background: var(--amber); }
+    .phase.pending .dot { background: #64748b; }
+    .phase strong { display: block; font-size: 13px; margin-bottom: 8px; }
+    .phase span { display: block; color: var(--muted); font-size: 12px; line-height: 1.35; }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .list { display: grid; gap: 10px; margin-top: 14px; }
+    .list-item {
+      border: 1px solid var(--border);
+      background: #0b1222;
+      border-radius: 14px;
+      padding: 12px;
+      display: grid;
+      gap: 5px;
+    }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      background: #050914;
+      border: 1px solid #1f2937;
+      border-radius: 14px;
+      padding: 14px;
+      color: #dbeafe;
+      font: 12.5px/1.55 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      overflow: auto;
+    }
+
+    .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 14px; }
+    .tab { border-radius: 999px; border: 1px solid var(--border); color: var(--muted); padding: 7px 10px; font-size: 12px; }
+    .tab.active { color: white; background: rgba(96, 165, 250, 0.14); border-color: rgba(96, 165, 250, 0.34); }
+
+    .review-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .mini {
+      background: var(--panel-3);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .mini strong { display: block; font-size: 13px; margin-bottom: 6px; }
+    .mini span { color: var(--muted); font-size: 12px; }
+
+    .footer-note {
+      color: #64748b;
+      font-size: 12px;
+      text-align: center;
+      padding: 8px 0 24px;
+    }
+
+    @media (max-width: 1180px) {
+      .shell { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; }
+      .grid, .topbar, .split { grid-template-columns: 1fr; }
+      .timeline { grid-template-columns: repeat(2, 1fr); }
+      .command-grid, .status-strip, .review-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <div class="brand">
+        <div class="mark">MW</div>
+        <div>
+          <h2>MergeWright</h2>
+          <p>Web control room</p>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">Workspace</div>
+        <div class="nav-item active"><span>Runs</span><span class="count">12</span></div>
+        <div class="nav-item"><span>Stage Plans</span><span class="count">4</span></div>
+        <div class="nav-item"><span>Artefacts</span><span class="count">128</span></div>
+        <div class="nav-item"><span>Policies</span><span class="count">3</span></div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">Recent runs</div>
+        <div class="nav-item active"><span>provider-contract</span><span class="pill amber">blocked</span></div>
+        <div class="nav-item"><span>web-api-client</span><span class="pill green">ready</span></div>
+        <div class="nav-item"><span>stage-plan-fix</span><span class="pill blue">running</span></div>
+        <div class="nav-item"><span>opencode-probe</span><span class="pill green">passed</span></div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">Team review</div>
+        <div class="nav-item"><span>Approvals</span><span class="count">2 pending</span></div>
+        <div class="nav-item"><span>PR checks</span><span class="count">1 failing</span></div>
+        <div class="nav-item"><span>Audit log</span><span class="count">34</span></div>
+      </div>
+    </aside>
+
+    <main>
+      <section class="topbar">
+        <div>
+          <div class="eyebrow">Primary human interface for CLI-compatible workflows</div>
+          <h1>Run, review, and approve MergeWright work from the web app</h1>
+          <p>The web app submits typed commands to the API, shows the same evidence as the CLI, and gives reviewers a team-visible cockpit for readiness decisions.</p>
+        </div>
+        <button class="ghost-button">Open local artefact folder</button>
+      </section>
+
+      <section class="command-bar">
+        <div class="row">
+          <div>
+            <h2>Command launcher</h2>
+            <p>Web controls map to MergeWright commands without React shelling out or parsing stdout.</p>
+          </div>
+          <span class="pill blue">POST /commands</span>
+        </div>
+        <div class="command-grid">
+          <div class="field">continue-run run-2026-05-30-provider-contract</div>
+          <div class="field">--config configs/rn-fastify-next.json</div>
+          <div class="field">--execute-reviewer --run-checks --generate-report</div>
+          <button class="button">Preview command</button>
+        </div>
+      </section>
+
+      <section class="status-strip">
+        <div class="metric"><span>Readiness</span><strong>BLOCKED</strong><span>1 blocker, 2 warnings</span></div>
+        <div class="metric"><span>Score</span><strong>72/100</strong><span>Medium risk</span></div>
+        <div class="metric"><span>Reviewer</span><strong>FAIL</strong><span>Acceptance mapping incomplete</span></div>
+        <div class="metric"><span>Checks</span><strong>failed</strong><span>docs:check failed</span></div>
+      </section>
+
+      <section class="grid">
+        <div class="stack">
+          <div class="card">
+            <div class="row">
+              <div>
+                <h2>Current run</h2>
+                <p>run-2026-05-30-provider-contract · agent/chatgpt-worker-b/provider-contract</p>
+              </div>
+              <span class="pill amber">Needs fix</span>
+            </div>
+            <div class="timeline">
+              <div class="phase passed"><div class="dot"></div><strong>Planner</strong><span>Stage objective and scope captured.</span></div>
+              <div class="phase passed"><div class="dot"></div><strong>Builder</strong><span>Implementation wrote evidence manifest and report inputs.</span></div>
+              <div class="phase blocked"><div class="dot"></div><strong>Reviewer</strong><span>Found missing acceptance criterion mapping.</span></div>
+              <div class="phase pending"><div class="dot"></div><strong>Fix</strong><span>Ready after command preview and confirmation.</span></div>
+              <div class="phase blocked"><div class="dot"></div><strong>Checks</strong><span>docs:check failed on stale TUI wording.</span></div>
+              <div class="phase pending"><div class="dot"></div><strong>Report</strong><span>Can regenerate after fix.</span></div>
+              <div class="phase pending"><div class="dot"></div><strong>Prove</strong><span>Blocked until checks and review pass.</span></div>
+            </div>
+          </div>
+
+          <div class="split">
+            <div class="card">
+              <div class="row"><h2>Safe next actions</h2><span class="pill purple">policy gated</span></div>
+              <div class="list">
+                <div class="list-item"><div class="row"><strong>Request fix</strong><span class="pill amber">medium risk</span></div><p>Generate a fix prompt from reviewer blockers and stale docs.</p></div>
+                <div class="list-item"><div class="row"><strong>Run checks</strong><span class="pill blue">low risk</span></div><p>Execute configured checks after a fix lands.</p></div>
+                <div class="list-item"><div class="row"><strong>Generate report</strong><span class="pill green">low risk</span></div><p>Write run-report.md, run-report.json, and optional PR summary.</p></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="row"><h2>Artefacts</h2><span class="pill blue">GET /runs/:id/artifacts</span></div>
+              <div class="list">
+                <div class="list-item"><strong>run-report.md</strong><p>Human-readable evidence and readiness report.</p></div>
+                <div class="list-item"><strong>evidence.json</strong><p>Canonical manifest with checks, reviewer, risk, and changed files.</p></div>
+                <div class="list-item"><strong>reviewer-output-last-message.md</strong><p>Structured reviewer verdict and blocking issues.</p></div>
+                <div class="list-item"><strong>checks-status.json</strong><p>Build/test/docs check results.</p></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="row"><h2>CLI output mapped into web panels</h2><span class="pill green">read-only proof</span></div>
+            <div class="tabs">
+              <span class="tab active">prove</span>
+              <span class="tab">compare-runs</span>
+              <span class="tab">review-modes</span>
+              <span class="tab">report-run</span>
+            </div>
+            <pre>Merge Readiness Proof
+- run id: run-2026-05-30-provider-contract
+- ready: false
+- status: BLOCKED
+- score: 72/100
+- risk: medium
+- reviewer verdict: FAIL
+- checks: failed
+- acceptance criteria: 6 pass, 1 fail, 1 unknown
+- next action: request-fix
+- blockers:
+  - docs:check failed on stale TUI roadmap wording
+  - reviewer found acceptance criteria mapping incomplete</pre>
+          </div>
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <div class="row"><h2>Readiness proof</h2><span class="pill amber">BLOCKED</span></div>
+            <div class="review-grid">
+              <div class="mini"><strong>Checks</strong><span>failed</span></div>
+              <div class="mini"><strong>Risk</strong><span>medium</span></div>
+              <div class="mini"><strong>Changed files</strong><span>5</span></div>
+            </div>
+            <div class="list">
+              <div class="list-item"><strong>Missing evidence</strong><p>No final prove result after latest docs fix.</p></div>
+              <div class="list-item"><strong>Reviewer finding</strong><p>High: active roadmap still references TUI as product path.</p></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="row"><h2>Team-visible review</h2><span class="pill purple">shared UI</span></div>
+            <div class="list">
+              <div class="list-item"><div class="row"><strong>Bashir</strong><span class="pill amber">requested changes</span></div><p>Replace active TUI roadmap with web-first control room direction.</p></div>
+              <div class="list-item"><div class="row"><strong>Reviewer bot</strong><span class="pill red">blocked</span></div><p>CI failed: docs wording contradicted accepted product decision.</p></div>
+              <div class="list-item"><div class="row"><strong>Lead approval</strong><span class="pill blue">pending</span></div><p>Waiting for final report and prove result.</p></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="row"><h2>Command result</h2><span class="pill blue">typed response</span></div>
+            <pre>{
+  "ok": false,
+  "commandId": "cmd-continue-reviewer-001",
+  "type": "continue-run",
+  "code": "CONFIRMATION_REQUIRED",
+  "reason": "Medium-risk command requires review before execution.",
+  "details": {
+    "risk": "medium",
+    "requiresConfirmation": true
+  }
+}</pre>
+          </div>
+
+          <div class="card">
+            <div class="row"><h2>API coverage</h2><span class="pill green">current foundation</span></div>
+            <div class="list">
+              <div class="list-item"><strong>GET /runs</strong><p>Populate run list and filters.</p></div>
+              <div class="list-item"><strong>GET /runs/:runId</strong><p>Populate run detail, phases, actions, readiness, findings.</p></div>
+              <div class="list-item"><strong>GET /runs/:runId/artifacts</strong><p>Populate artefact browser.</p></div>
+              <div class="list-item"><strong>POST /commands</strong><p>Submit typed CLI-equivalent actions.</p></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="footer-note">Static HTML concept mock. No JavaScript, no external assets, and no framework dependency.</div>
+    </main>
+  </div>
+</body>
+</html>
