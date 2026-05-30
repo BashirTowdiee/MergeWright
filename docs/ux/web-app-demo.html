@@ -7,7 +7,6 @@
   <style>
     :root {
       --bg: #f6f8fb;
-      --shell: #ffffff;
       --surface: #ffffff;
       --surface-2: #f9fbff;
       --ink: #111827;
@@ -25,218 +24,74 @@
       --red-soft: #fef3f2;
       --purple: #6941c6;
       --purple-soft: #f4f3ff;
-      --shadow: 0 20px 40px rgba(16, 24, 40, 0.08);
+      --shadow: 0 18px 38px rgba(16, 24, 40, 0.08);
       --radius: 16px;
-      --radius-sm: 10px;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
     * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      color: var(--ink);
-      background: var(--bg);
-    }
-
+    body { margin: 0; min-height: 100vh; color: var(--ink); background: var(--bg); }
     button, input, select, textarea { font: inherit; }
     button { cursor: pointer; }
 
-    .app {
-      min-height: 100vh;
-      display: grid;
-      grid-template-columns: 264px minmax(0, 1fr);
-    }
-
-    .sidebar {
-      position: sticky;
-      top: 0;
-      height: 100vh;
-      background: #0f172a;
-      color: #e5e7eb;
-      padding: 20px 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 4px 6px 14px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .brand-mark {
-      width: 38px;
-      height: 38px;
-      display: grid;
-      place-items: center;
-      border-radius: 11px;
-      background: linear-gradient(135deg, #60a5fa, #34d399);
-      color: #07111f;
-      font-weight: 900;
-    }
-
+    .app { min-height: 100vh; display: grid; grid-template-columns: 276px minmax(0, 1fr); }
+    .sidebar { position: sticky; top: 0; height: 100vh; background: #0f172a; color: #e5e7eb; padding: 20px 16px; display: flex; flex-direction: column; gap: 18px; overflow: auto; }
+    .brand { display: flex; align-items: center; gap: 12px; padding: 4px 6px 14px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .brand-mark { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; background: linear-gradient(135deg, #60a5fa, #34d399); color: #07111f; font-weight: 900; }
     .brand strong { display: block; font-size: 15px; }
     .brand span { display: block; color: #94a3b8; font-size: 12px; margin-top: 2px; }
-
-    .nav-section-title {
-      color: #94a3b8;
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      margin: 8px 8px;
-    }
-
-    .nav {
-      display: grid;
-      gap: 4px;
-    }
-
-    .nav-button {
-      border: 0;
-      background: transparent;
-      color: #cbd5e1;
-      border-radius: 12px;
-      padding: 10px 11px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      text-align: left;
-    }
-
-    .nav-button:hover { background: rgba(255, 255, 255, 0.06); }
+    .nav-section-title { color: #94a3b8; font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; margin: 8px 8px; }
+    .nav { display: grid; gap: 4px; }
+    .nav-button { border: 0; background: transparent; color: #cbd5e1; border-radius: 12px; padding: 10px 11px; display: flex; align-items: center; justify-content: space-between; text-align: left; }
+    .nav-button:hover { background: rgba(255,255,255,0.06); }
     .nav-button.active { background: #2563eb; color: white; }
     .nav-button .label { display: flex; align-items: center; gap: 10px; }
-    .nav-icon { width: 18px; display: inline-grid; place-items: center; opacity: 0.9; }
+    .nav-icon { width: 18px; display: inline-grid; place-items: center; opacity: 0.92; }
     .nav-count { font-size: 12px; color: #94a3b8; }
     .nav-button.active .nav-count { color: #dbeafe; }
+    .sidebar-footer { margin-top: auto; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px; color: #94a3b8; font-size: 12px; display: grid; gap: 8px; }
 
-    .sidebar-footer {
-      margin-top: auto;
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
-      padding-top: 14px;
-      color: #94a3b8;
-      font-size: 12px;
-      display: grid;
-      gap: 8px;
-    }
-
-    .main {
-      min-width: 0;
-      display: grid;
-      grid-template-rows: auto 1fr;
-    }
-
-    .topbar {
-      position: sticky;
-      top: 0;
-      z-index: 5;
-      background: rgba(246, 248, 251, 0.86);
-      backdrop-filter: blur(14px);
-      border-bottom: 1px solid var(--border);
-      padding: 14px 24px;
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 18px;
-      align-items: center;
-    }
-
-    .breadcrumbs {
-      color: var(--muted);
-      font-size: 13px;
-      margin-bottom: 4px;
-    }
+    .main { min-width: 0; display: grid; grid-template-rows: auto 1fr; }
+    .topbar { position: sticky; top: 0; z-index: 5; background: rgba(246,248,251,0.88); backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); padding: 14px 24px; display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center; }
+    .breadcrumbs { color: var(--muted); font-size: 13px; margin-bottom: 4px; }
+    .content { padding: 24px; display: grid; gap: 18px; }
 
     h1, h2, h3, p { margin: 0; }
     h1 { font-size: 24px; letter-spacing: -0.03em; }
     h2 { font-size: 17px; letter-spacing: -0.02em; }
     h3 { font-size: 14px; }
     p { color: var(--muted); line-height: 1.5; }
+    .muted { color: var(--muted); }
+    .small { font-size: 12px; }
+    .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
 
-    .top-actions {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
+    .top-actions, .toolbar, .row { display: flex; gap: 10px; align-items: center; }
+    .top-actions, .row { justify-content: space-between; }
+    .top-actions { justify-content: flex-end; flex-wrap: wrap; }
+    .toolbar { flex-wrap: wrap; }
 
-    .content {
-      padding: 24px;
-      display: grid;
-      gap: 18px;
-    }
-
-    .page { display: none; }
-    .page.active { display: grid; gap: 18px; }
-
-    .button, .button-secondary, .button-danger, .button-ghost {
-      border-radius: 10px;
-      border: 1px solid transparent;
-      padding: 9px 12px;
-      font-weight: 700;
-      min-height: 38px;
-    }
-
+    .button, .button-secondary, .button-danger, .button-ghost { border-radius: 10px; border: 1px solid transparent; padding: 9px 12px; font-weight: 700; min-height: 38px; }
     .button { background: var(--blue); color: white; }
     .button-secondary { background: white; color: var(--ink); border-color: var(--border-2); }
     .button-danger { background: var(--red-soft); color: var(--red); border-color: #fecdca; }
     .button-ghost { background: transparent; color: var(--muted); border-color: var(--border); }
 
+    .page { display: none; }
+    .page.active { display: grid; gap: 18px; }
     .grid-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 0.72fr); gap: 18px; }
     .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
     .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
     .stack { display: grid; gap: 14px; }
-    .stack-lg { display: grid; gap: 18px; }
 
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-    }
-
-    .card-header {
-      padding: 16px 18px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      gap: 14px;
-      align-items: flex-start;
-    }
-
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+    .card-header { padding: 16px 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
     .card-body { padding: 18px; }
-
-    .metric {
-      background: white;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 16px;
-      box-shadow: 0 8px 18px rgba(16, 24, 40, 0.04);
-    }
-
+    .metric { background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: 0 8px 18px rgba(16,24,40,0.04); }
     .metric span { display: block; color: var(--muted); font-size: 13px; margin-bottom: 8px; }
     .metric strong { display: block; font-size: 26px; letter-spacing: -0.04em; }
     .metric small { display: block; color: var(--muted); margin-top: 5px; }
 
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      border-radius: 999px;
-      padding: 4px 8px;
-      font-size: 12px;
-      font-weight: 750;
-      border: 1px solid transparent;
-      white-space: nowrap;
-    }
-
+    .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 8px; font-size: 12px; font-weight: 750; border: 1px solid transparent; white-space: nowrap; }
     .green { background: var(--green-soft); color: var(--green); border-color: #abefc6; }
     .amber { background: var(--amber-soft); color: var(--amber); border-color: #fedf89; }
     .red { background: var(--red-soft); color: var(--red); border-color: #fecdca; }
@@ -244,394 +99,119 @@
     .purple { background: var(--purple-soft); color: var(--purple); border-color: #d9d6fe; }
     .neutral { background: #f2f4f7; color: #475467; border-color: #eaecf0; }
 
-    .toolbar {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .input, select, textarea {
-      width: 100%;
-      border: 1px solid var(--border-2);
-      background: white;
-      border-radius: 10px;
-      padding: 9px 11px;
-      color: var(--ink);
-      outline: none;
-    }
-
+    .input, select, textarea { width: 100%; border: 1px solid var(--border-2); background: white; border-radius: 10px; padding: 9px 11px; color: var(--ink); outline: none; }
     textarea { min-height: 90px; resize: vertical; }
     label { font-size: 12px; font-weight: 800; color: var(--muted); }
     .field { display: grid; gap: 6px; }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 14px;
-    }
-
-    th, td {
-      padding: 13px 12px;
-      border-bottom: 1px solid var(--border);
-      text-align: left;
-      vertical-align: middle;
-    }
-
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 13px 12px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
     th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
     tr:last-child td { border-bottom: 0; }
     tr.selected { background: #f8fbff; }
 
-    .project-card {
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      background: white;
-      padding: 16px;
-      display: grid;
-      gap: 14px;
-      box-shadow: 0 8px 18px rgba(16, 24, 40, 0.04);
-    }
+    .project-card { border: 1px solid var(--border); border-radius: var(--radius); background: white; padding: 16px; display: grid; gap: 14px; box-shadow: 0 8px 18px rgba(16,24,40,0.04); }
+    .project-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; color: var(--muted); font-size: 12px; }
+    .project-meta div { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 10px; }
 
-    .project-meta {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    .project-meta div {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 10px;
-    }
-
-    .timeline {
-      display: grid;
-      grid-template-columns: repeat(7, minmax(120px, 1fr));
-      gap: 10px;
-      overflow-x: auto;
-      padding-bottom: 2px;
-    }
-
-    .phase {
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background: white;
-      padding: 13px;
-      min-height: 124px;
-      display: grid;
-      align-content: start;
-      gap: 8px;
-    }
-
+    .timeline { display: grid; grid-template-columns: repeat(7, minmax(120px, 1fr)); gap: 10px; overflow-x: auto; padding-bottom: 2px; }
+    .phase { border: 1px solid var(--border); border-radius: 14px; background: white; padding: 13px; min-height: 124px; display: grid; align-content: start; gap: 8px; }
     .phase-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
     .dot-green { background: var(--green); }
     .dot-amber { background: var(--amber); }
     .dot-red { background: var(--red); }
     .dot-blue { background: var(--blue); }
     .dot-neutral { background: var(--muted-2); }
-
     .phase p { font-size: 12px; }
 
     .list { display: grid; gap: 10px; }
-    .list-item {
-      border: 1px solid var(--border);
-      background: var(--surface-2);
-      border-radius: 13px;
-      padding: 12px;
-      display: grid;
-      gap: 6px;
-    }
-
-    .row { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
-    .muted { color: var(--muted); }
-    .small { font-size: 12px; }
-    .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
-
-    pre {
-      margin: 0;
-      white-space: pre-wrap;
-      overflow: auto;
-      background: #0f172a;
-      color: #e2e8f0;
-      border-radius: 14px;
-      padding: 14px;
-      font: 12.5px/1.55 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-    }
-
-    .command-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
-    }
-
-    .results-layout {
-      display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: 18px;
-    }
-
-    .score-ring {
-      width: 148px;
-      height: 148px;
-      border-radius: 50%;
-      background: conic-gradient(var(--amber) 0 72%, #eaecf0 72% 100%);
-      display: grid;
-      place-items: center;
-      margin: 4px auto 16px;
-    }
-
-    .score-ring-inner {
-      width: 112px;
-      height: 112px;
-      border-radius: 50%;
-      background: white;
-      display: grid;
-      place-items: center;
-      text-align: center;
-      border: 1px solid var(--border);
-    }
-
+    .list-item { border: 1px solid var(--border); background: var(--surface-2); border-radius: 13px; padding: 12px; display: grid; gap: 6px; }
+    pre { margin: 0; white-space: pre-wrap; overflow: auto; background: #0f172a; color: #e2e8f0; border-radius: 14px; padding: 14px; font: 12.5px/1.55 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
+    .command-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .results-layout { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 18px; }
+    .score-ring { width: 148px; height: 148px; border-radius: 50%; background: conic-gradient(var(--amber) 0 72%, #eaecf0 72% 100%); display: grid; place-items: center; margin: 4px auto 16px; }
+    .score-ring-inner { width: 112px; height: 112px; border-radius: 50%; background: white; display: grid; place-items: center; text-align: center; border: 1px solid var(--border); }
     .score-ring-inner strong { display: block; font-size: 26px; }
+    .finding { border-left: 4px solid var(--red); background: var(--red-soft); border-radius: 12px; padding: 12px; display: grid; gap: 6px; }
 
-    .finding {
-      border-left: 4px solid var(--red);
-      background: var(--red-soft);
-      border-radius: 12px;
-      padding: 12px;
-      display: grid;
-      gap: 6px;
-    }
-
-    .diff {
-      background: #0f172a;
-      color: #e2e8f0;
-      border-radius: 14px;
-      overflow: hidden;
-      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-      font-size: 12px;
-    }
-
+    .diff { background: #0f172a; color: #e2e8f0; border-radius: 14px; overflow: hidden; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 12px; }
     .diff-line { display: grid; grid-template-columns: 58px 1fr; border-bottom: 1px solid rgba(255,255,255,0.06); }
     .line-no { color: #94a3b8; padding: 7px 9px; border-right: 1px solid rgba(255,255,255,0.06); }
     .line-code { padding: 7px 9px; }
-    .line-add { background: rgba(7, 148, 85, 0.22); }
-    .line-remove { background: rgba(217, 45, 32, 0.2); }
+    .line-add { background: rgba(7,148,85,0.22); }
+    .line-remove { background: rgba(217,45,32,0.2); }
 
     .tabs { display: flex; gap: 8px; flex-wrap: wrap; }
-    .tab {
-      border: 1px solid var(--border);
-      background: white;
-      color: var(--muted);
-      border-radius: 999px;
-      padding: 7px 10px;
-      font-weight: 700;
-    }
+    .tab { border: 1px solid var(--border); background: white; color: var(--muted); border-radius: 999px; padding: 7px 10px; font-weight: 700; }
     .tab.active { background: var(--blue); color: white; border-color: var(--blue); }
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
 
-    .empty-note {
-      border: 1px dashed var(--border-2);
-      background: #fcfcfd;
-      border-radius: var(--radius);
-      padding: 18px;
-      color: var(--muted);
-      text-align: center;
-    }
-
-    @media (max-width: 1200px) {
-      .grid-4, .grid-3, .grid-2, .results-layout { grid-template-columns: 1fr; }
-    }
-
-    @media (max-width: 840px) {
-      .app { grid-template-columns: 1fr; }
-      .sidebar { position: static; height: auto; }
-      .topbar { grid-template-columns: 1fr; }
-      .top-actions { justify-content: flex-start; }
-      .command-grid, .project-meta { grid-template-columns: 1fr; }
-    }
+    @media (max-width: 1200px) { .grid-4, .grid-3, .grid-2, .results-layout { grid-template-columns: 1fr; } }
+    @media (max-width: 840px) { .app { grid-template-columns: 1fr; } .sidebar { position: static; height: auto; } .topbar { grid-template-columns: 1fr; } .top-actions { justify-content: flex-start; } .command-grid, .project-meta { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
   <div class="app">
     <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark">MW</div>
-        <div>
-          <strong>MergeWright</strong>
-          <span>Web interface demo</span>
-        </div>
-      </div>
-
+      <div class="brand"><div class="brand-mark">MW</div><div><strong>MergeWright</strong><span>Web app demo</span></div></div>
       <div>
         <div class="nav-section-title">Workspace</div>
         <nav class="nav" aria-label="Primary navigation">
           <button class="nav-button active" data-page-link="projects"><span class="label"><span class="nav-icon">▦</span>Projects</span><span class="nav-count">3</span></button>
           <button class="nav-button" data-page-link="runs"><span class="label"><span class="nav-icon">▶</span>Runs</span><span class="nav-count">12</span></button>
-          <button class="nav-button" data-page-link="run-detail"><span class="label"><span class="nav-icon">◇</span>Run detail</span><span class="nav-count">live</span></button>
+          <button class="nav-button" data-page-link="stage-plans"><span class="label"><span class="nav-icon">▤</span>Stage Plans</span><span class="nav-count">4</span></button>
+          <button class="nav-button" data-page-link="run-detail"><span class="label"><span class="nav-icon">◇</span>Run Detail</span><span class="nav-count">live</span></button>
           <button class="nav-button" data-page-link="results"><span class="label"><span class="nav-icon">✓</span>Results</span><span class="nav-count">blocked</span></button>
-          <button class="nav-button" data-page-link="review"><span class="label"><span class="nav-icon">☰</span>Review details</span><span class="nav-count">4</span></button>
+          <button class="nav-button" data-page-link="review"><span class="label"><span class="nav-icon">☰</span>Review Details</span><span class="nav-count">4</span></button>
+          <button class="nav-button" data-page-link="evidence"><span class="label"><span class="nav-icon">◈</span>Evidence</span><span class="nav-count">78%</span></button>
+          <button class="nav-button" data-page-link="artefacts"><span class="label"><span class="nav-icon">▣</span>Artefacts</span><span class="nav-count">18</span></button>
+          <button class="nav-button" data-page-link="compare"><span class="label"><span class="nav-icon">⇄</span>Compare Runs</span><span class="nav-count">new</span></button>
           <button class="nav-button" data-page-link="commands"><span class="label"><span class="nav-icon">⌘</span>Commands</span><span class="nav-count">API</span></button>
         </nav>
       </div>
-
       <div>
         <div class="nav-section-title">Admin</div>
         <nav class="nav" aria-label="Secondary navigation">
-          <button class="nav-button" data-page-link="team"><span class="label"><span class="nav-icon">👥</span>Team review</span><span class="nav-count">2</span></button>
+          <button class="nav-button" data-page-link="providers"><span class="label"><span class="nav-icon">⚡</span>Providers</span><span class="nav-count">2</span></button>
+          <button class="nav-button" data-page-link="policy"><span class="label"><span class="nav-icon">🔒</span>Policy & Safety</span><span class="nav-count">3</span></button>
+          <button class="nav-button" data-page-link="team"><span class="label"><span class="nav-icon">👥</span>Team Review</span><span class="nav-count">2</span></button>
           <button class="nav-button" data-page-link="settings"><span class="label"><span class="nav-icon">⚙</span>Settings</span><span class="nav-count"></span></button>
         </nav>
       </div>
-
-      <div class="sidebar-footer">
-        <div><strong>Current repo</strong></div>
-        <div class="mono">BashirTowdiee/MergeWright</div>
-        <div>API: <span style="color:#86efac">healthy</span></div>
-        <div>Mode: local-first</div>
-      </div>
+      <div class="sidebar-footer"><div><strong>Current repo</strong></div><div class="mono">BashirTowdiee/MergeWright</div><div>API: <span style="color:#86efac">healthy</span></div><div>Mode: local-first</div></div>
     </aside>
 
     <main class="main">
-      <header class="topbar">
-        <div>
-          <div class="breadcrumbs" id="breadcrumbs">Projects / MergeWright</div>
-          <h1 id="pageTitle">Projects</h1>
-        </div>
-        <div class="top-actions">
-          <button class="button-secondary">Open artefacts</button>
-          <button class="button-secondary">Export report</button>
-          <button class="button" data-page-link="commands">Run command</button>
-        </div>
-      </header>
-
+      <header class="topbar"><div><div class="breadcrumbs" id="breadcrumbs">Projects / All</div><h1 id="pageTitle">Projects</h1></div><div class="top-actions"><button class="button-secondary" data-page-link="artefacts">Open artefacts</button><button class="button-secondary" data-page-link="results">Export report</button><button class="button" data-page-link="commands">Run command</button></div></header>
       <div class="content">
         <section class="page active" id="projects" data-title="Projects" data-crumb="Projects / All">
           <div class="grid-3">
-            <article class="project-card">
-              <div class="row"><h2>MergeWright</h2><span class="pill amber">1 blocked</span></div>
-              <p>Main development workspace for delivery harness, API, CLI, web interface, evidence, and review workflows.</p>
-              <div class="project-meta">
-                <div><strong>12</strong><br />runs</div>
-                <div><strong>72%</strong><br />ready rate</div>
-                <div><strong>local</strong><br />runner</div>
-              </div>
-              <div class="row"><span class="small muted mono">configs/rn-fastify-next.json</span><button class="button-secondary" data-page-link="runs">View runs</button></div>
-            </article>
-
-            <article class="project-card">
-              <div class="row"><h2>RAGLens</h2><span class="pill green">healthy</span></div>
-              <p>RAG project with roadmap, local model evaluation, document ingestion, and retrieval quality checks.</p>
-              <div class="project-meta">
-                <div><strong>5</strong><br />runs</div>
-                <div><strong>88%</strong><br />ready rate</div>
-                <div><strong>Codex</strong><br />runner</div>
-              </div>
-              <div class="row"><span class="small muted mono">configs/raglens.json</span><button class="button-secondary">Open</button></div>
-            </article>
-
-            <article class="project-card">
-              <div class="row"><h2>MyCV</h2><span class="pill blue">review</span></div>
-              <p>CV generation repo with RenderCV variants, job-specific outputs, and publishing artefacts.</p>
-              <div class="project-meta">
-                <div><strong>3</strong><br />runs</div>
-                <div><strong>100%</strong><br />ready rate</div>
-                <div><strong>read-only</strong><br />mode</div>
-              </div>
-              <div class="row"><span class="small muted mono">configs/mycv.json</span><button class="button-secondary">Open</button></div>
-            </article>
+            <article class="project-card"><div class="row"><h2>MergeWright</h2><span class="pill amber">1 blocked</span></div><p>Main workspace for CLI, API, web, evidence, policy, and review workflows.</p><div class="project-meta"><div><strong>12</strong><br>runs</div><div><strong>72%</strong><br>ready rate</div><div><strong>local</strong><br>runner</div></div><div class="row"><span class="small muted mono">configs/rn-fastify-next.json</span><button class="button-secondary" data-page-link="runs">View runs</button></div></article>
+            <article class="project-card"><div class="row"><h2>RAGLens</h2><span class="pill green">healthy</span></div><p>RAG roadmap and local model evaluation workspace.</p><div class="project-meta"><div><strong>5</strong><br>runs</div><div><strong>88%</strong><br>ready rate</div><div><strong>Codex</strong><br>runner</div></div><button class="button-secondary">Open</button></article>
+            <article class="project-card"><div class="row"><h2>MyCV</h2><span class="pill blue">review</span></div><p>CV generation and job-specific output workspace.</p><div class="project-meta"><div><strong>3</strong><br>runs</div><div><strong>100%</strong><br>ready rate</div><div><strong>read-only</strong><br>mode</div></div><button class="button-secondary">Open</button></article>
           </div>
-
-          <div class="card">
-            <div class="card-header"><div><h2>Project activity</h2><p>Quick cross-project view for solo and team workflows.</p></div></div>
-            <div class="card-body">
-              <table>
-                <thead><tr><th>Project</th><th>Latest run</th><th>Status</th><th>Next action</th><th>Owner</th></tr></thead>
-                <tbody>
-                  <tr><td>MergeWright</td><td>provider-contract</td><td><span class="pill amber">blocked</span></td><td>Fix stale docs</td><td>Bashir</td></tr>
-                  <tr><td>RAGLens</td><td>roadmap-review</td><td><span class="pill green">ready</span></td><td>Merge PR</td><td>Bashir</td></tr>
-                  <tr><td>MyCV</td><td>render-fullstack-cv</td><td><span class="pill blue">review</span></td><td>Inspect PDF</td><td>Bashir</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <div class="card"><div class="card-header"><div><h2>Project activity</h2><p>Cross-project view for local and team workflows.</p></div></div><div class="card-body"><table><thead><tr><th>Project</th><th>Latest run</th><th>Status</th><th>Next action</th><th>Owner</th></tr></thead><tbody><tr><td>MergeWright</td><td>provider-contract</td><td><span class="pill amber">blocked</span></td><td>Fix stale docs</td><td>Bashir</td></tr><tr><td>RAGLens</td><td>roadmap-review</td><td><span class="pill green">ready</span></td><td>Merge PR</td><td>Bashir</td></tr><tr><td>MyCV</td><td>render-fullstack-cv</td><td><span class="pill blue">review</span></td><td>Inspect PDF</td><td>Bashir</td></tr></tbody></table></div></div>
         </section>
 
         <section class="page" id="runs" data-title="Runs" data-crumb="Projects / MergeWright / Runs">
-          <div class="grid-4">
-            <div class="metric"><span>Total runs</span><strong>12</strong><small>Last 7 days</small></div>
-            <div class="metric"><span>Ready</span><strong>7</strong><small>Passed proof</small></div>
-            <div class="metric"><span>Blocked</span><strong>2</strong><small>Needs human action</small></div>
-            <div class="metric"><span>Running</span><strong>1</strong><small>Live phase active</small></div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <div><h2>Run list</h2><p>Filter, inspect, continue, compare, or generate reports.</p></div>
-              <div class="toolbar"><input class="input" style="width:220px" value="provider" /><button class="button-secondary">Filter</button><button class="button">New run</button></div>
-            </div>
-            <div class="card-body">
-              <table>
-                <thead><tr><th>Run</th><th>Status</th><th>Mode</th><th>Branch</th><th>Score</th><th>Next action</th></tr></thead>
-                <tbody>
-                  <tr class="selected"><td><button class="button-ghost" data-page-link="run-detail">provider-contract</button><br /><span class="small muted mono">run-2026-05-30-provider-contract</span></td><td><span class="pill amber">blocked</span></td><td>write-enabled</td><td class="mono small">agent/provider-contract</td><td>72</td><td><button class="button-secondary" data-page-link="commands">Continue</button></td></tr>
-                  <tr><td>web-api-client<br /><span class="small muted mono">run-2026-05-30-web-api-client</span></td><td><span class="pill green">ready</span></td><td>read-only</td><td class="mono small">agent/web-api-client</td><td>94</td><td><button class="button-secondary">Report</button></td></tr>
-                  <tr><td>stage-plan-fix<br /><span class="small muted mono">run-2026-05-30-stage-plan-fix</span></td><td><span class="pill blue">running</span></td><td>auto-chain</td><td class="mono small">agent/stage-plan-fix</td><td>n/a</td><td><button class="button-secondary">Watch</button></td></tr>
-                  <tr><td>opencode-probe<br /><span class="small muted mono">run-2026-05-29-opencode-probe</span></td><td><span class="pill green">passed</span></td><td>read-only</td><td class="mono small">main</td><td>100</td><td><button class="button-secondary">Open</button></td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <div class="grid-4"><div class="metric"><span>Total runs</span><strong>12</strong><small>Last 7 days</small></div><div class="metric"><span>Ready</span><strong>7</strong><small>Passed proof</small></div><div class="metric"><span>Blocked</span><strong>2</strong><small>Needs action</small></div><div class="metric"><span>Running</span><strong>1</strong><small>Live phase active</small></div></div>
+          <div class="card"><div class="card-header"><div><h2>Run list</h2><p>Filter, inspect, continue, compare, or generate reports.</p></div><div class="toolbar"><input class="input" style="width:220px" value="provider"><button class="button-secondary">Filter</button><button class="button">New run</button></div></div><div class="card-body"><table><thead><tr><th>Run</th><th>Status</th><th>Mode</th><th>Branch</th><th>Score</th><th>Next action</th></tr></thead><tbody><tr class="selected"><td><button class="button-ghost" data-page-link="run-detail">provider-contract</button><br><span class="small muted mono">run-2026-05-30-provider-contract</span></td><td><span class="pill amber">blocked</span></td><td>write-enabled</td><td class="mono small">agent/provider-contract</td><td>72</td><td><button class="button-secondary" data-page-link="commands">Continue</button></td></tr><tr><td>web-api-client<br><span class="small muted mono">run-2026-05-30-web-api-client</span></td><td><span class="pill green">ready</span></td><td>read-only</td><td class="mono small">agent/web-api-client</td><td>94</td><td><button class="button-secondary">Report</button></td></tr><tr><td>stage-plan-fix<br><span class="small muted mono">run-2026-05-30-stage-plan-fix</span></td><td><span class="pill blue">running</span></td><td>auto-chain</td><td class="mono small">agent/stage-plan-fix</td><td>n/a</td><td><button class="button-secondary">Watch</button></td></tr></tbody></table></div></div>
         </section>
 
-        <section class="page" id="run-detail" data-title="Run detail" data-crumb="Projects / MergeWright / Runs / provider-contract">
-          <div class="grid-4">
-            <div class="metric"><span>Readiness</span><strong>BLOCKED</strong><small>2 blockers</small></div>
-            <div class="metric"><span>Score</span><strong>72/100</strong><small>Medium risk</small></div>
-            <div class="metric"><span>Reviewer</span><strong>FAIL</strong><small>1 high finding</small></div>
-            <div class="metric"><span>Checks</span><strong>failed</strong><small>docs:check</small></div>
-          </div>
+        <section class="page" id="stage-plans" data-title="Stage Plans" data-crumb="Projects / MergeWright / Stage Plans">
+          <div class="grid-3"><div class="metric"><span>Imported plans</span><strong>4</strong><small>2 active</small></div><div class="metric"><span>Current stage</span><strong>03</strong><small>web direction</small></div><div class="metric"><span>Blocked criteria</span><strong>1</strong><small>docs wording</small></div></div>
+          <div class="card"><div class="card-header"><div><h2>Stage plan detail</h2><p>Stage contracts make prompts enforceable rather than loose instructions.</p></div><span class="pill amber">needs fix</span></div><div class="card-body"><table><thead><tr><th>Stage</th><th>Status</th><th>Allowed paths</th><th>Required checks</th><th>Action</th></tr></thead><tbody><tr><td>01 evidence foundation</td><td><span class="pill green">accepted</span></td><td class="mono small">src/evidence/**</td><td>build, test</td><td><button class="button-secondary">Open</button></td></tr><tr><td>02 API read models</td><td><span class="pill green">accepted</span></td><td class="mono small">src/api/**</td><td>build, api tests</td><td><button class="button-secondary">Open</button></td></tr><tr class="selected"><td>03 web direction docs</td><td><span class="pill amber">needs fix</span></td><td class="mono small">docs/**</td><td>docs:check</td><td><button class="button" data-page-link="commands">Fix stage</button></td></tr><tr><td>04 web implementation</td><td><span class="pill neutral">pending</span></td><td class="mono small">apps/web/**</td><td>build</td><td><button class="button-secondary">Preview</button></td></tr></tbody></table></div></div>
+        </section>
 
-          <div class="card">
-            <div class="card-header"><div><h2>Phase timeline</h2><p>Readable phase status instead of forcing users to inspect terminal logs.</p></div><span class="pill amber">needs fix</span></div>
-            <div class="card-body">
-              <div class="timeline">
-                <div class="phase"><span class="phase-dot dot-green"></span><h3>Planner</h3><p>Scope captured and accepted.</p><span class="small muted">28s · 4 artefacts</span></div>
-                <div class="phase"><span class="phase-dot dot-green"></span><h3>Builder</h3><p>Docs and evidence updated.</p><span class="small muted">2m 11s · 9 artefacts</span></div>
-                <div class="phase"><span class="phase-dot dot-red"></span><h3>Reviewer</h3><p>Found stale TUI roadmap wording.</p><span class="small muted">FAIL · high</span></div>
-                <div class="phase"><span class="phase-dot dot-red"></span><h3>Checks</h3><p>docs:check failed.</p><span class="small muted">1 failed command</span></div>
-                <div class="phase"><span class="phase-dot dot-amber"></span><h3>Fix</h3><p>Ready after confirmation.</p><span class="small muted">medium risk</span></div>
-                <div class="phase"><span class="phase-dot dot-neutral"></span><h3>Report</h3><p>Waiting for fix.</p><span class="small muted">queued</span></div>
-                <div class="phase"><span class="phase-dot dot-neutral"></span><h3>Prove</h3><p>Blocked until checks pass.</p><span class="small muted">read-only</span></div>
-              </div>
-            </div>
-          </div>
-
-          <div class="grid-2">
-            <div class="card"><div class="card-header"><h2>Safe next actions</h2><span class="pill amber">policy gated</span></div><div class="card-body list"><div class="list-item"><div class="row"><strong>Request fix</strong><span class="pill amber">medium risk</span></div><p>Patch stale roadmap wording only, then rerun checks.</p></div><div class="list-item"><div class="row"><strong>Generate report</strong><span class="pill blue">low risk</span></div><p>Write report artefacts after a passing fix.</p></div><div class="list-item"><div class="row"><strong>Run prove</strong><span class="pill green">read-only</span></div><p>Compute readiness proof without writing artefacts.</p></div></div></div>
-            <div class="card"><div class="card-header"><h2>Run metadata</h2><span class="pill neutral">local</span></div><div class="card-body list"><div class="list-item"><strong>Workspace</strong><span class="mono small">/repos/MergeWright</span></div><div class="list-item"><strong>Run directory</strong><span class="mono small">.artifacts/runs/run-2026-05-30-provider-contract</span></div><div class="list-item"><strong>Provider</strong><span>Codex CLI</span></div><div class="list-item"><strong>Model</strong><span>reasoning model</span></div></div></div>
-          </div>
+        <section class="page" id="run-detail" data-title="Run Detail" data-crumb="Projects / MergeWright / Runs / provider-contract">
+          <div class="grid-4"><div class="metric"><span>Readiness</span><strong>BLOCKED</strong><small>2 blockers</small></div><div class="metric"><span>Score</span><strong>72/100</strong><small>Medium risk</small></div><div class="metric"><span>Reviewer</span><strong>FAIL</strong><small>1 high finding</small></div><div class="metric"><span>Checks</span><strong>failed</strong><small>docs:check</small></div></div>
+          <div class="card"><div class="card-header"><div><h2>Phase timeline</h2><p>Readable phase state instead of terminal log archaeology.</p></div><span class="pill amber">needs fix</span></div><div class="card-body"><div class="timeline"><div class="phase"><span class="phase-dot dot-green"></span><h3>Planner</h3><p>Scope captured.</p><span class="small muted">28s</span></div><div class="phase"><span class="phase-dot dot-green"></span><h3>Builder</h3><p>Docs and evidence updated.</p><span class="small muted">2m 11s</span></div><div class="phase"><span class="phase-dot dot-red"></span><h3>Reviewer</h3><p>Stale TUI wording.</p><span class="small muted">FAIL</span></div><div class="phase"><span class="phase-dot dot-red"></span><h3>Checks</h3><p>docs:check failed.</p><span class="small muted">1 failed</span></div><div class="phase"><span class="phase-dot dot-amber"></span><h3>Fix</h3><p>Ready after confirmation.</p><span class="small muted">medium risk</span></div><div class="phase"><span class="phase-dot dot-neutral"></span><h3>Report</h3><p>Waiting for fix.</p></div><div class="phase"><span class="phase-dot dot-neutral"></span><h3>Prove</h3><p>Blocked until checks pass.</p></div></div></div></div>
+          <div class="grid-2"><div class="card"><div class="card-header"><h2>Safe next actions</h2><span class="pill amber">policy gated</span></div><div class="card-body list"><div class="list-item"><div class="row"><strong>Request fix</strong><span class="pill amber">medium risk</span></div><p>Patch stale roadmap wording only, then rerun checks.</p></div><div class="list-item"><div class="row"><strong>Generate report</strong><span class="pill blue">low risk</span></div><p>Write report artefacts after a passing fix.</p></div></div></div><div class="card"><div class="card-header"><h2>Run metadata</h2><span class="pill neutral">local</span></div><div class="card-body list"><div class="list-item"><strong>Workspace</strong><span class="mono small">/repos/MergeWright</span></div><div class="list-item"><strong>Run directory</strong><span class="mono small">.artifacts/runs/run-2026-05-30-provider-contract</span></div><div class="list-item"><strong>Provider</strong><span>Codex CLI</span></div></div></div></div>
         </section>
 
         <section class="page" id="results" data-title="Results" data-crumb="Projects / MergeWright / Results">
-          <div class="results-layout">
-            <div class="card">
-              <div class="card-header"><div><h2>Merge readiness result</h2><p>Visual version of the `prove` output.</p></div><span class="pill amber">BLOCKED</span></div>
-              <div class="card-body">
-                <div class="score-ring"><div class="score-ring-inner"><div><strong>72</strong><span class="small muted">/100</span></div></div></div>
-                <div class="grid-3">
-                  <div class="metric"><span>Reviewer</span><strong>FAIL</strong><small>blocking</small></div>
-                  <div class="metric"><span>Checks</span><strong>failed</strong><small>docs</small></div>
-                  <div class="metric"><span>Risk</span><strong>medium</strong><small>docs-only</small></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-header"><h2>Proof output</h2><span class="pill blue">read-only</span></div>
-              <div class="card-body"><pre>Merge Readiness Proof
+          <div class="results-layout"><div class="card"><div class="card-header"><div><h2>Merge readiness result</h2><p>Visual version of prove output.</p></div><span class="pill amber">BLOCKED</span></div><div class="card-body"><div class="score-ring"><div class="score-ring-inner"><div><strong>72</strong><span class="small muted">/100</span></div></div></div><div class="grid-3"><div class="metric"><span>Reviewer</span><strong>FAIL</strong><small>blocking</small></div><div class="metric"><span>Checks</span><strong>failed</strong><small>docs</small></div><div class="metric"><span>Risk</span><strong>medium</strong><small>docs-only</small></div></div></div></div><div class="card"><div class="card-header"><h2>Proof output</h2><span class="pill blue">read-only</span></div><div class="card-body"><pre>Merge Readiness Proof
 - run id: run-2026-05-30-provider-contract
 - ready: false
 - status: BLOCKED
@@ -643,129 +223,78 @@
 - next action: request-fix
 - blockers:
   - docs:check failed on stale TUI roadmap wording
-  - reviewer found acceptance mapping incomplete</pre></div>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-header"><div><h2>Evidence map</h2><p>Users can see why a result passed or failed.</p></div></div>
-            <div class="card-body">
-              <table>
-                <thead><tr><th>Evidence</th><th>Source</th><th>Status</th><th>Notes</th></tr></thead>
-                <tbody>
-                  <tr><td>Git diff</td><td>write audit</td><td><span class="pill green">present</span></td><td>5 changed files, 0 forbidden paths</td></tr>
-                  <tr><td>Checks</td><td>checks-status.json</td><td><span class="pill red">failed</span></td><td>docs:check found stale product wording</td></tr>
-                  <tr><td>Reviewer verdict</td><td>reviewer-output-last-message.md</td><td><span class="pill red">FAIL</span></td><td>1 high finding</td></tr>
-                  <tr><td>Acceptance criteria</td><td>reviewer verdict v2</td><td><span class="pill amber">partial</span></td><td>6 pass, 1 fail, 1 unknown</td></tr>
-                  <tr><td>Report</td><td>run-report.md</td><td><span class="pill green">present</span></td><td>Readable summary generated</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+  - reviewer found acceptance mapping incomplete</pre></div></div></div>
         </section>
 
-        <section class="page" id="review" data-title="Review details" data-crumb="Projects / MergeWright / Review details">
-          <div class="grid-2">
-            <div class="card">
-              <div class="card-header"><div><h2>Reviewer findings</h2><p>Separate blocking issues from warnings and reviewer notes.</p></div><span class="pill red">FAIL</span></div>
-              <div class="card-body stack">
-                <div class="finding"><strong>High · stale product direction</strong><p>Roadmap still describes the TUI as a local cockpit. This contradicts accepted web-first direction.</p></div>
-                <div class="finding" style="border-left-color:var(--amber);background:var(--amber-soft)"><strong>Medium · acceptance mapping incomplete</strong><p>One acceptance criterion was left as unknown because no final prove result exists after the latest patch.</p></div>
-                <div class="list-item"><strong>Suggested fix prompt</strong><p>Patch only docs that describe TUI as active, replace with web-first control room wording, then rerun docs checks.</p></div>
-              </div>
-            </div>
+        <section class="page" id="review" data-title="Review Details" data-crumb="Projects / MergeWright / Review Details">
+          <div class="grid-2"><div class="card"><div class="card-header"><div><h2>Reviewer findings</h2><p>Separate blockers from warnings and notes.</p></div><span class="pill red">FAIL</span></div><div class="card-body stack"><div class="finding"><strong>High · stale product direction</strong><p>Roadmap still describes the TUI as a local cockpit. This contradicts accepted web-first direction.</p></div><div class="finding" style="border-left-color:var(--amber);background:var(--amber-soft)"><strong>Medium · acceptance mapping incomplete</strong><p>One criterion was left unknown because no final prove result exists after the latest patch.</p></div><div class="list-item"><strong>Recommended fix prompt</strong><p>Patch only docs that describe TUI as active, replace with web-first control room wording, then rerun docs checks.</p></div></div></div><div class="card"><div class="card-header"><h2>Focused reviews</h2><span class="pill purple">review-modes</span></div><div class="card-body"><table><thead><tr><th>Mode</th><th>Verdict</th><th>Risk</th><th>Issues</th></tr></thead><tbody><tr><td>Architecture</td><td><span class="pill green">PASS</span></td><td>low</td><td>0</td></tr><tr><td>Tests</td><td><span class="pill amber">UNKNOWN</span></td><td>medium</td><td>1</td></tr><tr><td>Docs</td><td><span class="pill red">FAIL</span></td><td>medium</td><td>2</td></tr><tr><td>Maintainability</td><td><span class="pill green">PASS</span></td><td>low</td><td>0</td></tr></tbody></table></div></div></div>
+        </section>
 
-            <div class="card">
-              <div class="card-header"><h2>Focused reviews</h2><span class="pill purple">review-modes</span></div>
-              <div class="card-body">
-                <table>
-                  <thead><tr><th>Mode</th><th>Verdict</th><th>Risk</th><th>Issues</th></tr></thead>
-                  <tbody>
-                    <tr><td>Architecture</td><td><span class="pill green">PASS</span></td><td>low</td><td>0</td></tr>
-                    <tr><td>Tests</td><td><span class="pill amber">UNKNOWN</span></td><td>medium</td><td>1</td></tr>
-                    <tr><td>Docs</td><td><span class="pill red">FAIL</span></td><td>medium</td><td>2</td></tr>
-                    <tr><td>Maintainability</td><td><span class="pill green">PASS</span></td><td>low</td><td>0</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+        <section class="page" id="evidence" data-title="Evidence" data-crumb="Projects / MergeWright / Evidence">
+          <div class="grid-4"><div class="metric"><span>Evidence coverage</span><strong>78%</strong><small>5 of 7 required</small></div><div class="metric"><span>Missing evidence</span><strong>2</strong><small>final prove, docs pass</small></div><div class="metric"><span>Forbidden paths</span><strong>0</strong><small>scope clean</small></div><div class="metric"><span>Acceptance</span><strong>6/8</strong><small>1 fail, 1 unknown</small></div></div>
+          <div class="card"><div class="card-header"><div><h2>Evidence matrix</h2><p>Explain exactly why a run is ready or blocked.</p></div><span class="pill amber">partial</span></div><div class="card-body"><table><thead><tr><th>Evidence</th><th>Required</th><th>Source</th><th>Status</th><th>Notes</th></tr></thead><tbody><tr><td>git.diff</td><td>yes</td><td>write-audit</td><td><span class="pill green">present</span></td><td>5 changed files</td></tr><tr><td>checks.docs</td><td>yes</td><td>checks-status.json</td><td><span class="pill red">failed</span></td><td>stale wording</td></tr><tr><td>reviewer.verdict</td><td>yes</td><td>reviewer output</td><td><span class="pill red">FAIL</span></td><td>1 high finding</td></tr><tr><td>acceptance.map</td><td>yes</td><td>reviewer v2</td><td><span class="pill amber">partial</span></td><td>1 unknown</td></tr><tr><td>write.audit</td><td>yes</td><td>summary.json</td><td><span class="pill green">present</span></td><td>docs only</td></tr></tbody></table></div></div>
+        </section>
 
-          <div class="card">
-            <div class="card-header"><h2>Diff preview</h2><span class="pill green">0 forbidden paths</span></div>
-            <div class="card-body">
-              <div class="diff">
-                <div class="diff-line"><span class="line-no">176</span><span class="line-code">### Mid-level implementation</span></div>
-                <div class="diff-line line-remove"><span class="line-no">178</span><span class="line-code">- Keep the TUI as the best local cockpit and the web UI as the shared team surface.</span></div>
-                <div class="diff-line line-add"><span class="line-no">178</span><span class="line-code">+ Make the web app the main local and shared review cockpit for CLI-equivalent workflows.</span></div>
-                <div class="diff-line line-add"><span class="line-no">179</span><span class="line-code">+ Keep the CLI as automation surface and treat TUI as superseded.</span></div>
-              </div>
-            </div>
-          </div>
+        <section class="page" id="artefacts" data-title="Artefacts" data-crumb="Projects / MergeWright / Artefacts">
+          <div class="grid-2"><div class="card"><div class="card-header"><div><h2>Artefact browser</h2><p>Preview generated files without opening run folders.</p></div><span class="pill blue">18 files</span></div><div class="card-body list"><div class="list-item"><div class="row"><strong>evidence.json</strong><span class="pill green">canonical</span></div><p>Run state, checks, verdict, risk, and changed-file summary.</p></div><div class="list-item"><div class="row"><strong>run-report.md</strong><span class="pill blue">report</span></div><p>Human-readable readiness report and checklist.</p></div><div class="list-item"><div class="row"><strong>pr-summary.md</strong><span class="pill purple">team</span></div><p>Short PR-ready summary for review notes.</p></div><div class="list-item"><div class="row"><strong>checks-status.json</strong><span class="pill red">failed</span></div><p>Command results and failed check details.</p></div></div></div><div class="card"><div class="card-header"><h2>Artefact preview</h2><span class="pill neutral">raw</span></div><div class="card-body"><pre>{
+  "runId": "run-2026-05-30-provider-contract",
+  "readiness": {
+    "status": "BLOCKED",
+    "score": 72,
+    "risk": "medium"
+  },
+  "missingEvidenceWarnings": [
+    "docs check failed",
+    "final proof not regenerated"
+  ]
+}</pre></div></div></div>
+        </section>
+
+        <section class="page" id="compare" data-title="Compare Runs" data-crumb="Projects / MergeWright / Compare Runs">
+          <div class="card"><div class="card-header"><div><h2>Compare two runs</h2><p>Useful for fix loops: did the fix improve readiness?</p></div><button class="button">Compare</button></div><div class="card-body"><div class="grid-3"><div class="field"><label>Run A</label><select><option>provider-contract blocked</option></select></div><div class="field"><label>Run B</label><select><option>web-api-client ready</option></select></div><div class="field"><label>Output</label><select><option>Human summary</option><option>JSON</option></select></div></div></div></div>
+          <div class="card"><div class="card-header"><h2>Comparison result</h2><span class="pill amber">regression</span></div><div class="card-body"><table><thead><tr><th>Metric</th><th>Run A</th><th>Run B</th><th>Delta</th></tr></thead><tbody><tr><td>Status</td><td>BLOCKED</td><td>READY</td><td><span class="pill red">worse</span></td></tr><tr><td>Score</td><td>72</td><td>94</td><td>-22</td></tr><tr><td>Risk</td><td>medium</td><td>low</td><td><span class="pill amber">higher</span></td></tr><tr><td>Reviewer</td><td>FAIL</td><td>PASS</td><td><span class="pill red">regression</span></td></tr></tbody></table></div></div>
         </section>
 
         <section class="page" id="commands" data-title="Commands" data-crumb="Projects / MergeWright / Commands">
-          <div class="grid-2">
-            <div class="card">
-              <div class="card-header"><div><h2>Command launcher</h2><p>Guided wrapper for CLI-equivalent workflows.</p></div><span class="pill blue">POST /commands</span></div>
-              <div class="card-body stack">
-                <div class="command-grid">
-                  <div class="field"><label>Command</label><select id="commandSelect"><option value="continue">continue-run</option><option value="run">run</option><option value="prove">prove</option><option value="report">report-run</option><option value="compare">compare-runs</option><option value="reviewModes">review-modes</option><option value="fixStage">fix-stage</option></select></div>
-                  <div class="field"><label>Run</label><input class="input" value="run-2026-05-30-provider-contract" /></div>
-                  <div class="field"><label>Config</label><input class="input" value="configs/rn-fastify-next.json" /></div>
-                  <div class="field"><label>Execution mode</label><select><option>Preview first</option><option>Read-only execute</option><option>Write-enabled with confirmation</option></select></div>
-                </div>
-                <div class="field"><label>Feedback or instruction</label><textarea>Fix only stale roadmap wording. Web app is the main interface for CLI workflows. TUI is superseded.</textarea></div>
-                <div class="row"><span class="pill amber">medium risk · confirmation required</span><button class="button">Preview command</button></div>
-                <pre id="commandPreview">npm run mergewright -- continue-run run-2026-05-30-provider-contract \
+          <div class="grid-2"><div class="card"><div class="card-header"><div><h2>Command launcher</h2><p>Guided wrapper for CLI-equivalent workflows.</p></div><span class="pill blue">POST /commands</span></div><div class="card-body stack"><div class="command-grid"><div class="field"><label>Command</label><select id="commandSelect"><option value="continue">continue-run</option><option value="run">run</option><option value="prove">prove</option><option value="report">report-run</option><option value="compare">compare-runs</option><option value="reviewModes">review-modes</option><option value="fixStage">fix-stage</option><option value="safety">check-write-safety</option><option value="probe">probe-opencode</option></select></div><div class="field"><label>Run</label><input class="input" value="run-2026-05-30-provider-contract"></div><div class="field"><label>Config</label><input class="input" value="configs/rn-fastify-next.json"></div><div class="field"><label>Execution mode</label><select><option>Preview first</option><option>Read-only execute</option><option>Write-enabled with confirmation</option></select></div></div><div class="field"><label>Feedback or instruction</label><textarea>Fix only stale roadmap wording. Web app is the main interface for CLI workflows. TUI is superseded.</textarea></div><div class="row"><span class="pill amber">medium risk · confirmation required</span><button class="button">Preview command</button></div><pre id="commandPreview">npm run mergewright -- continue-run run-2026-05-30-provider-contract \
   --config configs/rn-fastify-next.json \
   --execute-reviewer \
   --run-checks \
-  --generate-report</pre>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-header"><h2>Command output</h2><span class="pill neutral">tabs</span></div>
-              <div class="card-body stack">
-                <div class="tabs"><button class="tab active" data-tab="typed-result">Typed result</button><button class="tab" data-tab="cli-output">CLI output</button><button class="tab" data-tab="events">Events</button></div>
-                <div id="typed-result" class="tab-panel active"><pre>{
+  --generate-report</pre></div></div><div class="card"><div class="card-header"><h2>Command output</h2><span class="pill neutral">tabs</span></div><div class="card-body stack"><div class="tabs"><button class="tab active" data-tab="typed-result">Typed result</button><button class="tab" data-tab="cli-output">CLI output</button><button class="tab" data-tab="events">Events</button></div><div id="typed-result" class="tab-panel active"><pre>{
   "ok": false,
   "commandId": "cmd-preview-001",
   "type": "continue-run",
   "code": "CONFIRMATION_REQUIRED",
-  "reason": "Medium-risk command requires confirmation.",
-  "details": {
-    "risk": "medium",
-    "requiresConfirmation": true
-  }
-}</pre></div>
-                <div id="cli-output" class="tab-panel"><pre>Focused Review Modes
+  "reason": "Medium-risk command requires confirmation."
+}</pre></div><div id="cli-output" class="tab-panel"><pre>Focused Review Modes
 - run id: run-2026-05-30-provider-contract
 - aggregate verdict: FAIL
-- mode count: 4
-- mode architecture: PASS
-- mode tests: UNKNOWN
 - mode docs: FAIL
-- mode maintainability: PASS</pre></div>
-                <div id="events" class="tab-panel"><div class="list"><div class="list-item"><strong>10:24:02 Command preview requested</strong><p>Risk policy evaluated the command.</p></div><div class="list-item"><strong>10:24:03 Confirmation required</strong><p>Write-enabled docs fix needs approval.</p></div><div class="list-item"><strong>10:24:05 Artefact preview ready</strong><p>Changed files and expected outputs listed.</p></div></div></div>
-              </div>
-            </div>
-          </div>
+- mode architecture: PASS</pre></div><div id="events" class="tab-panel"><div class="list"><div class="list-item"><strong>10:24:02 Command preview requested</strong><p>Risk policy evaluated the command.</p></div><div class="list-item"><strong>10:24:03 Confirmation required</strong><p>Write-enabled docs fix needs approval.</p></div></div></div></div></div></div>
         </section>
 
-        <section class="page" id="team" data-title="Team review" data-crumb="Projects / MergeWright / Team review">
-          <div class="grid-2">
-            <div class="card"><div class="card-header"><h2>Approval queue</h2><span class="pill amber">2 pending</span></div><div class="card-body list"><div class="list-item"><div class="row"><strong>Docs direction fix</strong><span class="pill amber">needs approval</span></div><p>Medium-risk docs-only command awaiting confirmation.</p></div><div class="list-item"><div class="row"><strong>Merge readiness</strong><span class="pill red">blocked</span></div><p>Cannot approve until prove returns READY.</p></div></div></div>
-            <div class="card"><div class="card-header"><h2>Review comments</h2><span class="pill blue">threaded</span></div><div class="card-body list"><div class="list-item"><strong>Bashir</strong><p>Make the UI direction unambiguous: web app is primary, CLI is automation, TUI is superseded.</p></div><div class="list-item"><strong>Reviewer bot</strong><p>Found stale roadmap language and missing final proof.</p></div></div></div>
-          </div>
+        <section class="page" id="providers" data-title="Providers" data-crumb="Projects / MergeWright / Providers">
+          <div class="grid-3"><div class="metric"><span>Configured</span><strong>2</strong><small>Codex, OpenCode</small></div><div class="metric"><span>Healthy</span><strong>1</strong><small>Codex ready</small></div><div class="metric"><span>Contract probes</span><strong>4</strong><small>last 24h</small></div></div>
+          <div class="card"><div class="card-header"><div><h2>Provider capability matrix</h2><p>Keep execution backends replaceable and visible.</p></div><button class="button-secondary" data-page-link="commands">Run probe</button></div><div class="card-body"><table><thead><tr><th>Provider</th><th>Status</th><th>Read-only</th><th>Writes</th><th>Last probe</th></tr></thead><tbody><tr><td>Codex CLI</td><td><span class="pill green">healthy</span></td><td>yes</td><td>yes</td><td>5 min ago</td></tr><tr><td>OpenCode CLI</td><td><span class="pill amber">probe only</span></td><td>yes</td><td>unknown</td><td>2h ago</td></tr><tr><td>CAO</td><td><span class="pill neutral">future</span></td><td>planned</td><td>planned</td><td>n/a</td></tr></tbody></table></div></div>
+        </section>
+
+        <section class="page" id="policy" data-title="Policy & Safety" data-crumb="Projects / MergeWright / Policy & Safety">
+          <div class="grid-4"><div class="metric"><span>Write safety</span><strong>pass</strong><small>last check</small></div><div class="metric"><span>Forbidden paths</span><strong>0</strong><small>current run</small></div><div class="metric"><span>Confirmations</span><strong>3</strong><small>medium risk</small></div><div class="metric"><span>Audit events</span><strong>34</strong><small>this week</small></div></div>
+          <div class="grid-2"><div class="card"><div class="card-header"><h2>Policy rules</h2><span class="pill blue">active</span></div><div class="card-body list"><div class="list-item"><strong>Require reviewer PASS</strong><p>Blocks readiness when reviewer verdict fails.</p></div><div class="list-item"><strong>Require checks</strong><p>Blocks readiness when checks fail or are missing.</p></div><div class="list-item"><strong>Confirm write-enabled commands</strong><p>Medium and high risk commands require explicit approval.</p></div></div></div><div class="card"><div class="card-header"><h2>Safety preview</h2><span class="pill amber">medium risk</span></div><div class="card-body"><pre>Risk preview
+- command: fix-stage
+- writes workspace: yes
+- expected paths: docs/**
+- forbidden paths touched: no
+- requires confirmation: yes
+- auto commit: no</pre></div></div></div>
+        </section>
+
+        <section class="page" id="team" data-title="Team Review" data-crumb="Projects / MergeWright / Team Review">
+          <div class="grid-2"><div class="card"><div class="card-header"><h2>Approval queue</h2><span class="pill amber">2 pending</span></div><div class="card-body list"><div class="list-item"><div class="row"><strong>Docs direction fix</strong><span class="pill amber">needs approval</span></div><p>Medium-risk docs-only command awaiting confirmation.</p></div><div class="list-item"><div class="row"><strong>Merge readiness</strong><span class="pill red">blocked</span></div><p>Cannot approve until prove returns READY.</p></div></div></div><div class="card"><div class="card-header"><h2>Review comments</h2><span class="pill blue">threaded</span></div><div class="card-body list"><div class="list-item"><strong>Bashir</strong><p>Make the UI direction unambiguous: web app is primary, CLI is automation, TUI is superseded.</p></div><div class="list-item"><strong>Reviewer bot</strong><p>Found stale roadmap language and missing final proof.</p></div></div></div></div>
         </section>
 
         <section class="page" id="settings" data-title="Settings" data-crumb="Projects / MergeWright / Settings">
-          <div class="grid-2">
-            <div class="card"><div class="card-header"><h2>Project settings</h2><span class="pill neutral">local</span></div><div class="card-body stack"><div class="field"><label>Default config</label><input class="input" value="configs/rn-fastify-next.json" /></div><div class="field"><label>Runs root</label><input class="input" value=".artifacts/runs" /></div><div class="field"><label>Default provider</label><select><option>Codex CLI</option><option>OpenCode CLI</option></select></div></div></div>
-            <div class="card"><div class="card-header"><h2>Policy settings</h2><span class="pill blue">planned</span></div><div class="card-body list"><div class="list-item"><strong>Require reviewer PASS</strong><p>Blocks readiness when reviewer verdict fails.</p></div><div class="list-item"><strong>Require checks</strong><p>Blocks readiness when configured checks fail or are missing.</p></div><div class="list-item"><strong>Require confirmation for writes</strong><p>Medium and high risk commands need explicit approval.</p></div></div></div>
-          </div>
+          <div class="grid-2"><div class="card"><div class="card-header"><h2>Project settings</h2><span class="pill neutral">local</span></div><div class="card-body stack"><div class="field"><label>Default config</label><input class="input" value="configs/rn-fastify-next.json"></div><div class="field"><label>Runs root</label><input class="input" value=".artifacts/runs"></div><div class="field"><label>Default provider</label><select><option>Codex CLI</option><option>OpenCode CLI</option></select></div></div></div><div class="card"><div class="card-header"><h2>Keyboard shortcuts</h2><span class="pill blue">future</span></div><div class="card-body list"><div class="list-item"><strong>Cmd K</strong><p>Open command palette.</p></div><div class="list-item"><strong>R</strong><p>Run prove on selected run.</p></div><div class="list-item"><strong>F</strong><p>Preview safe fix.</p></div></div></div></div>
         </section>
       </div>
     </main>
@@ -776,22 +305,8 @@
     const pages = document.querySelectorAll('.page');
     const title = document.getElementById('pageTitle');
     const breadcrumbs = document.getElementById('breadcrumbs');
-
-    function showPage(id) {
-      for (const page of pages) page.classList.toggle('active', page.id === id);
-      for (const link of links) link.classList.toggle('active', link.dataset.pageLink === id);
-      const page = document.getElementById(id);
-      if (page) {
-        title.textContent = page.dataset.title;
-        breadcrumbs.textContent = page.dataset.crumb;
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    }
-
-    for (const link of links) {
-      link.addEventListener('click', () => showPage(link.dataset.pageLink));
-    }
-
+    function showPage(id) { for (const page of pages) page.classList.toggle('active', page.id === id); for (const link of links) link.classList.toggle('active', link.dataset.pageLink === id); const page = document.getElementById(id); if (page) { title.textContent = page.dataset.title; breadcrumbs.textContent = page.dataset.crumb; window.scrollTo({ top: 0, behavior: 'smooth' }); } }
+    for (const link of links) link.addEventListener('click', () => showPage(link.dataset.pageLink));
     const commands = {
       continue: 'npm run mergewright -- continue-run run-2026-05-30-provider-contract \\\n  --config configs/rn-fastify-next.json \\\n  --execute-reviewer \\\n  --run-checks \\\n  --generate-report',
       run: 'npm run mergewright -- run stage-03-web-interface \\\n  --config configs/rn-fastify-next.json \\\n  --auto-chain \\\n  --allow-writes \\\n  --max-fix-attempts 2',
@@ -799,22 +314,15 @@
       report: 'npm run mergewright -- report-run run-2026-05-30-provider-contract \\\n  --config configs/rn-fastify-next.json \\\n  --pr-summary',
       compare: 'npm run mergewright -- compare-runs run-2026-05-30-provider-contract run-2026-05-30-web-api-client \\\n  --config configs/rn-fastify-next.json',
       reviewModes: 'npm run mergewright -- review-modes run-2026-05-30-provider-contract \\\n  --config configs/rn-fastify-next.json \\\n  --modes architecture,tests,docs,maintainability',
-      fixStage: 'npm run mergewright -- fix-stage stage-03-web-direction \\\n  --stage-plan .artifacts/runs/web-control-room/stage-plan.json \\\n  --config configs/rn-fastify-next.json \\\n  --feedback "Replace stale TUI product-path wording with web-first direction." \\\n  --allow-writes'
+      fixStage: 'npm run mergewright -- fix-stage stage-03-web-direction \\\n  --stage-plan .artifacts/runs/web-control-room/stage-plan.json \\\n  --config configs/rn-fastify-next.json \\\n  --feedback "Replace stale TUI product-path wording with web-first direction." \\\n  --allow-writes',
+      safety: 'npm run mergewright -- check-write-safety \\\n  --config configs/rn-fastify-next.json',
+      probe: 'npm run mergewright -- probe-opencode \\\n  --config configs/rn-fastify-next.json \\\n  --validate-readonly-contract'
     };
-
     const commandSelect = document.getElementById('commandSelect');
     const commandPreview = document.getElementById('commandPreview');
-    commandSelect.addEventListener('change', () => {
-      commandPreview.textContent = commands[commandSelect.value];
-    });
-
+    commandSelect.addEventListener('change', () => { commandPreview.textContent = commands[commandSelect.value]; });
     const tabs = document.querySelectorAll('[data-tab]');
-    for (const tab of tabs) {
-      tab.addEventListener('click', () => {
-        for (const item of tabs) item.classList.toggle('active', item === tab);
-        for (const panel of document.querySelectorAll('.tab-panel')) panel.classList.toggle('active', panel.id === tab.dataset.tab);
-      });
-    }
+    for (const tab of tabs) tab.addEventListener('click', () => { for (const item of tabs) item.classList.toggle('active', item === tab); for (const panel of document.querySelectorAll('.tab-panel')) panel.classList.toggle('active', panel.id === tab.dataset.tab); });
   </script>
 </body>
 </html>
