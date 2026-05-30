@@ -3,25 +3,31 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MergeWright Web App Demo</title>
+  <title>MergeWright Web Control Room Demo</title>
   <style>
     :root {
-      --bg: #0b1020;
-      --panel: #111827;
-      --panel-2: #172033;
-      --panel-3: #0f172a;
+      --bg: #080d18;
+      --bg-soft: #0d1424;
+      --surface: #111827;
+      --surface-2: #151f32;
+      --surface-3: #0b1220;
       --border: #25324a;
+      --border-soft: rgba(148, 163, 184, 0.18);
       --text: #e5edf8;
-      --muted: #93a4bd;
-      --soft: #cbd5e1;
+      --text-strong: #f8fafc;
+      --muted: #91a4bd;
+      --muted-2: #64748b;
+      --blue: #60a5fa;
+      --cyan: #22d3ee;
       --green: #35d07f;
       --amber: #f6c453;
       --red: #fb7185;
-      --blue: #60a5fa;
       --purple: #a78bfa;
-      --cyan: #22d3ee;
-      --shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+      --pink: #f472b6;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+      --radius-lg: 24px;
       --radius: 18px;
+      --radius-sm: 12px;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
@@ -30,158 +36,237 @@
     body {
       margin: 0;
       min-height: 100vh;
-      background:
-        radial-gradient(circle at top left, rgba(96, 165, 250, 0.20), transparent 32rem),
-        radial-gradient(circle at top right, rgba(167, 139, 250, 0.16), transparent 34rem),
-        var(--bg);
       color: var(--text);
+      background:
+        radial-gradient(circle at 4% 0%, rgba(34, 211, 238, 0.16), transparent 34rem),
+        radial-gradient(circle at 90% 5%, rgba(167, 139, 250, 0.18), transparent 34rem),
+        linear-gradient(180deg, #080d18 0%, #0b1020 45%, #070b14 100%);
     }
 
-    .shell {
-      display: grid;
-      grid-template-columns: 280px 1fr;
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+
+    .app-shell {
       min-height: 100vh;
+      display: grid;
+      grid-template-columns: 272px 1fr 360px;
     }
 
-    aside {
+    .sidebar {
+      background: rgba(8, 13, 24, 0.86);
       border-right: 1px solid var(--border);
-      background: rgba(15, 23, 42, 0.88);
-      padding: 24px;
+      padding: 22px;
       position: sticky;
       top: 0;
       height: 100vh;
+      overflow: auto;
     }
 
-    main {
-      padding: 24px;
+    .main {
+      padding: 22px;
       display: grid;
       gap: 18px;
+      min-width: 0;
+    }
+
+    .context-panel {
+      background: rgba(8, 13, 24, 0.74);
+      border-left: 1px solid var(--border);
+      padding: 22px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
     }
 
     .brand {
       display: flex;
-      align-items: center;
       gap: 12px;
-      margin-bottom: 28px;
+      align-items: center;
+      margin-bottom: 26px;
     }
 
-    .mark {
-      width: 38px;
-      height: 38px;
-      border-radius: 12px;
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
       display: grid;
       place-items: center;
-      background: linear-gradient(135deg, var(--blue), var(--purple));
-      font-weight: 800;
+      color: #06111f;
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      font-weight: 900;
       box-shadow: var(--shadow);
     }
 
     h1, h2, h3, p { margin: 0; }
-    h1 { font-size: 24px; letter-spacing: -0.03em; }
-    h2 { font-size: 17px; letter-spacing: -0.02em; }
-    h3 { font-size: 14px; color: var(--soft); }
-    p { color: var(--muted); line-height: 1.5; }
+    h1 { font-size: 28px; letter-spacing: -0.04em; line-height: 1.05; }
+    h2 { font-size: 17px; letter-spacing: -0.025em; }
+    h3 { font-size: 14px; letter-spacing: -0.01em; }
+    p { color: var(--muted); line-height: 1.52; }
+
+    .muted { color: var(--muted); }
+    .small { font-size: 12px; }
+    .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
+    .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     .eyebrow {
       color: var(--cyan);
-      font-size: 12px;
+      font-size: 11px;
       text-transform: uppercase;
-      letter-spacing: 0.13em;
-      font-weight: 700;
+      letter-spacing: 0.16em;
+      font-weight: 800;
+      margin-bottom: 8px;
     }
 
-    .nav-section { margin: 24px 0; }
-    .nav-title { font-size: 11px; text-transform: uppercase; color: #64748b; letter-spacing: 0.12em; margin-bottom: 10px; }
-    .nav-item {
-      padding: 10px 12px;
-      border-radius: 12px;
-      color: var(--soft);
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 6px;
+    .nav-group { margin: 22px 0; }
+    .nav-title {
+      color: var(--muted-2);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      margin-bottom: 10px;
     }
-    .nav-item.active { background: rgba(96, 165, 250, 0.13); color: #fff; border: 1px solid rgba(96, 165, 250, 0.28); }
-    .count { color: var(--muted); font-size: 12px; }
+
+    .nav-item, .run-item {
+      border: 1px solid transparent;
+      border-radius: 14px;
+      color: var(--text);
+      padding: 10px 11px;
+      display: grid;
+      gap: 4px;
+      margin-bottom: 7px;
+    }
+
+    .nav-item {
+      grid-template-columns: 1fr auto;
+      align-items: center;
+    }
+
+    .nav-item.active, .run-item.active {
+      background: rgba(96, 165, 250, 0.12);
+      border-color: rgba(96, 165, 250, 0.32);
+    }
+
+    .run-item {
+      background: rgba(15, 23, 42, 0.58);
+      border-color: rgba(148, 163, 184, 0.12);
+    }
+
+    .run-item:hover, .nav-item:hover {
+      background: rgba(96, 165, 250, 0.10);
+      border-color: rgba(96, 165, 250, 0.22);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      display: inline-block;
+      margin-right: 7px;
+    }
+
+    .dot-green { background: var(--green); }
+    .dot-amber { background: var(--amber); }
+    .dot-red { background: var(--red); }
+    .dot-blue { background: var(--blue); }
+    .dot-muted { background: #64748b; }
 
     .topbar {
       display: grid;
       grid-template-columns: 1fr auto;
-      gap: 16px;
       align-items: start;
+      gap: 18px;
     }
 
-    .command-bar {
-      background: linear-gradient(180deg, rgba(17, 24, 39, 0.98), rgba(15, 23, 42, 0.98));
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 16px;
-      box-shadow: var(--shadow);
-    }
-
-    .command-grid {
-      display: grid;
-      grid-template-columns: 1.2fr 1fr 1fr auto;
+    .top-actions {
+      display: flex;
       gap: 10px;
-      margin-top: 14px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
     }
 
-    .field {
-      background: #0b1222;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 10px 12px;
-      color: var(--soft);
-      font-size: 13px;
+    .button, .button-secondary, .button-danger, .button-muted {
+      border-radius: 13px;
+      border: 1px solid transparent;
+      padding: 10px 13px;
+      color: var(--text-strong);
+      font-weight: 800;
+      min-height: 38px;
     }
 
     .button {
-      border: 0;
-      border-radius: 12px;
-      padding: 10px 14px;
-      color: #07111f;
-      background: linear-gradient(135deg, var(--green), #6ee7b7);
-      font-weight: 800;
-      cursor: default;
-      white-space: nowrap;
+      background: linear-gradient(135deg, var(--green), #7dd3fc);
+      color: #06111f;
     }
 
-    .ghost-button {
+    .button-secondary {
+      background: rgba(96, 165, 250, 0.14);
+      border-color: rgba(96, 165, 250, 0.3);
+    }
+
+    .button-danger {
+      background: rgba(251, 113, 133, 0.12);
+      border-color: rgba(251, 113, 133, 0.35);
+      color: #fecdd3;
+    }
+
+    .button-muted {
+      background: rgba(15, 23, 42, 0.78);
+      border-color: var(--border);
+      color: var(--text);
+    }
+
+    .panel {
+      background: rgba(17, 24, 39, 0.92);
       border: 1px solid var(--border);
-      background: #0b1222;
-      color: var(--soft);
-      border-radius: 12px;
-      padding: 10px 12px;
-      font-weight: 700;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      overflow: hidden;
     }
 
-    .status-strip {
+    .panel-header {
+      padding: 17px 18px;
+      border-bottom: 1px solid var(--border-soft);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .panel-body { padding: 18px; }
+    .stack { display: grid; gap: 18px; }
+    .stack-sm { display: grid; gap: 10px; }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(300px, 0.72fr);
+      gap: 18px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .grid-4 {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
     }
 
-    .metric, .card, .panel {
-      background: rgba(17, 24, 39, 0.94);
+    .metric {
+      background: rgba(11, 18, 32, 0.9);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      box-shadow: var(--shadow);
+      padding: 14px;
+      min-width: 0;
     }
 
-    .metric { padding: 14px; }
-    .metric strong { display: block; font-size: 22px; margin-top: 6px; }
-    .metric span { color: var(--muted); font-size: 12px; }
-
-    .grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.6fr) minmax(340px, 0.9fr);
-      gap: 18px;
-    }
-
-    .card, .panel { padding: 18px; }
-    .stack { display: grid; gap: 18px; }
-    .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .muted { color: var(--muted); }
+    .metric span { display: block; color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+    .metric strong { display: block; font-size: 23px; letter-spacing: -0.04em; }
+    .metric small { display: block; color: var(--muted-2); margin-top: 4px; }
 
     .pill {
       display: inline-flex;
@@ -190,220 +275,484 @@
       border-radius: 999px;
       padding: 5px 9px;
       font-size: 12px;
-      font-weight: 750;
+      font-weight: 850;
       border: 1px solid transparent;
-    }
-    .pill.green { background: rgba(53, 208, 127, 0.12); color: var(--green); border-color: rgba(53, 208, 127, 0.35); }
-    .pill.amber { background: rgba(246, 196, 83, 0.12); color: var(--amber); border-color: rgba(246, 196, 83, 0.35); }
-    .pill.red { background: rgba(251, 113, 133, 0.12); color: var(--red); border-color: rgba(251, 113, 133, 0.35); }
-    .pill.blue { background: rgba(96, 165, 250, 0.12); color: var(--blue); border-color: rgba(96, 165, 250, 0.35); }
-    .pill.purple { background: rgba(167, 139, 250, 0.12); color: var(--purple); border-color: rgba(167, 139, 250, 0.35); }
-
-    .timeline {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 10px;
-      margin-top: 16px;
+      white-space: nowrap;
     }
 
-    .phase {
-      background: var(--panel-3);
+    .pill.green { background: rgba(53, 208, 127, 0.12); color: var(--green); border-color: rgba(53, 208, 127, 0.34); }
+    .pill.amber { background: rgba(246, 196, 83, 0.12); color: var(--amber); border-color: rgba(246, 196, 83, 0.34); }
+    .pill.red { background: rgba(251, 113, 133, 0.12); color: var(--red); border-color: rgba(251, 113, 133, 0.34); }
+    .pill.blue { background: rgba(96, 165, 250, 0.12); color: var(--blue); border-color: rgba(96, 165, 250, 0.34); }
+    .pill.purple { background: rgba(167, 139, 250, 0.12); color: var(--purple); border-color: rgba(167, 139, 250, 0.34); }
+    .pill.muted { background: rgba(148, 163, 184, 0.10); color: var(--muted); border-color: rgba(148, 163, 184, 0.22); }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      padding: 8px;
+      background: rgba(8, 13, 24, 0.7);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 12px;
-      min-height: 112px;
+      border-radius: 16px;
+      flex-wrap: wrap;
     }
-    .phase .dot { width: 10px; height: 10px; border-radius: 999px; margin-bottom: 10px; }
-    .phase.passed .dot { background: var(--green); }
-    .phase.running .dot { background: var(--blue); box-shadow: 0 0 0 5px rgba(96, 165, 250, 0.10); }
-    .phase.blocked .dot { background: var(--amber); }
-    .phase.pending .dot { background: #64748b; }
-    .phase strong { display: block; font-size: 13px; margin-bottom: 8px; }
-    .phase span { display: block; color: var(--muted); font-size: 12px; line-height: 1.35; }
 
-    .split {
+    .tab {
+      border: 0;
+      border-radius: 12px;
+      background: transparent;
+      color: var(--muted);
+      padding: 9px 11px;
+      font-weight: 800;
+    }
+
+    .tab.active {
+      background: rgba(96, 165, 250, 0.16);
+      color: var(--text-strong);
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .command-builder {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 14px;
+      gap: 12px;
     }
 
-    .list { display: grid; gap: 10px; margin-top: 14px; }
-    .list-item {
-      border: 1px solid var(--border);
-      background: #0b1222;
-      border-radius: 14px;
-      padding: 12px;
+    .field {
       display: grid;
-      gap: 5px;
+      gap: 6px;
     }
 
-    pre {
-      margin: 0;
-      white-space: pre-wrap;
+    label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      background: #07101f;
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      color: var(--text);
+      padding: 10px 11px;
+      outline: none;
+    }
+
+    textarea { min-height: 86px; resize: vertical; }
+
+    .command-preview {
       background: #050914;
       border: 1px solid #1f2937;
-      border-radius: 14px;
+      border-radius: 16px;
       padding: 14px;
       color: #dbeafe;
-      font: 12.5px/1.55 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font: 12.5px/1.56 "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
       overflow: auto;
     }
 
-    .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 14px; }
-    .tab { border-radius: 999px; border: 1px solid var(--border); color: var(--muted); padding: 7px 10px; font-size: 12px; }
-    .tab.active { color: white; background: rgba(96, 165, 250, 0.14); border-color: rgba(96, 165, 250, 0.34); }
-
-    .review-grid {
+    .timeline {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(7, minmax(110px, 1fr));
       gap: 10px;
-      margin-top: 14px;
+      overflow-x: auto;
+      padding-bottom: 4px;
     }
 
-    .mini {
-      background: var(--panel-3);
+    .phase {
+      background: rgba(11, 18, 32, 0.95);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 12px;
+      min-height: 126px;
+      position: relative;
+    }
+
+    .phase::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .phase.passed::before { background: var(--green); }
+    .phase.running::before { background: var(--blue); box-shadow: 0 0 0 5px rgba(96, 165, 250, 0.12); }
+    .phase.blocked::before { background: var(--amber); }
+    .phase.failed::before { background: var(--red); }
+    .phase.pending::before { background: #64748b; }
+
+    .phase strong { display: block; margin-bottom: 8px; font-size: 13px; }
+    .phase span { display: block; color: var(--muted); font-size: 12px; line-height: 1.38; }
+
+    .data-list { display: grid; gap: 10px; }
+
+    .data-item {
+      background: rgba(11, 18, 32, 0.84);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 12px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .evidence-map {
+      display: grid;
+      gap: 10px;
+    }
+
+    .evidence-row {
+      display: grid;
+      grid-template-columns: 150px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      background: rgba(11, 18, 32, 0.84);
       border: 1px solid var(--border);
       border-radius: 14px;
-      padding: 12px;
+      padding: 11px;
     }
-    .mini strong { display: block; font-size: 13px; margin-bottom: 6px; }
-    .mini span { color: var(--muted); font-size: 12px; }
+
+    .bar {
+      height: 9px;
+      background: #1e293b;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar > span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--green), var(--cyan));
+    }
+
+    .diff {
+      background: #050914;
+      border: 1px solid #1f2937;
+      border-radius: 16px;
+      overflow: hidden;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 12px;
+    }
+
+    .diff-line {
+      display: grid;
+      grid-template-columns: 56px 1fr;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+    }
+
+    .diff-line:last-child { border-bottom: 0; }
+    .line-no { color: #64748b; padding: 7px 9px; border-right: 1px solid rgba(148, 163, 184, 0.1); }
+    .line-code { padding: 7px 9px; color: #dbeafe; }
+    .line-add { background: rgba(53, 208, 127, 0.08); }
+    .line-remove { background: rgba(251, 113, 133, 0.08); }
+    .line-add .line-code { color: #bbf7d0; }
+    .line-remove .line-code { color: #fecdd3; }
+
+    .approval-step {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 10px;
+      align-items: start;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .approval-step:last-child { border-bottom: 0; }
+
+    .step-index {
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: rgba(96, 165, 250, 0.14);
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .activity {
+      display: grid;
+      gap: 10px;
+    }
+
+    .activity-item {
+      display: grid;
+      grid-template-columns: 10px 1fr;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .activity-item .rail {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      margin-top: 5px;
+      background: var(--blue);
+    }
+
+    .activity-item.green .rail { background: var(--green); }
+    .activity-item.amber .rail { background: var(--amber); }
+    .activity-item.red .rail { background: var(--red); }
+
+    .kbd {
+      background: #020617;
+      border: 1px solid #1f2937;
+      border-bottom-width: 2px;
+      border-radius: 7px;
+      padding: 2px 6px;
+      color: var(--soft, #cbd5e1);
+      font-size: 11px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
 
     .footer-note {
-      color: #64748b;
-      font-size: 12px;
       text-align: center;
-      padding: 8px 0 24px;
+      color: var(--muted-2);
+      font-size: 12px;
+      padding: 8px 0 20px;
     }
 
-    @media (max-width: 1180px) {
-      .shell { grid-template-columns: 1fr; }
-      aside { position: static; height: auto; }
-      .grid, .topbar, .split { grid-template-columns: 1fr; }
-      .timeline { grid-template-columns: repeat(2, 1fr); }
-      .command-grid, .status-strip, .review-grid { grid-template-columns: 1fr; }
+    @media (max-width: 1380px) {
+      .app-shell { grid-template-columns: 248px 1fr; }
+      .context-panel { display: none; }
+    }
+
+    @media (max-width: 980px) {
+      .app-shell { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; }
+      .grid-2, .grid-3, .grid-4, .two-col, .command-builder { grid-template-columns: 1fr; }
+      .topbar { grid-template-columns: 1fr; }
+      .top-actions { justify-content: flex-start; }
+      .evidence-row { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
-  <div class="shell">
-    <aside>
+  <div class="app-shell">
+    <aside class="sidebar">
       <div class="brand">
-        <div class="mark">MW</div>
+        <div class="brand-mark">MW</div>
         <div>
           <h2>MergeWright</h2>
-          <p>Web control room</p>
+          <p class="small">Local web control room</p>
         </div>
       </div>
 
-      <div class="nav-section">
-        <div class="nav-title">Workspace</div>
-        <div class="nav-item active"><span>Runs</span><span class="count">12</span></div>
-        <div class="nav-item"><span>Stage Plans</span><span class="count">4</span></div>
-        <div class="nav-item"><span>Artefacts</span><span class="count">128</span></div>
-        <div class="nav-item"><span>Policies</span><span class="count">3</span></div>
+      <div class="nav-group">
+        <div class="nav-title">Primary navigation</div>
+        <button class="nav-item active" data-section-link="overview"><span>Run cockpit</span><span class="pill blue">live</span></button>
+        <button class="nav-item" data-section-link="commands"><span>Command builder</span><span class="muted small">API</span></button>
+        <button class="nav-item" data-section-link="evidence"><span>Evidence and readiness</span><span class="muted small">prove</span></button>
+        <button class="nav-item" data-section-link="review"><span>Team review</span><span class="muted small">2</span></button>
+        <button class="nav-item" data-section-link="artefacts"><span>Artefacts and diff</span><span class="muted small">18</span></button>
       </div>
 
-      <div class="nav-section">
-        <div class="nav-title">Recent runs</div>
-        <div class="nav-item active"><span>provider-contract</span><span class="pill amber">blocked</span></div>
-        <div class="nav-item"><span>web-api-client</span><span class="pill green">ready</span></div>
-        <div class="nav-item"><span>stage-plan-fix</span><span class="pill blue">running</span></div>
-        <div class="nav-item"><span>opencode-probe</span><span class="pill green">passed</span></div>
+      <div class="nav-group">
+        <div class="nav-title">Runs</div>
+        <button class="run-item active">
+          <div class="row"><strong class="truncate"><span class="status-dot dot-amber"></span>provider-contract</strong><span class="pill amber">blocked</span></div>
+          <span class="small muted">run-2026-05-30-provider-contract</span>
+        </button>
+        <button class="run-item">
+          <div class="row"><strong class="truncate"><span class="status-dot dot-green"></span>web-api-client</strong><span class="pill green">ready</span></div>
+          <span class="small muted">run-2026-05-30-web-api-client</span>
+        </button>
+        <button class="run-item">
+          <div class="row"><strong class="truncate"><span class="status-dot dot-blue"></span>stage-plan-fix</strong><span class="pill blue">running</span></div>
+          <span class="small muted">run-2026-05-30-stage-plan-fix</span>
+        </button>
+        <button class="run-item">
+          <div class="row"><strong class="truncate"><span class="status-dot dot-green"></span>opencode-probe</strong><span class="pill green">passed</span></div>
+          <span class="small muted">run-2026-05-29-opencode-probe</span>
+        </button>
       </div>
 
-      <div class="nav-section">
-        <div class="nav-title">Team review</div>
-        <div class="nav-item"><span>Approvals</span><span class="count">2 pending</span></div>
-        <div class="nav-item"><span>PR checks</span><span class="count">1 failing</span></div>
-        <div class="nav-item"><span>Audit log</span><span class="count">34</span></div>
+      <div class="nav-group">
+        <div class="nav-title">Workspace context</div>
+        <div class="data-item">
+          <strong>Repository</strong>
+          <span class="small muted mono">BashirTowdiee/MergeWright</span>
+        </div>
+        <div class="data-item">
+          <strong>Branch</strong>
+          <span class="small muted mono">agent/chatgpt-worker-b/provider-contract</span>
+        </div>
       </div>
     </aside>
 
-    <main>
-      <section class="topbar">
+    <main class="main">
+      <section id="overview" class="topbar">
         <div>
-          <div class="eyebrow">Primary human interface for CLI-compatible workflows</div>
-          <h1>Run, review, and approve MergeWright work from the web app</h1>
-          <p>The web app submits typed commands to the API, shows the same evidence as the CLI, and gives reviewers a team-visible cockpit for readiness decisions.</p>
+          <div class="eyebrow">Web-first interface over CLI-compatible workflows</div>
+          <h1>Run, supervise, prove, and review AI-assisted delivery from one control room.</h1>
+          <p>The web app should become the main operator interface for MergeWright. It uses Fastify/API and shared application services to run the same workflows exposed by the CLI.</p>
         </div>
-        <button class="ghost-button">Open local artefact folder</button>
+        <div class="top-actions">
+          <button class="button-secondary">Open PR review</button>
+          <button class="button-muted">Export evidence pack</button>
+          <button class="button">Preview safe fix</button>
+        </div>
       </section>
 
-      <section class="command-bar">
-        <div class="row">
+      <section class="grid-4">
+        <div class="metric"><span>Readiness</span><strong>BLOCKED</strong><small>2 blockers, 3 warnings</small></div>
+        <div class="metric"><span>Score</span><strong>72/100</strong><small>Medium risk</small></div>
+        <div class="metric"><span>Reviewer verdict</span><strong>FAIL</strong><small>1 acceptance gap</small></div>
+        <div class="metric"><span>Checks</span><strong>failed</strong><small>docs:check failed</small></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
           <div>
-            <h2>Command launcher</h2>
-            <p>Web controls map to MergeWright commands without React shelling out or parsing stdout.</p>
+            <h2>Run timeline</h2>
+            <p>Phase state, artefact count, duration, blockers, and safe next action are visible without opening terminal output.</p>
           </div>
-          <span class="pill blue">POST /commands</span>
+          <span class="pill amber">Needs fix</span>
         </div>
-        <div class="command-grid">
-          <div class="field">continue-run run-2026-05-30-provider-contract</div>
-          <div class="field">--config configs/rn-fastify-next.json</div>
-          <div class="field">--execute-reviewer --run-checks --generate-report</div>
-          <button class="button">Preview command</button>
+        <div class="panel-body">
+          <div class="timeline">
+            <div class="phase passed"><strong>Planner</strong><span>Scope and acceptance criteria captured.</span><span class="small muted">4 artefacts · 28s</span></div>
+            <div class="phase passed"><strong>Builder</strong><span>Docs updated and evidence manifest populated.</span><span class="small muted">9 artefacts · 2m 11s</span></div>
+            <div class="phase failed"><strong>Reviewer</strong><span>Stale TUI roadmap wording remains.</span><span class="small muted">3 findings · high</span></div>
+            <div class="phase blocked"><strong>Checks</strong><span>docs:check failed on product direction drift.</span><span class="small muted">1 failed command</span></div>
+            <div class="phase pending"><strong>Fix</strong><span>Safe fix can patch stale docs only.</span><span class="small muted">confirmation required</span></div>
+            <div class="phase pending"><strong>Report</strong><span>Regenerate report and PR summary after fix.</span><span class="small muted">queued</span></div>
+            <div class="phase pending"><strong>Prove</strong><span>Readiness proof blocked until reviewer and checks pass.</span><span class="small muted">read-only</span></div>
+          </div>
         </div>
       </section>
 
-      <section class="status-strip">
-        <div class="metric"><span>Readiness</span><strong>BLOCKED</strong><span>1 blocker, 2 warnings</span></div>
-        <div class="metric"><span>Score</span><strong>72/100</strong><span>Medium risk</span></div>
-        <div class="metric"><span>Reviewer</span><strong>FAIL</strong><span>Acceptance mapping incomplete</span></div>
-        <div class="metric"><span>Checks</span><strong>failed</strong><span>docs:check failed</span></div>
-      </section>
+      <section id="commands" class="grid-2">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Command builder</h2>
+              <p>Users can run CLI-equivalent actions from guided forms. The UI submits typed commands to the API and shows risk before execution.</p>
+            </div>
+            <span class="pill blue">POST /commands</span>
+          </div>
+          <div class="panel-body stack">
+            <div class="command-builder">
+              <div class="field">
+                <label>Action</label>
+                <select id="commandSelect">
+                  <option value="continue">Continue run</option>
+                  <option value="prove">Run prove</option>
+                  <option value="report">Generate report</option>
+                  <option value="reviewModes">Run focused reviews</option>
+                  <option value="compare">Compare runs</option>
+                  <option value="stageFix">Fix stage</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Run id</label>
+                <input value="run-2026-05-30-provider-contract" />
+              </div>
+              <div class="field">
+                <label>Config</label>
+                <input value="configs/rn-fastify-next.json" />
+              </div>
+              <div class="field">
+                <label>Mode</label>
+                <select>
+                  <option>Preview only</option>
+                  <option>Execute read-only</option>
+                  <option>Execute with writes after confirmation</option>
+                </select>
+              </div>
+            </div>
 
-      <section class="grid">
-        <div class="stack">
-          <div class="card">
+            <div class="field">
+              <label>Human feedback for fix commands</label>
+              <textarea>Replace stale TUI-as-primary-interface wording with web-first control room language. Keep the CLI as the automation surface.</textarea>
+            </div>
+
+            <div class="two-col">
+              <div class="data-item">
+                <div class="row"><strong>Risk preview</strong><span class="pill amber">medium</span></div>
+                <p>Will edit docs only. Requires confirmation because it can trigger write-enabled execution.</p>
+              </div>
+              <div class="data-item">
+                <div class="row"><strong>Preconditions</strong><span class="pill red">1 blocked</span></div>
+                <p>Working tree status must be checked before running builder or fix execution.</p>
+              </div>
+            </div>
+
+            <div>
+              <div class="row" style="margin-bottom: 10px;">
+                <h3>Generated command</h3>
+                <span class="small muted">Equivalent CLI command</span>
+              </div>
+              <pre id="commandPreview" class="command-preview">npm run mergewright -- continue-run run-2026-05-30-provider-contract \
+  --config configs/rn-fastify-next.json \
+  --execute-reviewer \
+  --run-checks \
+  --generate-report</pre>
+            </div>
+
             <div class="row">
-              <div>
-                <h2>Current run</h2>
-                <p>run-2026-05-30-provider-contract · agent/chatgpt-worker-b/provider-contract</p>
-              </div>
-              <span class="pill amber">Needs fix</span>
-            </div>
-            <div class="timeline">
-              <div class="phase passed"><div class="dot"></div><strong>Planner</strong><span>Stage objective and scope captured.</span></div>
-              <div class="phase passed"><div class="dot"></div><strong>Builder</strong><span>Implementation wrote evidence manifest and report inputs.</span></div>
-              <div class="phase blocked"><div class="dot"></div><strong>Reviewer</strong><span>Found missing acceptance criterion mapping.</span></div>
-              <div class="phase pending"><div class="dot"></div><strong>Fix</strong><span>Ready after command preview and confirmation.</span></div>
-              <div class="phase blocked"><div class="dot"></div><strong>Checks</strong><span>docs:check failed on stale TUI wording.</span></div>
-              <div class="phase pending"><div class="dot"></div><strong>Report</strong><span>Can regenerate after fix.</span></div>
-              <div class="phase pending"><div class="dot"></div><strong>Prove</strong><span>Blocked until checks and review pass.</span></div>
-            </div>
-          </div>
-
-          <div class="split">
-            <div class="card">
-              <div class="row"><h2>Safe next actions</h2><span class="pill purple">policy gated</span></div>
-              <div class="list">
-                <div class="list-item"><div class="row"><strong>Request fix</strong><span class="pill amber">medium risk</span></div><p>Generate a fix prompt from reviewer blockers and stale docs.</p></div>
-                <div class="list-item"><div class="row"><strong>Run checks</strong><span class="pill blue">low risk</span></div><p>Execute configured checks after a fix lands.</p></div>
-                <div class="list-item"><div class="row"><strong>Generate report</strong><span class="pill green">low risk</span></div><p>Write run-report.md, run-report.json, and optional PR summary.</p></div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="row"><h2>Artefacts</h2><span class="pill blue">GET /runs/:id/artifacts</span></div>
-              <div class="list">
-                <div class="list-item"><strong>run-report.md</strong><p>Human-readable evidence and readiness report.</p></div>
-                <div class="list-item"><strong>evidence.json</strong><p>Canonical manifest with checks, reviewer, risk, and changed files.</p></div>
-                <div class="list-item"><strong>reviewer-output-last-message.md</strong><p>Structured reviewer verdict and blocking issues.</p></div>
-                <div class="list-item"><strong>checks-status.json</strong><p>Build/test/docs check results.</p></div>
+              <button class="button-muted">Save draft</button>
+              <div class="top-actions">
+                <button class="button-secondary">Preview artefacts</button>
+                <button class="button">Submit command</button>
               </div>
             </div>
           </div>
+        </div>
 
-          <div class="panel">
-            <div class="row"><h2>CLI output mapped into web panels</h2><span class="pill green">read-only proof</span></div>
-            <div class="tabs">
-              <span class="tab active">prove</span>
-              <span class="tab">compare-runs</span>
-              <span class="tab">review-modes</span>
-              <span class="tab">report-run</span>
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Command output</h2>
+              <p>Structured result, raw CLI-style summary, and live events sit together.</p>
             </div>
-            <pre>Merge Readiness Proof
+            <span class="pill purple">typed result</span>
+          </div>
+          <div class="panel-body stack-sm">
+            <div class="tabs" role="tablist">
+              <button class="tab active" data-tab="result">Result</button>
+              <button class="tab" data-tab="stdout">Output</button>
+              <button class="tab" data-tab="events">Events</button>
+            </div>
+
+            <div id="result" class="tab-panel active">
+              <pre class="command-preview">{
+  "ok": false,
+  "commandId": "cmd-preview-continue-001",
+  "type": "continue-run",
+  "code": "CONFIRMATION_REQUIRED",
+  "reason": "Medium-risk command requires confirmation before execution.",
+  "details": {
+    "risk": "medium",
+    "affectedFiles": [
+      "docs/roadmap/enterprise-adoption.md",
+      "docs/roadmap/delivery-harness.md"
+    ],
+    "requiresConfirmation": true
+  }
+}</pre>
+            </div>
+
+            <div id="stdout" class="tab-panel">
+              <pre class="command-preview">Merge Readiness Proof
 - run id: run-2026-05-30-provider-contract
 - ready: false
 - status: BLOCKED
@@ -416,61 +765,239 @@
 - blockers:
   - docs:check failed on stale TUI roadmap wording
   - reviewer found acceptance criteria mapping incomplete</pre>
-          </div>
-        </div>
-
-        <div class="stack">
-          <div class="card">
-            <div class="row"><h2>Readiness proof</h2><span class="pill amber">BLOCKED</span></div>
-            <div class="review-grid">
-              <div class="mini"><strong>Checks</strong><span>failed</span></div>
-              <div class="mini"><strong>Risk</strong><span>medium</span></div>
-              <div class="mini"><strong>Changed files</strong><span>5</span></div>
             </div>
-            <div class="list">
-              <div class="list-item"><strong>Missing evidence</strong><p>No final prove result after latest docs fix.</p></div>
-              <div class="list-item"><strong>Reviewer finding</strong><p>High: active roadmap still references TUI as product path.</p></div>
-            </div>
-          </div>
 
-          <div class="card">
-            <div class="row"><h2>Team-visible review</h2><span class="pill purple">shared UI</span></div>
-            <div class="list">
-              <div class="list-item"><div class="row"><strong>Bashir</strong><span class="pill amber">requested changes</span></div><p>Replace active TUI roadmap with web-first control room direction.</p></div>
-              <div class="list-item"><div class="row"><strong>Reviewer bot</strong><span class="pill red">blocked</span></div><p>CI failed: docs wording contradicted accepted product decision.</p></div>
-              <div class="list-item"><div class="row"><strong>Lead approval</strong><span class="pill blue">pending</span></div><p>Waiting for final report and prove result.</p></div>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="row"><h2>Command result</h2><span class="pill blue">typed response</span></div>
-            <pre>{
-  "ok": false,
-  "commandId": "cmd-continue-reviewer-001",
-  "type": "continue-run",
-  "code": "CONFIRMATION_REQUIRED",
-  "reason": "Medium-risk command requires review before execution.",
-  "details": {
-    "risk": "medium",
-    "requiresConfirmation": true
-  }
-}</pre>
-          </div>
-
-          <div class="card">
-            <div class="row"><h2>API coverage</h2><span class="pill green">current foundation</span></div>
-            <div class="list">
-              <div class="list-item"><strong>GET /runs</strong><p>Populate run list and filters.</p></div>
-              <div class="list-item"><strong>GET /runs/:runId</strong><p>Populate run detail, phases, actions, readiness, findings.</p></div>
-              <div class="list-item"><strong>GET /runs/:runId/artifacts</strong><p>Populate artefact browser.</p></div>
-              <div class="list-item"><strong>POST /commands</strong><p>Submit typed CLI-equivalent actions.</p></div>
+            <div id="events" class="tab-panel">
+              <div class="activity">
+                <div class="activity-item blue"><span class="rail"></span><p><strong>10:24:02</strong> Command preview requested by Bashir.</p></div>
+                <div class="activity-item amber"><span class="rail"></span><p><strong>10:24:03</strong> Risk policy returned medium risk.</p></div>
+                <div class="activity-item red"><span class="rail"></span><p><strong>10:24:04</strong> Confirmation required before write-enabled fix.</p></div>
+                <div class="activity-item green"><span class="rail"></span><p><strong>10:24:05</strong> Safe artefact preview generated.</p></div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <div class="footer-note">Static HTML concept mock. No JavaScript, no external assets, and no framework dependency.</div>
+      <section id="evidence" class="grid-2">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Evidence and readiness</h2>
+              <p>Readiness should be explainable through the artefacts MergeWright already produces.</p>
+            </div>
+            <span class="pill amber">BLOCKED</span>
+          </div>
+          <div class="panel-body stack">
+            <div class="grid-3">
+              <div class="metric"><span>Evidence coverage</span><strong>78%</strong><small>5 of 7 required signals</small></div>
+              <div class="metric"><span>Acceptance</span><strong>6/8</strong><small>1 failed, 1 unknown</small></div>
+              <div class="metric"><span>Changed files</span><strong>5</strong><small>0 forbidden paths</small></div>
+            </div>
+            <div class="evidence-map">
+              <div class="evidence-row"><strong>git.diff</strong><div class="bar"><span style="width: 100%"></span></div><span class="pill green">present</span></div>
+              <div class="evidence-row"><strong>checks.docs</strong><div class="bar"><span style="width: 44%"></span></div><span class="pill red">failed</span></div>
+              <div class="evidence-row"><strong>reviewer.verdict</strong><div class="bar"><span style="width: 62%"></span></div><span class="pill red">FAIL</span></div>
+              <div class="evidence-row"><strong>acceptance.map</strong><div class="bar"><span style="width: 75%"></span></div><span class="pill amber">incomplete</span></div>
+              <div class="evidence-row"><strong>write.audit</strong><div class="bar"><span style="width: 100%"></span></div><span class="pill green">present</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Prove visual</h2>
+              <p>The CLI proof becomes a readable decision card for humans.</p>
+            </div>
+            <span class="pill blue">read-only</span>
+          </div>
+          <div class="panel-body stack-sm">
+            <div class="data-item">
+              <div class="row"><strong>Decision</strong><span class="pill amber">NEEDS_FIX</span></div>
+              <p>The run cannot be marked ready until docs check passes and reviewer verdict changes to PASS.</p>
+            </div>
+            <div class="data-item">
+              <div class="row"><strong>Blocking issue</strong><span class="pill red">high</span></div>
+              <p>Roadmap still described the TUI as an active product path in one enterprise section.</p>
+            </div>
+            <div class="data-item">
+              <div class="row"><strong>Suggested next action</strong><span class="pill green">request-fix</span></div>
+              <p>Patch only stale roadmap language, then regenerate report and run prove.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="review" class="grid-2">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Team review queue</h2>
+              <p>Useful for solo local runs now, but designed to become team-visible review UI later.</p>
+            </div>
+            <span class="pill purple">shared state</span>
+          </div>
+          <div class="panel-body data-list">
+            <div class="data-item">
+              <div class="row"><strong>Bashir</strong><span class="pill amber">requested changes</span></div>
+              <p>Make the web app the main interface for CLI workflows. Treat TUI as superseded.</p>
+            </div>
+            <div class="data-item">
+              <div class="row"><strong>Reviewer bot</strong><span class="pill red">blocked</span></div>
+              <p>Found contradictory roadmap wording and missing acceptance mapping.</p>
+            </div>
+            <div class="data-item">
+              <div class="row"><strong>Maintainer</strong><span class="pill blue">pending</span></div>
+              <p>Waiting for prove result and generated PR summary.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Approval gates</h2>
+              <p>Risk and policy should be visible before users execute write-enabled commands.</p>
+            </div>
+            <span class="pill amber">confirmation required</span>
+          </div>
+          <div class="panel-body">
+            <div class="approval-step"><span class="step-index">1</span><div><strong>Review command preview</strong><p>Confirm affected files and risk classification.</p></div><span class="pill green">done</span></div>
+            <div class="approval-step"><span class="step-index">2</span><div><strong>Confirm write safety</strong><p>Run read-only write-safety checks before executing fix.</p></div><span class="pill amber">pending</span></div>
+            <div class="approval-step"><span class="step-index">3</span><div><strong>Execute fix</strong><p>Allow write-enabled docs-only update.</p></div><span class="pill muted">locked</span></div>
+            <div class="approval-step"><span class="step-index">4</span><div><strong>Regenerate evidence</strong><p>Run report, focused review, and prove.</p></div><span class="pill muted">locked</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="artefacts" class="grid-2">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Artefact browser</h2>
+              <p>Surfacing generated artefacts removes the need to open run folders for normal review.</p>
+            </div>
+            <span class="pill blue">GET /runs/:id/artifacts</span>
+          </div>
+          <div class="panel-body data-list">
+            <div class="data-item"><div class="row"><strong>evidence.json</strong><span class="pill green">canonical</span></div><p>Run state, checks, reviewer verdict, risk, and changed-file summary.</p></div>
+            <div class="data-item"><div class="row"><strong>run-report.md</strong><span class="pill blue">report</span></div><p>Human-readable readiness report and manual review checklist.</p></div>
+            <div class="data-item"><div class="row"><strong>pr-summary.md</strong><span class="pill purple">team</span></div><p>Short PR-ready summary for GitHub comments or review notes.</p></div>
+            <div class="data-item"><div class="row"><strong>reviewer-output-last-message.md</strong><span class="pill red">finding</span></div><p>Strict reviewer verdict and blocking issues.</p></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Diff and scope view</h2>
+              <p>Changed files should be reviewed beside the evidence that claims they are safe.</p>
+            </div>
+            <span class="pill green">0 forbidden paths</span>
+          </div>
+          <div class="panel-body">
+            <div class="diff" aria-label="Example diff preview">
+              <div class="diff-line"><span class="line-no">42</span><span class="line-code">## Stage 3: Shared review console</span></div>
+              <div class="diff-line line-remove"><span class="line-no">49</span><span class="line-code">- Keep the TUI as the best local cockpit and the web UI as the shared team surface.</span></div>
+              <div class="diff-line line-add"><span class="line-no">49</span><span class="line-code">+ Make the web app the main local and shared review cockpit for CLI-equivalent workflows.</span></div>
+              <div class="diff-line line-add"><span class="line-no">50</span><span class="line-code">+ Keep the CLI as the automation surface and treat the TUI as superseded.</span></div>
+              <div class="diff-line"><span class="line-no">51</span><span class="line-code">### Low-level implementation</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>API and UX mapping</h2>
+            <p>The demo is designed around the current API foundation and the CLI command model.</p>
+          </div>
+          <span class="pill green">service-first</span>
+        </div>
+        <div class="panel-body grid-4">
+          <div class="data-item"><strong>GET /runs</strong><p>Run explorer, filters, status counts, recent activity.</p></div>
+          <div class="data-item"><strong>GET /runs/:runId</strong><p>Timeline, readiness, safe actions, reviewer findings.</p></div>
+          <div class="data-item"><strong>GET /runs/:runId/artifacts</strong><p>Artefact browser, report preview, diff/evidence access.</p></div>
+          <div class="data-item"><strong>POST /commands</strong><p>Command builder, previews, risk gates, typed results.</p></div>
+        </div>
+      </section>
+
+      <div class="footer-note">Static product demo. Interactive tabs and command preview are simulated in-page. No external assets or build step required.</div>
     </main>
+
+    <aside class="context-panel">
+      <div class="stack">
+        <div>
+          <div class="eyebrow">Context</div>
+          <h2>Why this layout works</h2>
+          <p>The left side answers where you are. The centre answers what happened and what to do next. The right side keeps team review, approvals, and activity in view.</p>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><h2>Run health</h2><span class="pill amber">blocked</span></div>
+          <div class="panel-body stack-sm">
+            <div class="data-item"><strong>Main blocker</strong><p>Contradictory product-direction docs.</p></div>
+            <div class="data-item"><strong>Best next command</strong><p class="mono small">fix-stage docs-ui-direction --allow-writes</p></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><h2>Live activity</h2><span class="pill blue">SSE later</span></div>
+          <div class="panel-body activity">
+            <div class="activity-item green"><span class="rail"></span><p><strong>Evidence loaded</strong><br><span class="small muted">evidence.json parsed successfully.</span></p></div>
+            <div class="activity-item amber"><span class="rail"></span><p><strong>Risk gate raised</strong><br><span class="small muted">Fix command requires confirmation.</span></p></div>
+            <div class="activity-item red"><span class="rail"></span><p><strong>Check failed</strong><br><span class="small muted">docs:check found stale language.</span></p></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><h2>Keyboard flow</h2><span class="pill muted">future</span></div>
+          <div class="panel-body stack-sm">
+            <p><span class="kbd">⌘K</span> command palette</p>
+            <p><span class="kbd">R</span> run prove</p>
+            <p><span class="kbd">F</span> preview fix</p>
+            <p><span class="kbd">A</span> open artefacts</p>
+          </div>
+        </div>
+      </div>
+    </aside>
   </div>
+
+  <script>
+    const tabButtons = document.querySelectorAll("[data-tab]");
+    for (const button of tabButtons) {
+      button.addEventListener("click", () => {
+        const id = button.dataset.tab;
+        for (const tab of tabButtons) tab.classList.toggle("active", tab === button);
+        for (const panel of document.querySelectorAll(".tab-panel")) panel.classList.toggle("active", panel.id === id);
+      });
+    }
+
+    const commandPreview = document.getElementById("commandPreview");
+    const commandSelect = document.getElementById("commandSelect");
+    const commands = {
+      continue: "npm run mergewright -- continue-run run-2026-05-30-provider-contract \\\n  --config configs/rn-fastify-next.json \\\n  --execute-reviewer \\\n  --run-checks \\\n  --generate-report",
+      prove: "npm run mergewright -- prove run-2026-05-30-provider-contract \\\n  --config configs/rn-fastify-next.json \\\n  --json",
+      report: "npm run mergewright -- report-run run-2026-05-30-provider-contract \\\n  --config configs/rn-fastify-next.json \\\n  --pr-summary",
+      reviewModes: "npm run mergewright -- review-modes run-2026-05-30-provider-contract \\\n  --config configs/rn-fastify-next.json \\\n  --modes architecture,tests,docs,maintainability",
+      compare: "npm run mergewright -- compare-runs run-2026-05-30-provider-contract run-2026-05-30-web-api-client \\\n  --config configs/rn-fastify-next.json",
+      stageFix: "npm run mergewright -- fix-stage stage-03-web-direction \\\n  --stage-plan .artifacts/runs/web-control-room/stage-plan.json \\\n  --config configs/rn-fastify-next.json \\\n  --feedback \"Replace stale TUI product-path wording with web-first direction.\" \\\n  --allow-writes"
+    };
+
+    commandSelect.addEventListener("change", () => {
+      commandPreview.textContent = commands[commandSelect.value];
+    });
+
+    const sectionLinks = document.querySelectorAll("[data-section-link]");
+    for (const link of sectionLinks) {
+      link.addEventListener("click", () => {
+        for (const item of sectionLinks) item.classList.toggle("active", item === link);
+        const section = document.getElementById(link.dataset.sectionLink);
+        if (section) section.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  </script>
 </body>
 </html>
