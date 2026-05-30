@@ -67,6 +67,7 @@ function renderTopLevelHelpText(): string {
     "  list-runs --config <config-path>",
     "  show-run <run-id> --config <config-path>",
     "  open-run <run-id> --config <config-path>",
+    "  compare-runs <run-id-a> <run-id-b> --config <config-path> [--json] [--verbose]",
     "  prove <run-id> --config <config-path> [--json] [--verbose]",
     "  report-run <run-id> --config <config-path> [--json] [--pr-summary] [--stdout-only] [--force] [--verbose]",
     "  tui",

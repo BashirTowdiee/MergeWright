@@ -109,6 +109,23 @@ export function renderHelpText(command?: string): string {
     ].join("\n");
   }
 
+  if (command === "compare-runs") {
+    return [
+      "Usage: agent-stage compare-runs <run-id-a> <run-id-b> --config <config-path> [--json] [--verbose]",
+      "",
+      "Compares two read-only run readiness reports using existing run artefacts.",
+      "  --config <config-path>   Required. No implicit default is used.",
+      "  --json                   Prints JSON-only comparison payload to stdout (machine-readable).",
+      "",
+      "Notes:",
+      "  - Does not execute Codex.",
+      "  - Does not run checks.",
+      "  - Does not mutate target workspace.",
+      "  - Does not write report artefacts.",
+      "  - Missing evidence is explicitly reported per run."
+    ].join("\n");
+  }
+
   if (command === "report-run") {
     return [
       "Usage: agent-stage report-run <run-id> --config <config-path> [--json] [--pr-summary] [--stdout-only] [--force] [--verbose]",
@@ -339,6 +356,7 @@ export function renderHelpText(command?: string): string {
     "  list-runs --config <config-path>",
     "  show-run <run-id> --config <config-path>",
     "  open-run <run-id> --config <config-path>",
+    "  compare-runs <run-id-a> <run-id-b> --config <config-path> [--json] [--verbose]",
     "  prove <run-id> --config <config-path> [--json] [--verbose]",
     "  report-run <run-id> --config <config-path> [--json] [--pr-summary] [--stdout-only] [--force] [--verbose]",
     "  backfill-evidence <run-id> --config <config-path> [--dry-run] [--verbose]",

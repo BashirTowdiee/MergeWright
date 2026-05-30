@@ -5,12 +5,21 @@ export interface CommandPositionals {
 }
 
 export function parseCommandPositionals(argv: string[], parsed: ParsedArgs): CommandPositionals {
-  const [command, firstArg, ...tail] = argv;
+  const [command] = argv;
+  let restStart = 1;
 
   if (command === "run") {
-    parsed.stageName = firstArg && !firstArg.startsWith("-") ? firstArg : undefined;
+    const stageName = consumePositional(argv[1]);
+    parsed.stageName = stageName;
+    if (stageName) {
+      restStart = 2;
+    }
   } else if (command === "init-project") {
-    parsed.projectName = firstArg && !firstArg.startsWith("-") ? firstArg : undefined;
+    const projectName = consumePositional(argv[1]);
+    parsed.projectName = projectName;
+    if (projectName) {
+      restStart = 2;
+    }
   } else if (
     command === "show-run" ||
     command === "open-run" ||
@@ -19,34 +28,38 @@ export function parseCommandPositionals(argv: string[], parsed: ParsedArgs): Com
     command === "prove" ||
     command === "backfill-evidence"
   ) {
-    parsed.runId = firstArg && !firstArg.startsWith("-") ? firstArg : undefined;
+    const runId = consumePositional(argv[1]);
+    parsed.runId = runId;
+    if (runId) {
+      restStart = 2;
+    }
+  } else if (command === "compare-runs") {
+    const runId = consumePositional(argv[1]);
+    parsed.runId = runId;
+    if (runId) {
+      restStart = 2;
+    }
+    const compareRunId = consumePositional(argv[restStart]);
+    parsed.compareRunId = compareRunId;
+    if (compareRunId) {
+      restStart += 1;
+    }
   } else if (command === "run-stage" || command === "accept-stage" || command === "fix-stage") {
-    parsed.stageId = firstArg && !firstArg.startsWith("-") ? firstArg : undefined;
+    const stageId = consumePositional(argv[1]);
+    parsed.stageId = stageId;
+    if (stageId) {
+      restStart = 2;
+    }
   }
 
-  const rest =
-    command === "run"
-      ? firstArg && firstArg.startsWith("-")
-        ? [firstArg, ...tail]
-        : tail
-      : command === "show-run" ||
-          command === "open-run" ||
-          command === "continue-run" ||
-          command === "report-run" ||
-          command === "prove" ||
-          command === "backfill-evidence"
-        ? firstArg && firstArg.startsWith("-")
-          ? [firstArg, ...tail]
-          : tail
-        : command === "run-stage" || command === "accept-stage" || command === "fix-stage"
-          ? firstArg && firstArg.startsWith("-")
-            ? [firstArg, ...tail]
-            : tail
-          : command === "init-project"
-            ? firstArg && firstArg.startsWith("-")
-              ? [firstArg, ...tail]
-              : tail
-            : [firstArg, ...tail].filter((token): token is string => typeof token === "string");
+  return {
+    rest: argv.slice(restStart).filter((token): token is string => typeof token === "string")
+  };
+}
 
-  return { rest };
+function consumePositional(token: string | undefined): string | undefined {
+  if (!token || token.startsWith("-")) {
+    return undefined;
+  }
+  return token;
 }

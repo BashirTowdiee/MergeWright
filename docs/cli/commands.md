@@ -7,6 +7,7 @@ Supported commands:
 - `list-runs`
 - `show-run`
 - `open-run`
+- `compare-runs`
 - `prove`
 - `report-run`
 - `init-project`

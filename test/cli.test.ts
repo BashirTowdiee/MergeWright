@@ -12,6 +12,7 @@ test("top-level help contains command list and safety notes", async () => {
   assert.match(text, /Commands:/);
   assert.match(text, /run <stage-name>/);
   assert.match(text, /continue-run <run-id>/);
+  assert.match(text, /compare-runs <run-id-a> <run-id-b>/);
   assert.match(text, /prove <run-id>/);
   assert.match(text, /report-run <run-id>/);
   assert.match(text, /read-only sandbox/);
@@ -601,6 +602,16 @@ test("prove help shows read-only readiness behavior", async () => {
   assert.match(text, /Exits 0 only when readiness status is READY/);
 });
 
+test("compare-runs help shows read-only comparison behavior", async () => {
+  const output: string[] = [];
+  await runCommand(parseArgs(["compare-runs", "--help"]), process.cwd(), "linux", async () => {}, (line) => output.push(line));
+  const text = output.join("\n");
+  assert.match(text, /Usage: agent-stage compare-runs/);
+  assert.match(text, /--json/);
+  assert.match(text, /Does not write report artefacts/);
+  assert.match(text, /Missing evidence is explicitly reported per run/);
+});
+
 test("init-project help shows workspace and force options", async () => {
   const output: string[] = [];
   await runCommand(parseArgs(["init-project", "--help"]), process.cwd(), "linux", async () => {}, (line) => output.push(line));
@@ -1007,10 +1018,40 @@ test("prove rejects missing config", () => {
   );
 });
 
+test("compare-runs parses two run ids, config, and --json", () => {
+  const args = parseArgs(["compare-runs", "run-1", "run-2", "--config", "configs/acme.json", "--json"]);
+  assert.equal(args.command, "compare-runs");
+  assert.equal(args.runId, "run-1");
+  assert.equal(args.compareRunId, "run-2");
+  assert.equal(args.configArg, "configs/acme.json");
+  assert.equal(args.jsonOutput, true);
+});
+
+test("compare-runs rejects missing run ids", () => {
+  assert.throws(
+    () => parseArgs(["compare-runs", "run-1", "--config", "configs/acme.json"]),
+    /compare-runs requires <run-id-a> and <run-id-b>/
+  );
+});
+
+test("compare-runs rejects duplicate run ids", () => {
+  assert.throws(
+    () => parseArgs(["compare-runs", "run-1", "run-1", "--config", "configs/acme.json"]),
+    /compare-runs requires two distinct run ids/
+  );
+});
+
+test("compare-runs rejects missing config", () => {
+  assert.throws(
+    () => parseArgs(["compare-runs", "run-1", "run-2"]),
+    /Missing required --config <config-path>/
+  );
+});
+
 test("non-report/prove commands reject JSON and report-only flags", () => {
   assert.throws(
     () => parseArgs(["list-runs", "--config", "configs/acme.json", "--json"]),
-    /--json is supported for report-run, prove, and probe-opencode/
+    /--json is supported for report-run, prove, compare-runs, and probe-opencode/
   );
   assert.throws(
     () => parseArgs(["show-run", "run-1", "--config", "configs/acme.json", "--stdout-only"]),
@@ -1835,6 +1876,93 @@ async function makeReportRunFixture(): Promise<{ orchestratorRoot: string; confi
   return { ...fixture, runDir };
 }
 
+async function makeCompareRunsFixture(): Promise<{
+  orchestratorRoot: string;
+  configArg: string;
+  runIdA: string;
+  runIdB: string;
+  runDirA: string;
+  runDirB: string;
+}> {
+  const first = await makeReportRunFixture();
+  const runIdB = "20260514-000001-example-stage";
+  const runDirB = path.join(first.orchestratorRoot, "runs/acme", runIdB);
+  await mkdir(path.join(runDirB, "write-audit/builder"), { recursive: true });
+  await writeFile(path.join(runDirB, "01-stage-input.md"), "stage", "utf8");
+  await writeFile(path.join(runDirB, "07-planner-exit.json"), "{}", "utf8");
+  await writeFile(path.join(runDirB, "builder-output.placeholder.md"), "skipped", "utf8");
+  await writeFile(path.join(runDirB, "review-to-fix-skipped.json"), "{}", "utf8");
+  await writeFile(path.join(runDirB, "fix-skipped.json"), "{}", "utf8");
+  await writeFile(
+    path.join(runDirB, "run.json"),
+    JSON.stringify(
+      {
+        version: 1,
+        runId: runIdB,
+        projectName: "acme",
+        stageName: "example-stage",
+        workspaceRoot: "/tmp/workspace",
+        orchestratorRoot: first.orchestratorRoot,
+        configPath: path.join(first.orchestratorRoot, first.configArg),
+        startedAt: "2026-05-14T00:02:00.000Z",
+        completedAt: "2026-05-14T00:03:00.000Z",
+        status: "failed",
+        resolvedOptions: {},
+        writeSafety: { state: "passed", allowWrites: true, status: "passed" },
+        postWriteReview: { required: false, status: "completed" },
+        phases: {
+          planner: { status: "executed" },
+          builder: { status: "executed" },
+          reviewer: { status: "failed" },
+          fixPlanning: { status: "disabled" },
+          fixExecution: { status: "disabled" },
+          checks: { status: "failed" }
+        },
+        artefacts: [],
+        error: { message: "Reviewer failed", failedPhase: "reviewer" }
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+  await writeFile(
+    path.join(runDirB, "reviewer-output-last-message.md"),
+    `# Reviewer\n\n\`\`\`json reviewer-verdict\n${JSON.stringify(
+      {
+        verdict: "FAIL",
+        blockingIssues: [{ severity: "high", summary: "Guard is missing", files: ["src/b.ts"] }],
+        nonBlockingIssues: []
+      },
+      null,
+      2
+    )}\n\`\`\``,
+    "utf8"
+  );
+  await writeFile(path.join(runDirB, "checks-status.json"), JSON.stringify({ state: "failed", failedChecks: ["npm test"] }, null, 2), "utf8");
+  await writeFile(
+    path.join(runDirB, "write-audit/builder/summary.json"),
+    JSON.stringify(
+      {
+        post: { changedFiles: ["src/b.ts"], untrackedFiles: [] },
+        changedFilesAddedByPhase: ["src/b.ts"]
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+
+  return {
+    orchestratorRoot: first.orchestratorRoot,
+    configArg: first.configArg,
+    runIdA: first.runId,
+    runIdB,
+    runDirA: first.runDir,
+    runDirB
+  };
+}
+
 test("list-runs works with empty runs directory", async () => {
   const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "orchestrator-cli-empty-"));
   await mkdir(path.join(orchestratorRoot, "configs"), { recursive: true });
@@ -2511,6 +2639,90 @@ test("prove does not call run/continue/check-write-safety/auto-chain handlers", 
   let autoChainCalls = 0;
   await runCommand(
     parseArgs(["prove", fixture.runId, "--config", fixture.configArg]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    () => {},
+    {
+      checkWriteSafetyHandler: async () => {
+        checkSafetyCalls += 1;
+        throw new Error("should not be called");
+      },
+      autoChainHandler: async () => {
+        autoChainCalls += 1;
+        throw new Error("should not be called");
+      }
+    }
+  );
+  assert.equal(checkSafetyCalls, 0);
+  assert.equal(autoChainCalls, 0);
+});
+
+test("compare-runs prints readiness/check/reviewer/changed-file comparison and writes no artefacts", async () => {
+  const fixture = await makeCompareRunsFixture();
+  const output: string[] = [];
+  await runCommand(
+    parseArgs(["compare-runs", fixture.runIdA, fixture.runIdB, "--config", fixture.configArg]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    (line) => output.push(line)
+  );
+  const text = output.join("\n");
+  assert.match(text, /Run Comparison/);
+  assert.match(text, /readiness:/);
+  assert.match(text, /reviewer verdict:/);
+  assert.match(text, /checks state:/);
+  assert.match(text, /changed files:/);
+  assert.match(text, /acceptance regressions:/);
+  await assert.rejects(() => readFile(path.join(fixture.runDirA, "run-report.json"), "utf8"));
+  await assert.rejects(() => readFile(path.join(fixture.runDirB, "run-report.json"), "utf8"));
+});
+
+test("compare-runs --json emits JSON-only payload", async () => {
+  const fixture = await makeCompareRunsFixture();
+  const output: string[] = [];
+  await runCommand(
+    parseArgs(["compare-runs", fixture.runIdA, fixture.runIdB, "--config", fixture.configArg, "--json"]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    (line) => output.push(line)
+  );
+  assert.equal(output.length, 1);
+  const stdout = output[0];
+  const parsed = JSON.parse(stdout) as {
+    version: number;
+    runA: { runId: string; status: string };
+    runB: { runId: string; status: string };
+  };
+  assert.equal(parsed.version, 1);
+  assert.equal(parsed.runA.runId, fixture.runIdA);
+  assert.equal(parsed.runB.runId, fixture.runIdB);
+  assert.doesNotMatch(stdout, /\[compare-runs\]/);
+  assert.doesNotMatch(stdout, /Run Comparison/);
+});
+
+test("compare-runs fails clearly when run directory is missing", async () => {
+  const fixture = await makeCompareRunsFixture();
+  await assert.rejects(
+    () =>
+      runCommand(
+        parseArgs(["compare-runs", fixture.runIdA, "missing-run-id", "--config", fixture.configArg]),
+        fixture.orchestratorRoot,
+        "linux",
+        async () => {}
+      ),
+    /Run does not exist: missing-run-id/
+  );
+});
+
+test("compare-runs does not call run/continue/check-write-safety/auto-chain handlers", async () => {
+  const fixture = await makeCompareRunsFixture();
+  let checkSafetyCalls = 0;
+  let autoChainCalls = 0;
+  await runCommand(
+    parseArgs(["compare-runs", fixture.runIdA, fixture.runIdB, "--config", fixture.configArg]),
     fixture.orchestratorRoot,
     "linux",
     async () => {},

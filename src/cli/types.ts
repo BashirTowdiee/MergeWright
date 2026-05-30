@@ -11,6 +11,7 @@ export interface ParsedArgs {
   help: boolean;
   stageName?: string;
   runId?: string;
+  compareRunId?: string;
   projectName?: string;
   configArg?: string;
   workspaceArg?: string;

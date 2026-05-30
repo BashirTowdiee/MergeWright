@@ -140,7 +140,7 @@ Gap:
 
 The old plan put TUI late. The repo now already has a TUI baseline, so the updated order is:
 
-Progress note (as of 2026-05-30): DH-1 through DH-10 are implemented. DH-11 is the active next slice.
+Progress note (as of 2026-05-30): DH-1 through DH-11 are implemented. DH-12 is the active next slice.
 
 1. DH-1 Evidence manifest foundation
 2. DH-2 Evidence backfill from existing artefacts
@@ -556,6 +556,8 @@ Acceptance:
 
 Goal: compare two evidence-backed runs.
 
+Status: implemented.
+
 Command:
 
 ```bash
@@ -637,20 +639,19 @@ Acceptance:
 
 ## Current recommended next step
 
-Start with DH-11 run comparison.
+Start with DH-12 parallel focused reviews.
 
-The evidence-first flow now covers manifest, report, prove, and TUI readiness views. The highest leverage next step is comparing two runs to detect readiness drift, scope change drift, and check/regression deltas.
+The evidence-first flow now covers manifest, report, prove, TUI readiness views, and run comparison. The highest leverage next step is parallel focused reviews to improve confidence in architecture, regression, test quality, and security posture before merge.
 
 Success looks like:
 
 ```bash
-npm run mergewright -- compare-runs <run-id-a> <run-id-b> --config configs/my-app.json
+npm run mergewright -- review-modes <run-id> --config configs/my-app.json --modes architecture,tests,regression,security,docs,maintainability
 ```
 
 And the command can answer:
 
-- what changed between baseline and candidate?
-- did readiness improve, regress, or stay flat?
-- which checks/reviewer outcomes differ?
-- which acceptance criteria regressed?
-- what new risks or missing evidence appeared?
+- which assurance dimensions passed or failed independently?
+- which failures are blocking and why?
+- what targeted fix prompts are needed by mode?
+- can mode-level verdicts be aggregated into merge-readiness gating?

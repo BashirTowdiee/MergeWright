@@ -51,8 +51,14 @@ export function validateParsedArgs(parsed: ParsedArgs): void {
   if ((parsed.prSummary || parsed.stdoutOnly) && parsed.command !== "report-run") {
     throw new Error("--pr-summary and --stdout-only are only supported for report-run.");
   }
-  if (parsed.jsonOutput && parsed.command !== "report-run" && parsed.command !== "probe-opencode" && parsed.command !== "prove") {
-    throw new Error("--json is supported for report-run, prove, and probe-opencode.");
+  if (
+    parsed.jsonOutput &&
+    parsed.command !== "report-run" &&
+    parsed.command !== "probe-opencode" &&
+    parsed.command !== "prove" &&
+    parsed.command !== "compare-runs"
+  ) {
+    throw new Error("--json is supported for report-run, prove, compare-runs, and probe-opencode.");
   }
   if (parsed.command === "report-run" && parsed.jsonOutput && parsed.prSummary && parsed.stdoutOnly) {
     throw new Error(
@@ -181,6 +187,31 @@ export function validateParsedArgs(parsed: ParsedArgs): void {
     }
     if (parsed.force) {
       throw new Error("--force is not supported for prove.");
+    }
+  }
+  if (parsed.command === "compare-runs") {
+    if (parsed.help) {
+      return;
+    }
+    if (!parsed.runId || !parsed.compareRunId) {
+      throw new Error(
+        "compare-runs requires <run-id-a> and <run-id-b>. Usage: agent-stage compare-runs <run-id-a> <run-id-b> --config <config-path> [--json] [--verbose]"
+      );
+    }
+    if (parsed.runId === parsed.compareRunId) {
+      throw new Error("compare-runs requires two distinct run ids.");
+    }
+    if (!parsed.configArg) {
+      throw new Error("Missing required --config <config-path>. No implicit default is used.");
+    }
+    if (parsed.workspaceArg) {
+      throw new Error("--workspace is not supported for compare-runs.");
+    }
+    if (parsed.repoOverride) {
+      throw new Error("--repo is not supported for compare-runs.");
+    }
+    if (parsed.force) {
+      throw new Error("--force is not supported for compare-runs.");
     }
   }
   if (parsed.command === "probe-opencode") {

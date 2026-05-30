@@ -28,3 +28,17 @@ Behavior:
 - exits `0` only when status is `READY`
 - exits non-zero for `NEEDS_REVIEW`, `NEEDS_FIX`, and `BLOCKED`
 - `--json` prints a machine-readable proof wrapper with the embedded `report`
+
+## compare-runs
+
+```bash
+npm run agent -- compare-runs <run-id-a> <run-id-b> --config <config-path> [--json] [--verbose]
+```
+
+Behavior:
+
+- compares readiness status, score/risk, checks state, reviewer verdict, changed files, and acceptance outcomes
+- compares failed-check deltas and changed-file set deltas
+- keeps missing evidence explicit for each run
+- read-only: no Codex execution, no checks execution, and no artefact writes
+- `--json` prints a machine-readable comparison payload

@@ -2,22 +2,23 @@
 
 Last updated: 2026-05-30.
 
-## DH-10 TUI evidence/prove integration status
+## DH-11 run comparison status
 
-Status: implemented with TUI readiness/evidence snapshot integration and fallback behavior.
+Status: implemented with read-only run-to-run readiness/evidence comparison.
 
 Merged coverage:
 
-- TUI run inspection now loads readiness snapshots from `run-report.json` when available.
-- TUI falls back to `evidence.json` readiness/checks/reviewer/git data when report output is missing.
-- TUI now shows readiness status, score/risk, checks state, reviewer verdict, changed file count, and missing-evidence warning count in run context.
-- Missing evidence warnings are surfaced in run warnings with deterministic `evidence:` prefixes.
-- If neither report nor evidence manifest exists, TUI remains read-only and uses an explicit fallback readiness snapshot (`unknown`) with guidance warnings.
+- Added `compare-runs <run-id-a> <run-id-b> --config ... [--json]` as a read-only CLI command.
+- Comparison computes readiness status deltas, score/risk deltas, reviewer/checks deltas, changed-file diffs, failed-check diffs, and acceptance regressions/improvements.
+- `--json` emits a machine-readable comparison payload and suppresses progress logs for clean JSON stdout.
+- Missing evidence remains explicit per run via evidence availability and risk-signal extraction.
+- Command does not execute Codex, does not run checks, does not mutate git/workspace state, and does not write report artefacts.
+- Added focused parser/validation/command behavior tests plus pure comparison-mapper tests.
 
 Important constraint:
 
-- Run comparison and cross-run readiness diffing are not yet implemented. That remains DH-11.
+- Parallel focused reviews are not yet implemented. That remains DH-12.
 
 Next recommended slice:
 
-- Implement DH-11 compare-runs so operators can diff readiness/evidence outcomes between two runs.
+- Implement DH-12 parallel focused reviews (architecture/tests/regression/security/docs/maintainability modes).
