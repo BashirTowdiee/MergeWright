@@ -2,27 +2,22 @@
 
 Last updated: 2026-05-30.
 
-## DH-9 evidence-first reviewer prompt hardening status
+## DH-10 TUI evidence/prove integration status
 
-Status: implemented with enforced evidence-first prompt ordering and ordering-proof tests.
+Status: implemented with TUI readiness/evidence snapshot integration and fallback behavior.
 
 Merged coverage:
 
-- Reviewer prompt section order now follows the required evidence-first sequence:
-  1. git diff/status
-  2. test/check evidence
-  3. changed-files evidence
-  4. stage contract and acceptance criteria
-  5. implementation notes
-  6. planner/builder summaries
-- Prompt language now explicitly enforces review order in the required checks block.
-- Automated prompt tests now assert a deterministic heading sequence to prevent ordering drift.
-- Reviewer prompt coverage tests keep evidence-first sections before all context summaries.
+- TUI run inspection now loads readiness snapshots from `run-report.json` when available.
+- TUI falls back to `evidence.json` readiness/checks/reviewer/git data when report output is missing.
+- TUI now shows readiness status, score/risk, checks state, reviewer verdict, changed file count, and missing-evidence warning count in run context.
+- Missing evidence warnings are surfaced in run warnings with deterministic `evidence:` prefixes.
+- If neither report nor evidence manifest exists, TUI remains read-only and uses an explicit fallback readiness snapshot (`unknown`) with guidance warnings.
 
 Important constraint:
 
-- TUI evidence/prove integration is not yet implemented. That remains DH-10.
+- Run comparison and cross-run readiness diffing are not yet implemented. That remains DH-11.
 
 Next recommended slice:
 
-- Implement DH-10 by integrating evidence/prove readiness views into the TUI read model.
+- Implement DH-11 compare-runs so operators can diff readiness/evidence outcomes between two runs.

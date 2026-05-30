@@ -1,5 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
+import type { ChangeReport } from "../change-report.js";
+import { isEvidenceManifest } from "../evidence/evidence-manifest.js";
 import { listRunDirectories, readRunDetails, readRunSummary, resolveRunDir } from "../runs.js";
 import type { RunDetails, RunSummary } from "../runs.js";
 import type { RunPhaseStatus, RunStatus } from "../run-metadata.js";
@@ -50,6 +52,7 @@ export async function inspectRunForTui(input: { runsRoot: string; runId: string 
   const artefacts = await Promise.all(details.artefacts.map((artefactPath) => toArtefactViewModel(details.runDir, artefactPath)));
   const phases = mapPhases(details, artefacts);
   const reviewerFindings = await extractReviewerFindings(details, artefacts);
+  const readiness = await readRunReadinessSnapshot(details.runDir);
   return {
     id: details.runId,
     title: details.stageName ?? details.runId,
@@ -63,7 +66,8 @@ export async function inspectRunForTui(input: { runsRoot: string; runId: string 
     safeActions: getAvailableActionsForRunDetails(details),
     blockedReason: getBlockedReason(details),
     reviewerFindings,
-    warnings: details.warnings
+    readiness,
+    warnings: mergeWarnings(details.warnings, readiness.missingEvidenceWarnings.map((warning) => `evidence: ${warning}`))
   };
 }
 
@@ -297,6 +301,167 @@ function inferSeverity(line: string): ReviewFindingViewModel["severity"] {
   if (lower.includes("medium")) return "medium";
   if (lower.includes("low")) return "low";
   return "unknown";
+}
+
+type TuiReadinessSnapshot = NonNullable<RunDetailViewModel["readiness"]>;
+
+const MISSING_EVIDENCE_PATTERN = /(missing|unavailable|malformed|unknown|unparsable|inconclusive|not found|not observed)/i;
+
+async function readRunReadinessSnapshot(runDir: string): Promise<TuiReadinessSnapshot> {
+  const reportSnapshot = await readReportReadinessSnapshot(runDir);
+  if (reportSnapshot) {
+    return reportSnapshot;
+  }
+
+  const evidenceSnapshot = await readEvidenceReadinessSnapshot(runDir);
+  if (evidenceSnapshot) {
+    return evidenceSnapshot;
+  }
+
+  return {
+    source: "fallback",
+    status: "unknown",
+    reviewerVerdict: "UNKNOWN",
+    checksState: "unknown",
+    missingEvidenceWarnings: [
+      "run-report.json not found; generate a change report for readiness details.",
+      "evidence.json not found; readiness evidence manifest is unavailable."
+    ]
+  };
+}
+
+async function readReportReadinessSnapshot(runDir: string): Promise<TuiReadinessSnapshot | null> {
+  const parsed = await readOptionalJson(path.join(runDir, "run-report.json"));
+  if (!isRunReportLike(parsed)) {
+    return null;
+  }
+
+  return {
+    source: "report",
+    status: parsed.status,
+    score: parsed.score,
+    risk: parsed.risk,
+    reviewerVerdict: parsed.reviewer.verdict,
+    checksState: parsed.checks.state,
+    changedFileCount: parsed.changedFiles.length,
+    missingEvidenceWarnings: collectReportEvidenceWarnings(parsed)
+  };
+}
+
+async function readEvidenceReadinessSnapshot(runDir: string): Promise<TuiReadinessSnapshot | null> {
+  const parsed = await readOptionalJson(path.join(runDir, "evidence.json"));
+  if (!isEvidenceManifest(parsed)) {
+    return null;
+  }
+
+  const warnings = [...(parsed.readiness?.warnings ?? [])];
+  if (!parsed.reviewer) {
+    warnings.push("Reviewer evidence summary is missing from evidence manifest.");
+  }
+  if (!parsed.checks) {
+    warnings.push("Checks evidence summary is missing from evidence manifest.");
+  }
+
+  return {
+    source: "evidence",
+    status: mapEvidenceStatus(parsed.status, parsed.readiness?.verdict),
+    score: typeof parsed.readiness?.score === "number" ? parsed.readiness.score : undefined,
+    risk: normalizeRisk(parsed.risk?.level),
+    reviewerVerdict: parsed.reviewer?.verdict ?? "UNKNOWN",
+    checksState: normalizeChecksState(parsed.checks?.status),
+    changedFileCount: parsed.git.changedFiles.length,
+    missingEvidenceWarnings: dedupeStrings(warnings)
+  };
+}
+
+function collectReportEvidenceWarnings(report: RunReportLike): string[] {
+  const warnings: string[] = [];
+  if (report.evidence?.available === false) {
+    warnings.push("Evidence manifest unavailable; report was collected from fallback artefacts.");
+  }
+  for (const signal of report.riskSignals) {
+    if (MISSING_EVIDENCE_PATTERN.test(signal)) {
+      warnings.push(signal);
+    }
+  }
+  return dedupeStrings(warnings);
+}
+
+function mapEvidenceStatus(
+  status: "in_progress" | "needs_review" | "needs_fix" | "pass" | "fail" | "unknown",
+  verdict?: "PASS" | "FAIL" | "UNKNOWN"
+): TuiReadinessSnapshot["status"] {
+  if (verdict === "PASS") return "READY";
+  if (verdict === "FAIL") return "NEEDS_FIX";
+  if (status === "pass") return "READY";
+  if (status === "fail" || status === "needs_fix") return "NEEDS_FIX";
+  if (status === "in_progress" || status === "needs_review") return "NEEDS_REVIEW";
+  return "unknown";
+}
+
+function normalizeRisk(level: string | undefined): TuiReadinessSnapshot["risk"] {
+  if (level === "low" || level === "medium" || level === "high" || level === "unknown") {
+    return level;
+  }
+  return undefined;
+}
+
+function normalizeChecksState(state: string | undefined): TuiReadinessSnapshot["checksState"] {
+  if (state === "passed" || state === "failed" || state === "skipped" || state === "unknown") {
+    return state;
+  }
+  return "unknown";
+}
+
+function mergeWarnings(base: string[], additions: string[]): string[] {
+  return dedupeStrings([...base, ...additions]);
+}
+
+function dedupeStrings(values: string[]): string[] {
+  const result: string[] = [];
+  const seen = new Set<string>();
+  for (const value of values) {
+    const normalized = value.trim();
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    result.push(normalized);
+  }
+  return result;
+}
+
+async function readOptionalJson(filePath: string): Promise<unknown | null> {
+  try {
+    return JSON.parse(await readFile(filePath, "utf8")) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+type RunReportLike = Pick<ChangeReport, "status" | "score" | "risk" | "changedFiles" | "checks" | "reviewer" | "riskSignals" | "evidence">;
+
+function isRunReportLike(value: unknown): value is RunReportLike {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const candidate = value as Partial<RunReportLike>;
+  const status = candidate.status;
+  const score = candidate.score;
+  const risk = candidate.risk;
+  const checks = candidate.checks;
+  const reviewer = candidate.reviewer;
+  return (
+    (status === "READY" || status === "NEEDS_REVIEW" || status === "NEEDS_FIX" || status === "BLOCKED") &&
+    typeof score === "number" &&
+    (risk === "low" || risk === "medium" || risk === "high") &&
+    Array.isArray(candidate.changedFiles) &&
+    Array.isArray(candidate.riskSignals) &&
+    !!checks &&
+    (checks.state === "passed" || checks.state === "failed" || checks.state === "skipped" || checks.state === "unknown") &&
+    !!reviewer &&
+    (reviewer.verdict === "PASS" || reviewer.verdict === "FAIL" || reviewer.verdict === "unavailable")
+  );
 }
 
 function assertSafeArtefactPath(runDir: string, artefactPath: string): string {

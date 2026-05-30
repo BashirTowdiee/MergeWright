@@ -13,6 +13,7 @@ const STATUS_SYMBOL: Record<TuiRunStatus | TuiPhaseStatus, string> = {
 };
 
 export function renderTuiSpikeFixture(fixture: TuiSpikeFixture): string {
+  const readiness = fixture.selectedRun.readiness;
   const runLines = fixture.runs.map((run) => `${STATUS_SYMBOL[run.status]} ${run.title}\n  ${run.subtitle}`);
   const phaseLines = fixture.selectedRun.phases.map((phase) => {
     const suffix = phase.blockedReason ? ` · ${phase.blockedReason}` : phase.summary ? ` · ${phase.summary}` : "";
@@ -40,6 +41,12 @@ export function renderTuiSpikeFixture(fixture: TuiSpikeFixture): string {
     fixture.selectedRun.title,
     fixture.selectedRun.goal ?? "No goal recorded.",
     `Status: ${fixture.selectedRun.status}`,
+    `Readiness: ${readiness?.status ?? "unknown"} (${readiness?.source ?? "fallback"})`,
+    `Score/Risk: ${readiness?.score ?? "unknown"}/100 · ${readiness?.risk ?? "unknown"}`,
+    `Checks: ${readiness?.checksState ?? "unknown"}`,
+    `Reviewer verdict: ${readiness?.reviewerVerdict ?? "UNKNOWN"}`,
+    `Changed files: ${readiness?.changedFileCount ?? "unknown"}`,
+    `Missing evidence warnings: ${readiness?.missingEvidenceWarnings.length ?? 0}`,
     "",
     "Phase flow",
     "----------",

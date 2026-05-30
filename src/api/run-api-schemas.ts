@@ -53,6 +53,17 @@ export const reviewFindingSchema = z.object({
   sourceArtefactId: z.string().optional()
 });
 
+export const runReadinessSchema = z.object({
+  source: z.enum(["report", "evidence", "fallback"]),
+  status: z.enum(["READY", "NEEDS_REVIEW", "NEEDS_FIX", "BLOCKED", "unknown"]),
+  score: z.number().optional(),
+  risk: z.enum(["low", "medium", "high", "unknown"]).optional(),
+  checksState: z.enum(["passed", "failed", "skipped", "unknown"]).optional(),
+  reviewerVerdict: z.enum(["PASS", "FAIL", "unavailable", "UNKNOWN"]).optional(),
+  changedFileCount: z.number().int().nonnegative().optional(),
+  missingEvidenceWarnings: z.array(z.string())
+});
+
 export const runDetailSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -69,6 +80,7 @@ export const runDetailSchema = z.object({
   safeActions: z.array(safeActionSchema),
   blockedReason: z.string().optional(),
   reviewerFindings: z.array(reviewFindingSchema),
+  readiness: runReadinessSchema.optional(),
   warnings: z.array(z.string())
 });
 

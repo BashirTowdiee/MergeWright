@@ -19,6 +19,10 @@ test("renderTuiSpikeFixture renders runs, phase flow, actions, artefacts, and fi
   assert.match(output, /MergeWright TUI spike/);
   assert.match(output, /Runs/);
   assert.match(output, /docs-site build/);
+  assert.match(output, /Readiness:/);
+  assert.match(output, /Score\/Risk:/);
+  assert.match(output, /Checks:/);
+  assert.match(output, /Reviewer verdict:/);
   assert.match(output, /Phase flow/);
   assert.match(output, /Reviewer/);
   assert.match(output, /Safe action/);

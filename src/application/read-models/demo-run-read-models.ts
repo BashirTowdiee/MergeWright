@@ -21,6 +21,16 @@ export function createDemoRunReadModels(): DemoRunReadModels {
     model: "gpt-5.5-codex",
     blockedReason: "Reviewer found a blocking docs route issue.",
     warnings: [],
+    readiness: {
+      source: "report",
+      status: "NEEDS_FIX",
+      score: 58,
+      risk: "high",
+      checksState: "unknown",
+      reviewerVerdict: "FAIL",
+      changedFileCount: 7,
+      missingEvidenceWarnings: ["Acceptance evidence missing for one stage criterion."]
+    },
     phases: [
       { id: "planner", label: "Planner", status: "passed", summary: "Created staged documentation plan.", artefactIds: ["planner-output"] },
       { id: "builder", label: "Builder", status: "passed", summary: "Added docs and Astro site.", artefactIds: ["builder-output"] },
@@ -129,6 +139,13 @@ function createSimpleRunDetail(input: {
     mode: "read-only",
     blockedReason: input.blockedReason,
     warnings: [],
+    readiness: {
+      source: "fallback",
+      status: input.status === "passed" ? "READY" : input.status === "blocked" ? "NEEDS_REVIEW" : "unknown",
+      checksState: "unknown",
+      reviewerVerdict: input.status === "passed" ? "PASS" : "UNKNOWN",
+      missingEvidenceWarnings: []
+    },
     phases: [
       { id: "planner", label: "Planner", status: input.status === "passed" ? "passed" : "unknown", artefactIds: [] },
       { id: "builder", label: "Builder", status: input.status === "passed" ? "passed" : "unknown", artefactIds: [] },

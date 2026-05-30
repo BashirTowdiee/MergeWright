@@ -196,3 +196,108 @@ test("getAvailableActionsForTui explains blocked actions for completed runs", as
   assert.equal(actions.find((action) => action.id === "request-fix")?.enabled, false);
   assert.match(actions.find((action) => action.id === "request-fix")?.blockedReason ?? "", /Reviewer or fix planning/);
 });
+
+test("inspectRunForTui surfaces readiness snapshot from run report", async () => {
+  const runsRoot = await createRunsRoot();
+  const runId = "20260520-000006-report-readiness";
+  await createRun({
+    runsRoot,
+    runId,
+    metadata: baseMetadata(runId),
+    files: {
+      "reviewer-output-last-message.md": "PASS",
+      "run-report.json": JSON.stringify(
+        {
+          status: "NEEDS_REVIEW",
+          score: 73,
+          risk: "medium",
+          changedFiles: ["src/a.ts", "docs/b.md"],
+          checks: { state: "unknown" },
+          reviewer: { verdict: "unavailable" },
+          riskSignals: ["Reviewer output unavailable or unparsable.", "Low-priority note."],
+          evidence: { available: false }
+        },
+        null,
+        2
+      )
+    }
+  });
+
+  const detail = await inspectRunForTui({ runsRoot, runId });
+  assert.equal(detail.readiness?.source, "report");
+  assert.equal(detail.readiness?.status, "NEEDS_REVIEW");
+  assert.equal(detail.readiness?.score, 73);
+  assert.equal(detail.readiness?.risk, "medium");
+  assert.equal(detail.readiness?.checksState, "unknown");
+  assert.equal(detail.readiness?.reviewerVerdict, "unavailable");
+  assert.equal(detail.readiness?.changedFileCount, 2);
+  assert.equal(detail.readiness?.missingEvidenceWarnings.includes("Reviewer output unavailable or unparsable."), true);
+  assert.equal(
+    detail.readiness?.missingEvidenceWarnings.includes("Evidence manifest unavailable; report was collected from fallback artefacts."),
+    true
+  );
+  assert.equal(detail.warnings.some((warning) => warning.startsWith("evidence: ")), true);
+});
+
+test("inspectRunForTui falls back to evidence manifest readiness when run report is absent", async () => {
+  const runsRoot = await createRunsRoot();
+  const runId = "20260520-000007-evidence-readiness";
+  await createRun({
+    runsRoot,
+    runId,
+    metadata: baseMetadata(runId),
+    files: {
+      "reviewer-output-last-message.md": "PASS",
+      "evidence.json": JSON.stringify(
+        {
+          version: 1,
+          runId,
+          status: "needs_review",
+          workspace: "/tmp/workspace",
+          startedAt: "2026-05-20T00:00:00.000Z",
+          git: {
+            changedFiles: ["src/tui/read-model.ts"],
+            untrackedFiles: [],
+            unexpectedFiles: []
+          },
+          commands: [],
+          artefacts: [],
+          checks: { status: "passed", failed: [], skipped: [] },
+          reviewer: { verdict: "PASS" },
+          readiness: { verdict: "FAIL", score: 67, blockers: [], warnings: ["Acceptance evidence missing."] },
+          risk: { level: "high", reasons: [] }
+        },
+        null,
+        2
+      )
+    }
+  });
+
+  const detail = await inspectRunForTui({ runsRoot, runId });
+  assert.equal(detail.readiness?.source, "evidence");
+  assert.equal(detail.readiness?.status, "NEEDS_FIX");
+  assert.equal(detail.readiness?.score, 67);
+  assert.equal(detail.readiness?.risk, "high");
+  assert.equal(detail.readiness?.checksState, "passed");
+  assert.equal(detail.readiness?.reviewerVerdict, "PASS");
+  assert.equal(detail.readiness?.changedFileCount, 1);
+  assert.equal(detail.readiness?.missingEvidenceWarnings.includes("Acceptance evidence missing."), true);
+});
+
+test("inspectRunForTui reports fallback readiness when no report or evidence manifest exists", async () => {
+  const runsRoot = await createRunsRoot();
+  const runId = "20260520-000008-no-readiness-artefacts";
+  await createRun({
+    runsRoot,
+    runId,
+    metadata: baseMetadata(runId),
+    files: { "reviewer-output-last-message.md": "PASS" }
+  });
+
+  const detail = await inspectRunForTui({ runsRoot, runId });
+  assert.equal(detail.readiness?.source, "fallback");
+  assert.equal(detail.readiness?.status, "unknown");
+  assert.equal(detail.readiness?.checksState, "unknown");
+  assert.equal(detail.readiness?.reviewerVerdict, "UNKNOWN");
+  assert.equal(detail.readiness?.missingEvidenceWarnings.length, 2);
+});

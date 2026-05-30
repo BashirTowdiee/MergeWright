@@ -64,6 +64,19 @@ export interface ReviewFinding {
   sourceArtefactId?: string;
 }
 
+export type RunReadinessStatus = "READY" | "NEEDS_REVIEW" | "NEEDS_FIX" | "BLOCKED" | "unknown";
+
+export interface RunReadinessSnapshot {
+  source: "report" | "evidence" | "fallback";
+  status: RunReadinessStatus;
+  score?: number;
+  risk?: "low" | "medium" | "high" | "unknown";
+  checksState?: "passed" | "failed" | "skipped" | "unknown";
+  reviewerVerdict?: "PASS" | "FAIL" | "unavailable" | "UNKNOWN";
+  changedFileCount?: number;
+  missingEvidenceWarnings: string[];
+}
+
 export interface RunDetail {
   id: string;
   title: string;
@@ -80,6 +93,7 @@ export interface RunDetail {
   safeActions: SafeAction[];
   blockedReason?: string;
   reviewerFindings: ReviewFinding[];
+  readiness?: RunReadinessSnapshot;
   warnings: string[];
 }
 

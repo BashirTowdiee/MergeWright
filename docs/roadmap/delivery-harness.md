@@ -134,13 +134,13 @@ Implemented:
 
 Gap:
 
-- TUI does not yet show merge-readiness/prove output from a canonical evaluator.
+- Run-to-run comparison and side-by-side readiness drift views are not yet implemented.
 
 ## Revised milestone order
 
 The old plan put TUI late. The repo now already has a TUI baseline, so the updated order is:
 
-Progress note (as of 2026-05-30): DH-1 through DH-9 are implemented. DH-10 is the active next slice.
+Progress note (as of 2026-05-30): DH-1 through DH-10 are implemented. DH-11 is the active next slice.
 
 1. DH-1 Evidence manifest foundation
 2. DH-2 Evidence backfill from existing artefacts
@@ -543,6 +543,8 @@ Acceptance:
 
 Goal: upgrade the existing TUI to display evidence and readiness.
 
+Status: implemented.
+
 Acceptance:
 
 - TUI reads evidence manifest when present.
@@ -635,24 +637,20 @@ Acceptance:
 
 ## Current recommended next step
 
-Start with DH-1, not TUI and not CAO.
+Start with DH-11 run comparison.
 
-The TUI already exists at a useful read-only baseline. The highest leverage next step is to create the canonical evidence manifest and then feed it into reports, `prove`, and the TUI.
+The evidence-first flow now covers manifest, report, prove, and TUI readiness views. The highest leverage next step is comparing two runs to detect readiness drift, scope change drift, and check/regression deltas.
 
 Success looks like:
 
 ```bash
-npm run mergewright -- prove <run-id> --config configs/my-app.json
+npm run mergewright -- compare-runs <run-id-a> <run-id-b> --config configs/my-app.json
 ```
 
 And the command can answer:
 
-- what changed?
-- why did it change?
-- was it in scope?
-- what tests/checks ran?
-- what failed?
-- what was fixed?
-- what evidence is missing?
-- what is the risk?
-- is this safe to merge?
+- what changed between baseline and candidate?
+- did readiness improve, regress, or stay flat?
+- which checks/reviewer outcomes differ?
+- which acceptance criteria regressed?
+- what new risks or missing evidence appeared?
