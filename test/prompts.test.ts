@@ -50,6 +50,14 @@ function reviewerVariables(overrides: Record<string, string> = {}): Record<strin
   };
 }
 
+function extractHeadings(markdown: string): string[] {
+  return markdown
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("## "))
+    .map((line) => line.replace(/^##\s+/, ""));
+}
+
 test("reviewer template rendering bounds large evidence sections and writes budget metadata", () => {
   const templatePath = path.resolve(process.cwd(), "prompts/reviewer.md");
   const template = readFileSync(templatePath, "utf8");
@@ -121,10 +129,11 @@ test("reviewer template extracts stage-specific checklist from planner output", 
   assert.match(output, /1\. Verify the experimental gate\./);
   assert.match(output, /2\. Verify dry-run behaviour\./);
   const checklistIndex = output.indexOf("## Stage-specific review checklist");
-  const evidenceIndex = output.indexOf("## Write-safety and change evidence");
-  const plannerIndex = output.indexOf("## Planner summary");
-  assert.ok(checklistIndex < evidenceIndex);
-  assert.ok(evidenceIndex < plannerIndex);
+  const acceptanceIndex = output.indexOf("## Structured acceptance criteria");
+  const changedFilesIndex = output.indexOf("## Changed files evidence");
+  const plannerIndex = output.indexOf("## Planner summary (context only)");
+  assert.ok(acceptanceIndex < checklistIndex);
+  assert.ok(changedFilesIndex < plannerIndex);
 });
 
 test("reviewer template rendering fails before execution when final prompt exceeds hard budget", () => {
@@ -169,15 +178,16 @@ test("reviewer template is evidence-focused and preserves verdict contract", () 
   assert.match(template, /Do not modify files\./);
   assert.match(template, /Review the evidence in this packet/);
   assert.match(template, /Do not PASS based only on planner or builder summaries/);
-  assert.match(template, /## Stage contract/);
+  assert.match(template, /## Stage contract and constraints/);
   assert.match(template, /## Stage-specific review checklist/);
   assert.match(template, /## Structured acceptance criteria/);
-  assert.match(template, /## Planner summary/);
-  assert.match(template, /## Builder instructions summary/);
-  assert.match(template, /## Builder result summary/);
-  assert.match(template, /## Write-safety and change evidence/);
-  assert.match(template, /## Test results/);
+  assert.match(template, /## Planner summary \(context only\)/);
+  assert.match(template, /## Builder instructions summary \(context only\)/);
+  assert.match(template, /## Builder result summary \(context only\)/);
+  assert.match(template, /## Changed files evidence/);
+  assert.match(template, /## Test and checks evidence/);
   assert.match(template, /## Git diff and status evidence/);
+  assert.match(template, /Follow this review order: git diff\/status, test\/check output, changed files evidence/);
   assert.match(template, /Review actual change evidence first/);
   assert.match(template, /Apply the stage-specific review checklist above when available/);
   assert.match(template, /Pass\/fail summary/);
@@ -191,9 +201,24 @@ test("reviewer template is evidence-focused and preserves verdict contract", () 
   assert.match(template, /Include `riskLevel` as `low`, `medium`, or `high`\./);
   assert.match(template, /Include `recommendedFixPrompt`/);
 
-  assert.ok(template.indexOf("## Write-safety and change evidence") < template.indexOf("## Builder result summary"));
-  assert.ok(template.indexOf("## Test results") < template.indexOf("## Builder result summary"));
-  assert.ok(template.indexOf("## Git diff and status evidence") < template.indexOf("## Planner summary"));
+  const headings = extractHeadings(template);
+  assert.deepEqual(headings, [
+    "Scope guardrails",
+    "Git diff and status evidence",
+    "Test and checks evidence",
+    "Changed files evidence",
+    "Stage contract and constraints",
+    "Structured acceptance criteria",
+    "Stage-specific review checklist",
+    "Implementation notes (context only)",
+    "Builder result summary (context only)",
+    "Builder exit metadata (context only)",
+    "Builder instructions summary (context only)",
+    "Planner summary (context only)",
+    "Required review checks",
+    "Reject if",
+    "Return format"
+  ]);
 });
 
 test("reviewer template avoids transcript-style replay variables", () => {

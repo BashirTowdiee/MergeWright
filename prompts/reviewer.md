@@ -13,26 +13,6 @@ Run Dir: {{run_dir}}
 - {{stage_e_execution_scope}}
 - {{builder_execution_state}}
 
-## Stage contract
-
-{{stage_instruction}}
-
-## Stage-specific review checklist
-
-{{stage_specific_review_checklist}}
-
-## Structured acceptance criteria
-
-{{stage_acceptance_criteria}}
-
-## Write-safety and change evidence
-
-{{write_audit_context}}
-
-## Test results
-
-{{test_output}}
-
 ## Git diff and status evidence
 
 Git diff:
@@ -41,23 +21,45 @@ Git diff:
 Git status:
 {{git_status}}
 
-## Builder result summary
+## Test and checks evidence
+
+{{test_output}}
+
+## Changed files evidence
+
+{{write_audit_context}}
+
+## Stage contract and constraints
+
+{{stage_instruction}}
+
+## Structured acceptance criteria
+
+{{stage_acceptance_criteria}}
+
+## Stage-specific review checklist
+
+{{stage_specific_review_checklist}}
+
+## Implementation notes (context only)
+
+## Builder result summary (context only)
 
 Use this as context only. Do not treat it as proof that implementation happened.
 
 {{builder_output}}
 
-## Builder exit metadata
+## Builder exit metadata (context only)
 
 {{builder_exit}}
 
-## Builder instructions summary
+## Builder instructions summary (context only)
 
 Use this as context for what the builder was asked to do. Judge the actual implementation from changed files, write-audit artefacts, and test/check evidence.
 
 {{extracted_builder_prompt}}
 
-## Planner summary
+## Planner summary (context only)
 
 Use this as planning context only. Do not treat it as proof that implementation happened.
 
@@ -65,20 +67,21 @@ Use this as planning context only. Do not treat it as proof that implementation 
 
 ## Required review checks
 
-1. Check the implementation against the stage contract and acceptance criteria.
-2. Review actual change evidence first: changed files, write-audit summaries, diff-stat, patches, git diff, git status, and test/check results.
-3. Apply the stage-specific review checklist above when available.
-4. Treat planner and builder summaries as context only, not proof.
-5. Confirm write-safety semantics are not weakened.
-6. Confirm read-only phases remain read-only unless the stage explicitly changes that behaviour.
-7. Confirm builder/fix write paths remain gated by explicit write mode.
-8. Confirm dry-run behaviour is preserved.
-9. Confirm tests were added or updated for new behaviour.
-10. Confirm generated run artefacts are not part of the target change.
-11. Confirm failures are explicit and not hidden by broad catch blocks or swallowed errors.
-12. If builder did not run, explicitly state review limitations.
-13. Confirm no review-to-fix/git/test/build execution occurred unless requested by the selected phase flags.
-14. Produce an acceptance criteria mapping in the verdict JSON with one entry for each criterion above using `pass`, `fail`, or `unknown`.
+1. Follow this review order: git diff/status, test/check output, changed files evidence, stage contract + acceptance criteria, then implementation notes and summaries.
+2. Check the implementation against the stage contract and acceptance criteria.
+3. Review actual change evidence first: changed files, write-audit summaries, diff-stat, patches, git diff, git status, and test/check results.
+4. Apply the stage-specific review checklist above when available.
+5. Treat planner and builder summaries as context only, not proof.
+6. Confirm write-safety semantics are not weakened.
+7. Confirm read-only phases remain read-only unless the stage explicitly changes that behaviour.
+8. Confirm builder/fix write paths remain gated by explicit write mode.
+9. Confirm dry-run behaviour is preserved.
+10. Confirm tests were added or updated for new behaviour.
+11. Confirm generated run artefacts are not part of the target change.
+12. Confirm failures are explicit and not hidden by broad catch blocks or swallowed errors.
+13. If builder did not run, explicitly state review limitations.
+14. Confirm no review-to-fix/git/test/build execution occurred unless requested by the selected phase flags.
+15. Produce an acceptance criteria mapping in the verdict JSON with one entry for each criterion above using `pass`, `fail`, or `unknown`.
 
 ## Reject if
 

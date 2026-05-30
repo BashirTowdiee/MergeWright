@@ -140,7 +140,7 @@ Gap:
 
 The old plan put TUI late. The repo now already has a TUI baseline, so the updated order is:
 
-Progress note (as of 2026-05-30): DH-1 through DH-8 are implemented. DH-9 is the active next slice.
+Progress note (as of 2026-05-30): DH-1 through DH-9 are implemented. DH-10 is the active next slice.
 
 1. DH-1 Evidence manifest foundation
 2. DH-2 Evidence backfill from existing artefacts
@@ -521,6 +521,8 @@ Acceptance:
 ## DH-9: Evidence-first reviewer prompt hardening
 
 Goal: make concrete evidence appear before planner/builder summaries.
+
+Status: implemented.
 
 Required order:
 

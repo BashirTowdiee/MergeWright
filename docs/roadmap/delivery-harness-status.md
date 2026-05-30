@@ -2,28 +2,27 @@
 
 Last updated: 2026-05-30.
 
-## DH-8 reviewer verdict v2 status
+## DH-9 evidence-first reviewer prompt hardening status
 
-Status: implemented with strict, backward-compatible reviewer verdict extension.
+Status: implemented with enforced evidence-first prompt ordering and ordering-proof tests.
 
 Merged coverage:
 
-- Reviewer verdict parser now supports optional v2 fields with strict validation:
-  - `evidenceChecked`
-  - `acceptanceCriteria`
-  - `testsObserved`
-  - `riskLevel`
-  - `recommendedFixPrompt`
-- Legacy reviewer verdict shape remains valid for old artefacts.
-- Reviewer prompt now explicitly requests v2 reviewer verdict fields.
-- Evidence refresh/backfill preserves v2 reviewer metadata in `evidence.reviewer`.
-- Reporting preserves reviewer v2 metadata in `run-report` JSON/markdown output.
-- Tests cover v2 parser success/failure, evidence persistence, and report propagation.
+- Reviewer prompt section order now follows the required evidence-first sequence:
+  1. git diff/status
+  2. test/check evidence
+  3. changed-files evidence
+  4. stage contract and acceptance criteria
+  5. implementation notes
+  6. planner/builder summaries
+- Prompt language now explicitly enforces review order in the required checks block.
+- Automated prompt tests now assert a deterministic heading sequence to prevent ordering drift.
+- Reviewer prompt coverage tests keep evidence-first sections before all context summaries.
 
 Important constraint:
 
-- Evidence-first reviewer prompt ordering hardening is not yet enforced by dedicated ordering snapshots. That remains DH-9.
+- TUI evidence/prove integration is not yet implemented. That remains DH-10.
 
 Next recommended slice:
 
-- Implement DH-9 by hardening reviewer prompts to guarantee evidence-first ordering with snapshot-backed tests.
+- Implement DH-10 by integrating evidence/prove readiness views into the TUI read model.
