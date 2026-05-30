@@ -11,6 +11,9 @@ export function shouldSuppressProgressLogger(args: ProgressLogPolicyArgs): boole
   if (args.command === "compare-runs" && args.jsonOutput === true) {
     return true;
   }
+  if (args.command === "review-modes" && args.jsonOutput === true) {
+    return true;
+  }
   return args.command === "report-run" && (args.jsonOutput === true || (args.prSummary === true && args.stdoutOnly === true));
 }
 

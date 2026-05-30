@@ -2,23 +2,24 @@
 
 Last updated: 2026-05-30.
 
-## DH-11 run comparison status
+## DH-12 parallel focused reviews status
 
-Status: implemented with read-only run-to-run readiness/evidence comparison.
+Status: implemented with read-only focused assurance mode reviews and aggregate gating.
 
 Merged coverage:
 
-- Added `compare-runs <run-id-a> <run-id-b> --config ... [--json]` as a read-only CLI command.
-- Comparison computes readiness status deltas, score/risk deltas, reviewer/checks deltas, changed-file diffs, failed-check diffs, and acceptance regressions/improvements.
-- `--json` emits a machine-readable comparison payload and suppresses progress logs for clean JSON stdout.
-- Missing evidence remains explicit per run via evidence availability and risk-signal extraction.
+- Added `review-modes <run-id> --config ... [--modes ...] [--json]` as a read-only CLI command.
+- Modes supported: `architecture`, `tests`, `regression`, `security`, `docs`, `maintainability`.
+- Each selected mode emits a reviewer-verdict-v2 shaped decision with focused checklist evidence.
+- Aggregate verdict fails when any selected mode verdict fails; command exits non-zero for aggregate `FAIL`.
+- `--json` emits a machine-readable focused review payload and suppresses progress logs for clean JSON stdout.
 - Command does not execute Codex, does not run checks, does not mutate git/workspace state, and does not write report artefacts.
-- Added focused parser/validation/command behavior tests plus pure comparison-mapper tests.
+- Added parser/validation/progress-log/command behavior tests plus pure focused-review mapper tests.
 
 Important constraint:
 
-- Parallel focused reviews are not yet implemented. That remains DH-12.
+- Runner contract hardening is not yet implemented. That remains DH-13.
 
 Next recommended slice:
 
-- Implement DH-12 parallel focused reviews (architecture/tests/regression/security/docs/maintainability modes).
+- Implement DH-13 runner contract hardening (capabilities, metadata namespacing, and backend boundary tightening).

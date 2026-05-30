@@ -56,9 +56,13 @@ export function validateParsedArgs(parsed: ParsedArgs): void {
     parsed.command !== "report-run" &&
     parsed.command !== "probe-opencode" &&
     parsed.command !== "prove" &&
-    parsed.command !== "compare-runs"
+    parsed.command !== "compare-runs" &&
+    parsed.command !== "review-modes"
   ) {
-    throw new Error("--json is supported for report-run, prove, compare-runs, and probe-opencode.");
+    throw new Error("--json is supported for report-run, prove, compare-runs, review-modes, and probe-opencode.");
+  }
+  if (parsed.modesArg && parsed.command !== "review-modes") {
+    throw new Error("--modes is only supported for review-modes.");
   }
   if (parsed.command === "report-run" && parsed.jsonOutput && parsed.prSummary && parsed.stdoutOnly) {
     throw new Error(
@@ -212,6 +216,28 @@ export function validateParsedArgs(parsed: ParsedArgs): void {
     }
     if (parsed.force) {
       throw new Error("--force is not supported for compare-runs.");
+    }
+  }
+  if (parsed.command === "review-modes") {
+    if (parsed.help) {
+      return;
+    }
+    if (!parsed.runId) {
+      throw new Error(
+        "review-modes requires <run-id>. Usage: agent-stage review-modes <run-id> --config <config-path> [--modes architecture,tests,regression,security,docs,maintainability] [--json] [--verbose]"
+      );
+    }
+    if (!parsed.configArg) {
+      throw new Error("Missing required --config <config-path>. No implicit default is used.");
+    }
+    if (parsed.workspaceArg) {
+      throw new Error("--workspace is not supported for review-modes.");
+    }
+    if (parsed.repoOverride) {
+      throw new Error("--repo is not supported for review-modes.");
+    }
+    if (parsed.force) {
+      throw new Error("--force is not supported for review-modes.");
     }
   }
   if (parsed.command === "probe-opencode") {

@@ -14,6 +14,7 @@ test("top-level help contains command list and safety notes", async () => {
   assert.match(text, /continue-run <run-id>/);
   assert.match(text, /compare-runs <run-id-a> <run-id-b>/);
   assert.match(text, /prove <run-id>/);
+  assert.match(text, /review-modes <run-id>/);
   assert.match(text, /report-run <run-id>/);
   assert.match(text, /read-only sandbox/);
   assert.match(text, /No auto-commit or auto-push/);
@@ -612,6 +613,15 @@ test("compare-runs help shows read-only comparison behavior", async () => {
   assert.match(text, /Missing evidence is explicitly reported per run/);
 });
 
+test("review-modes help shows focused review behavior", async () => {
+  const output: string[] = [];
+  await runCommand(parseArgs(["review-modes", "--help"]), process.cwd(), "linux", async () => {}, (line) => output.push(line));
+  const text = output.join("\n");
+  assert.match(text, /Usage: agent-stage review-modes/);
+  assert.match(text, /--modes <csv>/);
+  assert.match(text, /Exits 0 only when all selected mode verdicts are PASS/);
+});
+
 test("init-project help shows workspace and force options", async () => {
   const output: string[] = [];
   await runCommand(parseArgs(["init-project", "--help"]), process.cwd(), "linux", async () => {}, (line) => output.push(line));
@@ -1048,10 +1058,48 @@ test("compare-runs rejects missing config", () => {
   );
 });
 
+test("review-modes parses run id, config, modes, and --json", () => {
+  const args = parseArgs([
+    "review-modes",
+    "run-1",
+    "--config",
+    "configs/acme.json",
+    "--modes",
+    "tests,security",
+    "--json"
+  ]);
+  assert.equal(args.command, "review-modes");
+  assert.equal(args.runId, "run-1");
+  assert.equal(args.configArg, "configs/acme.json");
+  assert.equal(args.modesArg, "tests,security");
+  assert.equal(args.jsonOutput, true);
+});
+
+test("review-modes rejects missing run id", () => {
+  assert.throws(
+    () => parseArgs(["review-modes", "--config", "configs/acme.json"]),
+    /review-modes requires <run-id>/
+  );
+});
+
+test("review-modes rejects missing config", () => {
+  assert.throws(
+    () => parseArgs(["review-modes", "run-1"]),
+    /Missing required --config <config-path>/
+  );
+});
+
+test("review-modes rejects modes flag on other commands", () => {
+  assert.throws(
+    () => parseArgs(["prove", "run-1", "--config", "configs/acme.json", "--modes", "tests"]),
+    /--modes is only supported for review-modes/
+  );
+});
+
 test("non-report/prove commands reject JSON and report-only flags", () => {
   assert.throws(
     () => parseArgs(["list-runs", "--config", "configs/acme.json", "--json"]),
-    /--json is supported for report-run, prove, compare-runs, and probe-opencode/
+    /--json is supported for report-run, prove, compare-runs, review-modes, and probe-opencode/
   );
   assert.throws(
     () => parseArgs(["show-run", "run-1", "--config", "configs/acme.json", "--stdout-only"]),
@@ -2723,6 +2771,113 @@ test("compare-runs does not call run/continue/check-write-safety/auto-chain hand
   let autoChainCalls = 0;
   await runCommand(
     parseArgs(["compare-runs", fixture.runIdA, fixture.runIdB, "--config", fixture.configArg]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    () => {},
+    {
+      checkWriteSafetyHandler: async () => {
+        checkSafetyCalls += 1;
+        throw new Error("should not be called");
+      },
+      autoChainHandler: async () => {
+        autoChainCalls += 1;
+        throw new Error("should not be called");
+      }
+    }
+  );
+  assert.equal(checkSafetyCalls, 0);
+  assert.equal(autoChainCalls, 0);
+});
+
+test("review-modes pass case prints summary, writes no artefacts, and succeeds", async () => {
+  const fixture = await makeReportRunFixture();
+  const output: string[] = [];
+  await runCommand(
+    parseArgs(["review-modes", fixture.runId, "--config", fixture.configArg]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    (line) => output.push(line)
+  );
+  const text = output.join("\n");
+  assert.match(text, /Focused Review Modes/);
+  assert.match(text, /aggregate verdict: PASS/);
+  assert.match(text, /mode tests: PASS/);
+  await assert.rejects(() => readFile(path.join(fixture.runDir, "run-report.md"), "utf8"));
+  await assert.rejects(() => readFile(path.join(fixture.runDir, "run-report.json"), "utf8"));
+});
+
+test("review-modes --json emits JSON-only payload", async () => {
+  const fixture = await makeReportRunFixture();
+  const output: string[] = [];
+  await runCommand(
+    parseArgs(["review-modes", fixture.runId, "--config", fixture.configArg, "--modes", "tests,security", "--json"]),
+    fixture.orchestratorRoot,
+    "linux",
+    async () => {},
+    (line) => output.push(line)
+  );
+  assert.equal(output.length, 1);
+  const stdout = output[0];
+  const parsed = JSON.parse(stdout) as {
+    version: number;
+    runId: string;
+    aggregateVerdict: string;
+    modes: Array<{ mode: string; decision: { verdict: string } }>;
+  };
+  assert.equal(parsed.version, 1);
+  assert.equal(parsed.runId, fixture.runId);
+  assert.equal(parsed.modes.length, 2);
+  assert.doesNotMatch(stdout, /\[review-modes\]/);
+  assert.doesNotMatch(stdout, /Focused Review Modes/);
+});
+
+test("review-modes returns non-zero path for FAIL after printing output", async () => {
+  const fixture = await makeReportRunFixture();
+  await writeFile(
+    path.join(fixture.runDir, "checks-status.json"),
+    JSON.stringify({ state: "failed", failedChecks: ["npm test"] }, null, 2),
+    "utf8"
+  );
+
+  const output: string[] = [];
+  await assert.rejects(
+    () =>
+      runCommand(
+        parseArgs(["review-modes", fixture.runId, "--config", fixture.configArg, "--modes", "tests"]),
+        fixture.orchestratorRoot,
+        "linux",
+        async () => {},
+        (line) => output.push(line)
+      ),
+    /review-modes failed: FAIL/
+  );
+  const text = output.join("\n");
+  assert.match(text, /aggregate verdict: FAIL/);
+  assert.match(text, /mode tests: FAIL/);
+});
+
+test("review-modes fails clearly when run directory is missing", async () => {
+  const fixture = await makeReportRunFixture();
+  await assert.rejects(
+    () =>
+      runCommand(
+        parseArgs(["review-modes", "missing-run-id", "--config", fixture.configArg]),
+        fixture.orchestratorRoot,
+        "linux",
+        async () => {}
+      ),
+    /Run does not exist: missing-run-id/
+  );
+});
+
+test("review-modes does not call run/continue/check-write-safety/auto-chain handlers", async () => {
+  const fixture = await makeReportRunFixture();
+  let checkSafetyCalls = 0;
+  let autoChainCalls = 0;
+  await runCommand(
+    parseArgs(["review-modes", fixture.runId, "--config", fixture.configArg]),
     fixture.orchestratorRoot,
     "linux",
     async () => {},

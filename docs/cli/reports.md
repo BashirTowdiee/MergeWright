@@ -42,3 +42,18 @@ Behavior:
 - keeps missing evidence explicit for each run
 - read-only: no Codex execution, no checks execution, and no artefact writes
 - `--json` prints a machine-readable comparison payload
+
+## review-modes
+
+```bash
+npm run agent -- review-modes <run-id> --config <config-path> [--modes architecture,tests,regression,security,docs,maintainability] [--json] [--verbose]
+```
+
+Behavior:
+
+- runs focused read-only assurance reviews by mode
+- each selected mode emits a reviewer-verdict-v2 shaped decision
+- aggregate verdict is `FAIL` if any selected mode fails
+- exits non-zero when aggregate verdict is `FAIL`
+- read-only: no Codex execution, no checks execution, and no artefact writes
+- `--json` prints a machine-readable focused-review payload

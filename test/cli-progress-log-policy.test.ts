@@ -38,6 +38,18 @@ test("suppresses progress logging for compare-runs JSON output", () => {
   );
 });
 
+test("suppresses progress logging for review-modes JSON output", () => {
+  assert.equal(
+    shouldSuppressProgressLogger({
+      command: "review-modes",
+      jsonOutput: true,
+      prSummary: false,
+      stdoutOnly: false
+    }),
+    true
+  );
+});
+
 test("suppresses progress logging for report-run PR summary stdout-only output", () => {
   assert.equal(
     shouldSuppressProgressLogger({

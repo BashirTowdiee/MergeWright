@@ -140,7 +140,7 @@ Gap:
 
 The old plan put TUI late. The repo now already has a TUI baseline, so the updated order is:
 
-Progress note (as of 2026-05-30): DH-1 through DH-11 are implemented. DH-12 is the active next slice.
+Progress note (as of 2026-05-30): DH-1 through DH-12 are implemented. DH-13 is the active next slice.
 
 1. DH-1 Evidence manifest foundation
 2. DH-2 Evidence backfill from existing artefacts
@@ -575,6 +575,8 @@ Acceptance:
 
 Goal: add focused assurance reviews, not generic agent swarms.
 
+Status: implemented.
+
 Modes:
 
 - architecture
@@ -639,19 +641,19 @@ Acceptance:
 
 ## Current recommended next step
 
-Start with DH-12 parallel focused reviews.
+Start with DH-13 runner contract hardening.
 
-The evidence-first flow now covers manifest, report, prove, TUI readiness views, and run comparison. The highest leverage next step is parallel focused reviews to improve confidence in architecture, regression, test quality, and security posture before merge.
+The evidence-first flow now covers manifest, report, prove, TUI readiness views, run comparison, and focused mode reviews. The next leverage point is hardening backend runner contracts so orchestration policy remains backend-agnostic.
 
 Success looks like:
 
 ```bash
-npm run mergewright -- review-modes <run-id> --config configs/my-app.json --modes architecture,tests,regression,security,docs,maintainability
+npm run mergewright -- probe-opencode --config configs/my-app.json --validate-readonly-contract
 ```
 
 And the command can answer:
 
-- which assurance dimensions passed or failed independently?
-- which failures are blocking and why?
-- what targeted fix prompts are needed by mode?
-- can mode-level verdicts be aggregated into merge-readiness gating?
+- are runner capabilities explicit and validated?
+- is backend metadata namespaced and isolated?
+- do delivery decisions stay out of execution backends?
+- does backend substitution remain deterministic and safe?

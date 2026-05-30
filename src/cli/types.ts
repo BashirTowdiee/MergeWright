@@ -14,6 +14,7 @@ export interface ParsedArgs {
   compareRunId?: string;
   projectName?: string;
   configArg?: string;
+  modesArg?: string;
   workspaceArg?: string;
   repoOverride?: string;
   preset?: PipelinePreset;

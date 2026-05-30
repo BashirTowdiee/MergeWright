@@ -9,6 +9,7 @@ Supported commands:
 - `open-run`
 - `compare-runs`
 - `prove`
+- `review-modes`
 - `report-run`
 - `init-project`
 - `check-write-safety`

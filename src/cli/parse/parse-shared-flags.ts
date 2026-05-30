@@ -146,6 +146,15 @@ export function parseSharedFlags(parsed: ParsedArgs, rest: string[]): void {
       i += 1;
       continue;
     }
+    if (token === "--modes") {
+      const value = rest[i + 1];
+      if (!value) {
+        throw new Error("Missing value for --modes");
+      }
+      parsed.modesArg = value;
+      i += 1;
+      continue;
+    }
     if (token === "--repo") {
       const value = rest[i + 1];
       if (!value) {

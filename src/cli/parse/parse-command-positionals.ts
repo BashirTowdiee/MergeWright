@@ -26,6 +26,7 @@ export function parseCommandPositionals(argv: string[], parsed: ParsedArgs): Com
     command === "continue-run" ||
     command === "report-run" ||
     command === "prove" ||
+    command === "review-modes" ||
     command === "backfill-evidence"
   ) {
     const runId = consumePositional(argv[1]);

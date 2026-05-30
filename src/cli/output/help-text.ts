@@ -109,6 +109,24 @@ export function renderHelpText(command?: string): string {
     ].join("\n");
   }
 
+  if (command === "review-modes") {
+    return [
+      "Usage: agent-stage review-modes <run-id> --config <config-path> [--modes architecture,tests,regression,security,docs,maintainability] [--json] [--verbose]",
+      "",
+      "Runs focused read-only assurance reviews against an existing run report.",
+      "  --config <config-path>   Required. No implicit default is used.",
+      "  --modes <csv>            Optional. Comma-separated subset of: architecture, tests, regression, security, docs, maintainability.",
+      "  --json                   Prints JSON-only mode-review payload to stdout (machine-readable).",
+      "",
+      "Notes:",
+      "  - Does not execute Codex.",
+      "  - Does not run checks.",
+      "  - Does not mutate target workspace.",
+      "  - Does not write report artefacts.",
+      "  - Exits 0 only when all selected mode verdicts are PASS."
+    ].join("\n");
+  }
+
   if (command === "compare-runs") {
     return [
       "Usage: agent-stage compare-runs <run-id-a> <run-id-b> --config <config-path> [--json] [--verbose]",
@@ -358,6 +376,7 @@ export function renderHelpText(command?: string): string {
     "  open-run <run-id> --config <config-path>",
     "  compare-runs <run-id-a> <run-id-b> --config <config-path> [--json] [--verbose]",
     "  prove <run-id> --config <config-path> [--json] [--verbose]",
+    "  review-modes <run-id> --config <config-path> [--modes architecture,tests,regression,security,docs,maintainability] [--json] [--verbose]",
     "  report-run <run-id> --config <config-path> [--json] [--pr-summary] [--stdout-only] [--force] [--verbose]",
     "  backfill-evidence <run-id> --config <config-path> [--dry-run] [--verbose]",
     "  init-project <name> --workspace <path> [--force] [--verbose]",

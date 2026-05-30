@@ -149,8 +149,10 @@ areas:
       - src/cli/commands
       - src/cli/commands/compare-runs.command.ts
       - src/cli/commands/prove.command.ts
+      - src/cli/commands/review-modes.command.ts
       - src/cli/output/compare-runs-summary.ts
       - src/cli/output/prove-summary.ts
+      - src/cli/output/review-modes-summary.ts
     tests:
       - test/cli.test.ts
       - test/cli-dispatch.test.ts
@@ -224,6 +226,7 @@ areas:
       - src/reporting/scope-drift.ts
       - src/reporting/compare-runs.ts
       - src/reporting/prove-report.ts
+      - src/reporting/review-modes.ts
       - src/reporting/stage-contract-scope.ts
       - src/reporting/reviewer-acceptance.ts
     tests:
@@ -231,6 +234,7 @@ areas:
       - test/change-report-evidence.test.ts
       - test/compare-runs.test.ts
       - test/prove-report.test.ts
+      - test/review-modes.test.ts
       - test/stage-contract-scope.test.ts
       - test/reviewer-acceptance.test.ts
 
