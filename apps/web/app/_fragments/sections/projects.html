@@ -1,0 +1,25 @@
+<section class="page active" id="projects" data-title="Projects" data-crumb="Projects / All">
+          <div class="grid-4">
+            <div class="metric"><span>Projects</span><strong id="metricProjectsTotal">0</strong><small>Loaded from API</small></div>
+            <div class="metric"><span>Health</span><strong id="metricProjectsHealthy">unknown</strong><small id="metricProjectsHealthyNote">awaiting load</small></div>
+            <div class="metric"><span>Default provider</span><strong id="projectDefaultProvider">-</strong><small>Planner backend</small></div>
+            <div class="metric"><span>Runs root</span><strong class="small mono" id="projectRunsRoot">-</strong><small>Filesystem path</small></div>
+          </div>
+          <div class="card"><div class="card-header"><h2>Project overview</h2><span class="pill blue">Guide: web-app-demo</span></div><div class="card-body"><p class="muted">This UI follows <code>docs/ux/web-app-demo.html</code> and consumes Fastify API routes for live run supervision and CLI-equivalent command execution.</p><div class="list" style="margin-top:12px"><div class="list-item"><strong id="projectName">-</strong><div class="mono small" id="projectIdLine">-</div></div><div class="list-item"><strong>Config path</strong><div class="mono small" id="projectConfigPath">-</div></div><div class="list-item"><strong>Workspace root</strong><div class="mono small" id="projectWorkspaceRoot">-</div></div><div class="list-item"><strong>Health checks</strong><div class="small muted" id="projectHealthChecks">-</div></div><div class="list-item"><strong>Warnings</strong><div class="small muted" id="projectHealthWarnings">none</div></div></div></div></div>
+          <div class="card">
+            <div class="card-header"><h2>Project management</h2><span class="pill neutral" id="projectCrudStatus">idle</span></div>
+            <div class="card-body list">
+              <div class="field"><label>Active project</label><select class="input" id="projectSelector"></select></div>
+              <div class="toolbar">
+                <button class="button-secondary" id="projectReloadButton">Reload</button>
+                <button class="button-secondary" id="projectDeleteButton">Delete selected</button>
+              </div>
+              <div class="field"><label>Project name</label><input class="input" id="projectNameInput" placeholder="MergeWright Project" /></div>
+              <div class="field"><label>Config path</label><input class="input mono" id="projectConfigPathInput" placeholder="configs/acme.json" /></div>
+              <div class="toolbar">
+                <button class="button" id="projectCreateButton">Create</button>
+                <button class="button-secondary" id="projectUpdateButton">Update selected</button>
+              </div>
+            </div>
+          </div>
+        </section>

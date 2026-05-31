@@ -12,6 +12,7 @@ test("FileSettingsQueryService returns defaults when no file exists", async () =
     defaults: {
       version: 1,
       project: {
+        activeProjectId: "default",
         defaultConfigPath: "/tmp/config.json",
         runsRoot: "/tmp/runs",
         defaultProvider: "codex-local",
@@ -45,6 +46,7 @@ test("FileSettingsQueryService persists updates", async () => {
     defaults: {
       version: 1,
       project: {
+        activeProjectId: "default",
         defaultConfigPath: "/tmp/config.json",
         runsRoot: "/tmp/runs",
         defaultProvider: "codex-local",
@@ -98,6 +100,7 @@ test("FileSettingsQueryService rejects invalid updates", async () => {
     defaults: {
       version: 1,
       project: {
+        activeProjectId: "default",
         defaultConfigPath: "/tmp/config.json",
         runsRoot: "/tmp/runs",
         defaultProvider: "codex-local",
@@ -135,6 +138,7 @@ test("FileSettingsQueryService falls back when stored file is malformed", async 
     settingsPath,
     JSON.stringify({
       project: {
+        activeProjectId: "default",
         defaultConfigPath: "",
         runsRoot: 42,
         defaultProvider: "codex-local",
@@ -157,6 +161,7 @@ test("FileSettingsQueryService falls back when stored file is malformed", async 
     defaults: {
       version: 1,
       project: {
+        activeProjectId: "default",
         defaultConfigPath: "/tmp/config.json",
         runsRoot: "/tmp/runs",
         defaultProvider: "codex-local",

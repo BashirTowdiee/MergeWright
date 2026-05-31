@@ -1,0 +1,32 @@
+<section class="page" id="run-detail" data-title="Run detail" data-crumb="Projects / MergeWright / Runs / Detail">
+          <div class="grid-4">
+            <div class="metric"><span>Readiness</span><strong id="detailReadinessStatus">unknown</strong><small id="detailReadinessNote">No run selected</small></div>
+            <div class="metric"><span>Score</span><strong id="detailScoreValue">n/a</strong><small id="detailRiskValue">risk unknown</small></div>
+            <div class="metric"><span>Reviewer</span><strong id="detailReviewerVerdict">UNKNOWN</strong><small id="detailFindingsCount">0 findings</small></div>
+            <div class="metric"><span>Checks</span><strong id="detailChecksState">unknown</strong><small id="detailWarningsCount">0 warnings</small></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><div><h2>Phase timeline</h2><p class="muted">Readable phase status from run artefacts.</p></div><span class="pill amber" id="timelineStatusPill">unknown</span></div>
+            <div class="card-body"><div class="timeline" id="phaseTimeline"></div></div>
+          </div>
+
+          <div class="grid-2">
+            <div class="card"><div class="card-header"><h2>Safe next actions</h2><span class="pill amber" id="actionsStatusPill">policy gated</span></div><div class="card-body list" id="safeActionsList"></div></div>
+            <div class="card"><div class="card-header"><h2>Run metadata</h2><span class="pill neutral">local</span></div><div class="card-body list"><div class="list-item"><strong>Workspace</strong><div class="mono small" id="detailWorkspace">-</div></div><div class="list-item"><strong>Run directory</strong><div class="mono small" id="detailRunDir">-</div></div><div class="list-item"><strong>Provider</strong><div id="detailProvider">-</div></div><div class="list-item"><strong>Model</strong><div id="detailModel">-</div></div></div></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><div><h2>Run artefacts</h2><p class="muted">Loaded from API artefact routes.</p></div><div class="toolbar"><span class="pill neutral" id="runArtifactScope">all phases</span><button class="button-ghost" id="clearPhaseFilterButton">Show all</button><span class="pill neutral" id="runArtifactsCount">0</span></div></div>
+            <div class="card-body">
+              <table>
+                <thead><tr><th>Title</th><th>Kind</th><th>Phase</th><th>Path</th><th>Size</th></tr></thead>
+                <tbody id="runArtifactsBody"></tbody>
+              </table>
+              <div class="list-item" style="margin-top:12px">
+                <div class="row"><strong id="artifactPreviewTitle">Artifact preview</strong><span class="pill neutral" id="artifactPreviewMeta">not loaded</span></div>
+                <pre id="artifactPreviewOutput">Select an artifact row to load content preview.</pre>
+              </div>
+            </div>
+          </div>
+        </section>

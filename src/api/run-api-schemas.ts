@@ -191,7 +191,8 @@ export const healthResponseSchema = z.object({
 });
 
 export const listRunsQuerySchema = z.object({
-  status: runStatusSchema.or(z.literal("all")).optional()
+  status: runStatusSchema.or(z.literal("all")).optional(),
+  projectId: z.string().min(1).optional()
 });
 
 export const listRunsResponseSchema = z.object({
@@ -200,7 +201,8 @@ export const listRunsResponseSchema = z.object({
 
 export const getRunComparisonQuerySchema = z.object({
   runA: z.string().min(1),
-  runB: z.string().min(1)
+  runB: z.string().min(1),
+  projectId: z.string().min(1).optional()
 });
 
 export const comparedRunSummarySchema = z.object({
@@ -405,7 +407,8 @@ export const listRunArtifactsParamsSchema = z.object({
 });
 
 export const listRunArtifactsQuerySchema = z.object({
-  phaseId: z.string().min(1).optional()
+  phaseId: z.string().min(1).optional(),
+  projectId: z.string().min(1).optional()
 });
 
 export const listRunArtifactsResponseSchema = z.object({
@@ -422,7 +425,8 @@ export const getRunArtifactResponseSchema = z.object({
 });
 
 export const getRunArtifactContentQuerySchema = z.object({
-  maxBytes: z.coerce.number().int().min(1).max(1_000_000).optional()
+  maxBytes: z.coerce.number().int().min(1).max(1_000_000).optional(),
+  projectId: z.string().min(1).optional()
 });
 
 export const getRunArtifactContentResponseSchema = z.object({
@@ -554,10 +558,41 @@ export const getProjectHealthResponseSchema = z.object({
   health: projectHealthSchema
 });
 
+export const createProjectRequestSchema = z.object({
+  project: z.object({
+    name: z.string().min(1),
+    configPath: z.string().min(1)
+  })
+});
+
+export const updateProjectRequestSchema = z.object({
+  project: z
+    .object({
+      name: z.string().min(1).optional(),
+      configPath: z.string().min(1).optional()
+    })
+    .refine((value) => value.name !== undefined || value.configPath !== undefined, {
+      message: "At least one project field is required."
+    })
+});
+
+export const createProjectResponseSchema = z.object({
+  project: projectDetailSchema
+});
+
+export const updateProjectResponseSchema = z.object({
+  project: projectDetailSchema
+});
+
+export const deleteProjectResponseSchema = z.object({
+  ok: z.literal(true)
+});
+
 export const settingsDefaultModeSchema = z.enum(["preview-first", "read-only", "write-enabled"]);
 export const settingsThemeSchema = z.enum(["system", "light", "dark"]);
 
 export const settingsProjectSchema = z.object({
+  activeProjectId: z.string().min(1),
   defaultConfigPath: z.string().min(1),
   runsRoot: z.string().min(1),
   defaultProvider: z.string().min(1),

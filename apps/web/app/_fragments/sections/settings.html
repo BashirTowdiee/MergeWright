@@ -1,0 +1,44 @@
+<section class="page" id="settings" data-title="Settings" data-crumb="Projects / MergeWright / Settings">
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-header"><h2>Project settings</h2><span class="pill neutral" id="settingsSaveStatus">not saved</span></div>
+              <div class="card-body list">
+                <div class="field"><label>Default config path</label><input class="input mono" id="settingsConfigPath" value="config.example.json" /></div>
+                <div class="field"><label>Runs root</label><input class="input mono" id="settingsRunsRoot" value=".artifacts/runs" /></div>
+                <div class="field"><label>Default provider</label><select class="input" id="settingsDefaultProvider"></select></div>
+                <div class="field"><label>Default model</label><input class="input mono" id="settingsDefaultModel" value="gpt-5.3-codex" /></div>
+                <div class="field"><label>Default execution mode</label><select class="input" id="settingsDefaultMode"><option value="preview-first">Preview first</option><option value="read-only">Read-only execute</option><option value="write-enabled">Write-enabled with confirmation</option></select></div>
+                <div class="field"><label>Evidence retention days</label><input class="input" id="settingsEvidenceRetention" type="number" min="1" value="30" /></div>
+                <div class="field"><label>Artifact retention days</label><input class="input" id="settingsArtifactRetention" type="number" min="1" value="30" /></div>
+                <div class="field"><label>Theme</label><select class="input" id="settingsTheme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
+                <div class="field"><label><input type="checkbox" id="settingsKeyboardShortcuts" checked /> Enable keyboard shortcuts</label></div>
+                <div class="list-item"><strong>API base</strong><div class="mono small">/api</div></div>
+                <div class="list-item"><strong>Runs source</strong><div class="mono small">GET /api/runs</div></div>
+                <div class="toolbar"><button class="button" id="saveSettingsButton">Save settings</button></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header"><h2>Policy settings</h2><span class="pill blue" id="settingsWriteSafetyPill">loading</span></div>
+              <div class="card-body list">
+                <div class="list-item"><strong>Require git repo</strong><p id="settingsRequireGitRepo">-</p></div>
+                <div class="list-item"><strong>Require clean start</strong><p id="settingsRequireCleanStart">-</p></div>
+                <div class="list-item"><strong>Manual commit only</strong><p id="settingsManualCommitOnly">-</p></div>
+                <div class="list-item"><strong>Write safety</strong><p id="settingsWriteSafetySummary">-</p></div>
+                <div class="list-item"><strong>Blocked paths</strong><p class="mono small" id="settingsBlockedPaths">-</p></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h2>Providers</h2><span class="pill neutral" id="settingsProvidersPill">0 providers</span></div>
+            <div class="card-body">
+              <table>
+                <thead>
+                  <tr><th>Provider</th><th>Type</th><th>Command</th><th>Roles</th><th>Probe</th></tr>
+                </thead>
+                <tbody id="settingsProvidersBody">
+                  <tr><td colspan="5" class="muted">Providers not loaded.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>

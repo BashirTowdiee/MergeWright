@@ -34,6 +34,11 @@ import {
   getRunReviewResponseSchema,
   getWriteSafetyStatusResponseSchema,
   listProjectsResponseSchema,
+  createProjectResponseSchema,
+  createProjectRequestSchema,
+  updateProjectRequestSchema,
+  updateProjectResponseSchema,
+  deleteProjectResponseSchema,
   listStagePlansResponseSchema,
   listRunArtifactsResponseSchema,
   listRunsResponseSchema,
@@ -89,8 +94,15 @@ export class MergeWrightApiClient {
     this.fetcher = options.fetch;
   }
 
-  async listRuns(status?: RunSummary["status"] | "all"): Promise<readonly RunSummary[]> {
-    const search = status === undefined ? "" : `?status=${encodeURIComponent(status)}`;
+  async listRuns(status?: RunSummary["status"] | "all", projectId?: string): Promise<readonly RunSummary[]> {
+    const query = new URLSearchParams();
+    if (status !== undefined) {
+      query.set("status", status);
+    }
+    if (projectId) {
+      query.set("projectId", projectId);
+    }
+    const search = query.size > 0 ? `?${query.toString()}` : "";
     const payload = await this.request(`/runs${search}`);
     return listRunsResponseSchema.parse(payload).runs;
   }
@@ -110,28 +122,55 @@ export class MergeWrightApiClient {
     return getProjectHealthResponseSchema.parse(payload).health;
   }
 
-  async getProviderInventory(): Promise<ProviderInventory> {
-    const payload = await this.request("/providers");
+  async createProject(input: { name: string; configPath: string }): Promise<ProjectDetail> {
+    const request = createProjectRequestSchema.parse({ project: input });
+    const payload = await this.request("/projects", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(request)
+    });
+    return createProjectResponseSchema.parse(payload).project;
+  }
+
+  async updateProject(projectId: string, input: { name?: string; configPath?: string }): Promise<ProjectDetail> {
+    const request = updateProjectRequestSchema.parse({ project: input });
+    const payload = await this.request(`/projects/${encodeURIComponent(projectId)}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(request)
+    });
+    return updateProjectResponseSchema.parse(payload).project;
+  }
+
+  async deleteProject(projectId: string): Promise<void> {
+    const payload = await this.request(`/projects/${encodeURIComponent(projectId)}`, {
+      method: "DELETE"
+    });
+    deleteProjectResponseSchema.parse(payload);
+  }
+
+  async getProviderInventory(projectId?: string): Promise<ProviderInventory> {
+    const payload = await this.request(withProjectQuery("/providers", projectId));
     return getProvidersResponseSchema.parse(payload).inventory;
   }
 
-  async getPolicy(): Promise<PolicySnapshot> {
-    const payload = await this.request("/policy");
+  async getPolicy(projectId?: string): Promise<PolicySnapshot> {
+    const payload = await this.request(withProjectQuery("/policy", projectId));
     return getPolicyResponseSchema.parse(payload).policy;
   }
 
-  async getWriteSafetyStatus(): Promise<WriteSafetyStatusSnapshot> {
-    const payload = await this.request("/safety/write-status");
+  async getWriteSafetyStatus(projectId?: string): Promise<WriteSafetyStatusSnapshot> {
+    const payload = await this.request(withProjectQuery("/safety/write-status", projectId));
     return getWriteSafetyStatusResponseSchema.parse(payload).status;
   }
 
-  async getSettings(): Promise<SettingsSnapshot> {
-    const payload = await this.request("/settings");
+  async getSettings(projectId?: string): Promise<SettingsSnapshot> {
+    const payload = await this.request(withProjectQuery("/settings", projectId));
     return getSettingsResponseSchema.parse(payload).settings;
   }
 
-  async updateSettings(settings: SettingsUpdate): Promise<SettingsSnapshot> {
-    const payload = await this.request("/settings", {
+  async updateSettings(settings: SettingsUpdate, projectId?: string): Promise<SettingsSnapshot> {
+    const payload = await this.request(withProjectQuery("/settings", projectId), {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ settings })
@@ -139,13 +178,13 @@ export class MergeWrightApiClient {
     return updateSettingsResponseSchema.parse(payload).settings;
   }
 
-  async listReviews(): Promise<readonly ReviewItemView[]> {
-    const payload = await this.request("/reviews");
+  async listReviews(projectId?: string): Promise<readonly ReviewItemView[]> {
+    const payload = await this.request(withProjectQuery("/reviews", projectId));
     return listReviewsResponseSchema.parse(payload).reviews;
   }
 
-  async addReviewComment(reviewId: string, message: string, author?: string): Promise<ReviewItemView> {
-    const payload = await this.request(`/reviews/${encodeURIComponent(reviewId)}/comments`, {
+  async addReviewComment(reviewId: string, message: string, author?: string, projectId?: string): Promise<ReviewItemView> {
+    const payload = await this.request(withProjectQuery(`/reviews/${encodeURIComponent(reviewId)}/comments`, projectId), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ message, author })
@@ -153,8 +192,8 @@ export class MergeWrightApiClient {
     return addReviewCommentResponseSchema.parse(payload).review;
   }
 
-  async decideReview(reviewId: string, decision: ReviewDecision, note?: string, author?: string): Promise<ReviewItemView> {
-    const payload = await this.request(`/reviews/${encodeURIComponent(reviewId)}/approval`, {
+  async decideReview(reviewId: string, decision: ReviewDecision, note?: string, author?: string, projectId?: string): Promise<ReviewItemView> {
+    const payload = await this.request(withProjectQuery(`/reviews/${encodeURIComponent(reviewId)}/approval`, projectId), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ decision, note, author })
@@ -162,67 +201,86 @@ export class MergeWrightApiClient {
     return decideReviewResponseSchema.parse(payload).review;
   }
 
-  async getRun(runId: string): Promise<RunDetail> {
-    const payload = await this.request(`/runs/${encodeURIComponent(runId)}`);
+  async getRun(runId: string, projectId?: string): Promise<RunDetail> {
+    const payload = await this.request(withProjectQuery(`/runs/${encodeURIComponent(runId)}`, projectId));
     return getRunResponseSchema.parse(payload).run;
   }
 
-  async getRunReadiness(runId: string): Promise<RunReadinessView> {
-    const payload = await this.request(`/runs/${encodeURIComponent(runId)}/readiness`);
+  async getRunReadiness(runId: string, projectId?: string): Promise<RunReadinessView> {
+    const payload = await this.request(withProjectQuery(`/runs/${encodeURIComponent(runId)}/readiness`, projectId));
     return getRunReadinessResponseSchema.parse(payload).readiness;
   }
 
-  async getRunReview(runId: string): Promise<RunReviewView> {
-    const payload = await this.request(`/runs/${encodeURIComponent(runId)}/review`);
+  async getRunReview(runId: string, projectId?: string): Promise<RunReviewView> {
+    const payload = await this.request(withProjectQuery(`/runs/${encodeURIComponent(runId)}/review`, projectId));
     return getRunReviewResponseSchema.parse(payload).review;
   }
 
-  async getRunEvidence(runId: string): Promise<RunEvidenceView> {
-    const payload = await this.request(`/runs/${encodeURIComponent(runId)}/evidence`);
+  async getRunEvidence(runId: string, projectId?: string): Promise<RunEvidenceView> {
+    const payload = await this.request(withProjectQuery(`/runs/${encodeURIComponent(runId)}/evidence`, projectId));
     return getRunEvidenceResponseSchema.parse(payload).evidence;
   }
 
-  async getRunComparison(runIdA: string, runIdB: string): Promise<RunComparisonView> {
-    const payload = await this.request(
-      `/runs/compare?runA=${encodeURIComponent(runIdA)}&runB=${encodeURIComponent(runIdB)}`
-    );
+  async getRunComparison(runIdA: string, runIdB: string, projectId?: string): Promise<RunComparisonView> {
+    const query = new URLSearchParams({
+      runA: runIdA,
+      runB: runIdB
+    });
+    if (projectId) {
+      query.set("projectId", projectId);
+    }
+    const payload = await this.request(`/runs/compare?${query.toString()}`);
     return getRunComparisonResponseSchema.parse(payload).comparison;
   }
 
-  async getRunPhaseArtifacts(runId: string): Promise<RunPhaseArtifactsView> {
-    const payload = await this.request(`/runs/${encodeURIComponent(runId)}/phase-artifacts`);
+  async getRunPhaseArtifacts(runId: string, projectId?: string): Promise<RunPhaseArtifactsView> {
+    const payload = await this.request(withProjectQuery(`/runs/${encodeURIComponent(runId)}/phase-artifacts`, projectId));
     return getRunPhaseArtifactsResponseSchema.parse(payload).phaseArtifacts;
   }
 
-  async listRunArtifacts(runId: string, phaseId?: string): Promise<readonly RunArtefact[]> {
-    const query = phaseId === undefined ? "" : `?phaseId=${encodeURIComponent(phaseId)}`;
-    const payload = await this.request(`/runs/${encodeURIComponent(runId)}/artifacts${query}`);
+  async listRunArtifacts(runId: string, phaseId?: string, projectId?: string): Promise<readonly RunArtefact[]> {
+    const query = new URLSearchParams();
+    if (phaseId) {
+      query.set("phaseId", phaseId);
+    }
+    if (projectId) {
+      query.set("projectId", projectId);
+    }
+    const suffix = query.size > 0 ? `?${query.toString()}` : "";
+    const payload = await this.request(`/runs/${encodeURIComponent(runId)}/artifacts${suffix}`);
     return listRunArtifactsResponseSchema.parse(payload).artifacts;
   }
 
-  async getRunArtifact(runId: string, artifactId: string): Promise<RunArtefact> {
-    const payload = await this.request(`/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(artifactId)}`);
+  async getRunArtifact(runId: string, artifactId: string, projectId?: string): Promise<RunArtefact> {
+    const payload = await this.request(withProjectQuery(`/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(artifactId)}`, projectId));
     return getRunArtifactResponseSchema.parse(payload).artifact;
   }
 
-  async getRunArtifactContent(runId: string, artifactId: string, maxBytes?: number): Promise<RunArtefactContent> {
-    const query = maxBytes === undefined ? "" : `?maxBytes=${encodeURIComponent(String(maxBytes))}`;
-    const payload = await this.request(`/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(artifactId)}/content${query}`);
+  async getRunArtifactContent(runId: string, artifactId: string, maxBytes?: number, projectId?: string): Promise<RunArtefactContent> {
+    const query = new URLSearchParams();
+    if (maxBytes !== undefined) {
+      query.set("maxBytes", String(maxBytes));
+    }
+    if (projectId) {
+      query.set("projectId", projectId);
+    }
+    const suffix = query.size > 0 ? `?${query.toString()}` : "";
+    const payload = await this.request(`/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(artifactId)}/content${suffix}`);
     return getRunArtifactContentResponseSchema.parse(payload);
   }
 
-  async listStagePlans(): Promise<readonly StagePlanSummary[]> {
-    const payload = await this.request("/stage-plans");
+  async listStagePlans(projectId?: string): Promise<readonly StagePlanSummary[]> {
+    const payload = await this.request(withProjectQuery("/stage-plans", projectId));
     return listStagePlansResponseSchema.parse(payload).stagePlans;
   }
 
-  async getStagePlan(stagePlanId: string): Promise<StagePlanDetail> {
-    const payload = await this.request(`/stage-plans/${encodeURIComponent(stagePlanId)}`);
+  async getStagePlan(stagePlanId: string, projectId?: string): Promise<StagePlanDetail> {
+    const payload = await this.request(withProjectQuery(`/stage-plans/${encodeURIComponent(stagePlanId)}`, projectId));
     return getStagePlanResponseSchema.parse(payload).stagePlan;
   }
 
-  async submitCommand(command: AppCommand, options?: AppCommandExecutionOptions): Promise<AppCommandResult> {
-    const payload = await this.request("/commands", {
+  async submitCommand(command: AppCommand, options?: AppCommandExecutionOptions, projectId?: string): Promise<AppCommandResult> {
+    const payload = await this.request(withProjectQuery("/commands", projectId), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ command, options })
@@ -230,8 +288,8 @@ export class MergeWrightApiClient {
     return submitCommandResponseSchema.parse(payload).result;
   }
 
-  async previewCommand(command: AppCommand, options?: AppCommandExecutionOptions): Promise<CommandDescription> {
-    const payload = await this.request("/commands/preview", {
+  async previewCommand(command: AppCommand, options?: AppCommandExecutionOptions, projectId?: string): Promise<CommandDescription> {
+    const payload = await this.request(withProjectQuery("/commands/preview", projectId), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ command, options })
@@ -239,13 +297,13 @@ export class MergeWrightApiClient {
     return previewCommandResponseSchema.parse(payload).description;
   }
 
-  async getRunEvents(runId: string, limit = 100): Promise<readonly ApiCommandEvent[]> {
-    const payload = await this.request(`/runs/${encodeURIComponent(runId)}/events?limit=${encodeURIComponent(String(limit))}`);
+  async getRunEvents(runId: string, limit = 100, projectId?: string): Promise<readonly ApiCommandEvent[]> {
+    const payload = await this.request(withProjectQuery(`/runs/${encodeURIComponent(runId)}/events?limit=${encodeURIComponent(String(limit))}`, projectId));
     return getRunEventsResponseSchema.parse(payload).events;
   }
 
-  async getCommandEvents(commandId: string, limit = 100): Promise<readonly ApiCommandEvent[]> {
-    const payload = await this.request(`/commands/${encodeURIComponent(commandId)}/events?limit=${encodeURIComponent(String(limit))}`);
+  async getCommandEvents(commandId: string, limit = 100, projectId?: string): Promise<readonly ApiCommandEvent[]> {
+    const payload = await this.request(withProjectQuery(`/commands/${encodeURIComponent(commandId)}/events?limit=${encodeURIComponent(String(limit))}`, projectId));
     return getCommandEventsResponseSchema.parse(payload).events;
   }
 
@@ -259,4 +317,12 @@ export class MergeWrightApiClient {
 
     return payload;
   }
+}
+
+function withProjectQuery(route: string, projectId?: string): string {
+  if (!projectId) {
+    return route;
+  }
+  const joiner = route.includes("?") ? "&" : "?";
+  return `${route}${joiner}projectId=${encodeURIComponent(projectId)}`;
 }

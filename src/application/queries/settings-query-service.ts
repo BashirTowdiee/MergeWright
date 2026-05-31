@@ -69,6 +69,7 @@ function withTimestamp(snapshot: Omit<SettingsSnapshot, "updatedAt"> & { updated
   return {
     version: 1,
     project: {
+      activeProjectId: snapshot.project.activeProjectId,
       defaultConfigPath: snapshot.project.defaultConfigPath,
       runsRoot: snapshot.project.runsRoot,
       defaultProvider: snapshot.project.defaultProvider,
@@ -99,6 +100,7 @@ function normalizeSettings(input: unknown, defaults: SettingsSnapshot): Settings
   return {
     version: 1,
     project: {
+      activeProjectId: nonEmptyString(project.activeProjectId) ?? defaults.project.activeProjectId,
       defaultConfigPath: nonEmptyString(project.defaultConfigPath) ?? defaults.project.defaultConfigPath,
       runsRoot: nonEmptyString(project.runsRoot) ?? defaults.project.runsRoot,
       defaultProvider: nonEmptyString(project.defaultProvider) ?? defaults.project.defaultProvider,
@@ -136,6 +138,7 @@ function mergeSettings(current: SettingsSnapshot, update: SettingsUpdate): Setti
   return {
     version: 1,
     project: {
+      activeProjectId: projectUpdate.activeProjectId ?? current.project.activeProjectId,
       defaultConfigPath: projectUpdate.defaultConfigPath ?? current.project.defaultConfigPath,
       runsRoot: projectUpdate.runsRoot ?? current.project.runsRoot,
       defaultProvider: projectUpdate.defaultProvider ?? current.project.defaultProvider,
@@ -155,6 +158,7 @@ function mergeSettings(current: SettingsSnapshot, update: SettingsUpdate): Setti
 }
 
 function validateSettings(snapshot: SettingsSnapshot): void {
+  assertNonEmpty(snapshot.project.activeProjectId, "project.activeProjectId");
   assertNonEmpty(snapshot.project.defaultConfigPath, "project.defaultConfigPath");
   assertNonEmpty(snapshot.project.runsRoot, "project.runsRoot");
   assertNonEmpty(snapshot.project.defaultProvider, "project.defaultProvider");

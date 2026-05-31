@@ -398,6 +398,7 @@ test("MergeWrightApiClient fetches run detail and artifact metadata", async () =
           settings: {
             version: 1,
             project: {
+              activeProjectId: "default",
               defaultConfigPath: "/tmp/config.json",
               runsRoot: "/tmp/runs",
               defaultProvider: "codex-local",
@@ -549,6 +550,7 @@ test("MergeWrightApiClient submits commands through the API", async () => {
           settings: {
             version: 1,
             project: {
+              activeProjectId: "default",
               defaultConfigPath: "/tmp/config.json",
               runsRoot: "/tmp/runs",
               defaultProvider: "opencode-local",

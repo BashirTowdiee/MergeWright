@@ -1,0 +1,20 @@
+<section class="page" id="team" data-title="Team review" data-crumb="Projects / MergeWright / Team review">
+          <div class="grid-2">
+            <div class="card"><div class="card-header"><h2>Approval queue</h2><span class="pill amber" id="approvalQueuePill">0 pending</span></div><div class="card-body list" id="approvalQueueList"><div class="list-item muted">No pending approvals.</div></div></div>
+            <div class="card">
+              <div class="card-header"><h2>Review thread</h2><span class="pill blue" id="selectedReviewStatusPill">none</span></div>
+              <div class="card-body list">
+                <div class="field"><label>Selected review</label><select id="selectedReviewSelect"></select></div>
+                <div class="list" id="reviewCommentsList"><div class="list-item muted">No review selected.</div></div>
+                <div class="field"><label>Add comment</label><textarea id="reviewCommentInput" placeholder="Add a review comment..."></textarea></div>
+                <div class="toolbar"><button class="button-secondary" id="addReviewCommentButton">Add comment</button></div>
+                <div class="field"><label>Decision note</label><input class="input" id="reviewDecisionNoteInput" placeholder="Optional decision note" /></div>
+                <div class="toolbar"><button class="button" id="approveReviewButton">Approve</button><button class="button-secondary" id="requestChangesButton">Request changes</button></div>
+              </div>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="card"><div class="card-header"><h2>PR summary preview</h2><span class="pill blue" id="reviewPrSummaryPill">not loaded</span></div><div class="card-body"><pre id="reviewPrSummaryOutput">Select a review to load PR summary preview.</pre></div></div>
+            <div class="card"><div class="card-header"><h2>Audit trail</h2><span class="pill neutral" id="reviewAuditPill">0 events</span></div><div class="card-body"><pre id="reviewAuditOutput">Select a review to load audit trail.</pre></div></div>
+          </div>
+        </section>

@@ -1,0 +1,20 @@
+<section class="page" id="compare" data-title="Compare runs" data-crumb="Projects / MergeWright / Compare runs">
+          <div class="card">
+            <div class="card-header"><div><h2>Run comparison</h2><p class="muted">Phase 11 parity: compare readiness deltas between two runs.</p></div></div>
+            <div class="card-body list">
+              <div class="grid-2">
+                <div class="field"><label>Run A</label><input class="input mono" id="compareRunAInput" placeholder="run-id-a" /></div>
+                <div class="field"><label>Run B</label><input class="input mono" id="compareRunBInput" placeholder="run-id-b" /></div>
+              </div>
+              <div class="toolbar">
+                <button class="button" id="compareRunsButton">Compare</button>
+                <span class="pill neutral" id="compareStatusPill">not loaded</span>
+              </div>
+              <pre id="compareSummaryOutput">Pick two runs and click Compare.</pre>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="card"><div class="card-header"><h2>Changed files delta</h2><span class="pill blue">files</span></div><div class="card-body"><pre id="compareFilesOutput">No data.</pre></div></div>
+            <div class="card"><div class="card-header"><h2>Checks and acceptance</h2><span class="pill blue">quality</span></div><div class="card-body"><pre id="compareChecksOutput">No data.</pre></div></div>
+          </div>
+        </section>

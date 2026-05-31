@@ -26,6 +26,11 @@ import {
   getPolicyResponseSchema,
   getProvidersResponseSchema,
   getProjectHealthResponseSchema,
+  createProjectRequestSchema,
+  createProjectResponseSchema,
+  updateProjectRequestSchema,
+  updateProjectResponseSchema,
+  deleteProjectResponseSchema,
   getProjectParamsSchema,
   getProjectResponseSchema,
   getSettingsResponseSchema,
@@ -71,12 +76,27 @@ export interface CreateApiServerOptions {
   readonly runComparisonQueryService?: RunComparisonQueryService;
   readonly reviewQueryService?: ReviewQueryService;
   readonly settingsQueryService?: SettingsQueryService;
-  readonly runQueryService: RunQueryService;
+  readonly runQueryService?: RunQueryService;
   readonly artifactQueryService?: ArtifactQueryService;
   readonly stagePlanQueryService?: StagePlanQueryService;
+  readonly resolveProjectScopedServices?: (projectId: string) => Promise<ProjectScopedServices | null>;
   readonly commandService?: AppCommandService;
   readonly cliCommandGateway?: CliCommandGateway;
   readonly onCliCommandEvent?: (event: CliCommandEvent) => void;
+}
+
+export interface ProjectScopedServices {
+  readonly runQueryService: RunQueryService;
+  readonly runInsightsQueryService?: RunInsightsQueryService;
+  readonly runComparisonQueryService?: RunComparisonQueryService;
+  readonly reviewQueryService?: ReviewQueryService;
+  readonly artifactQueryService?: ArtifactQueryService;
+  readonly stagePlanQueryService?: StagePlanQueryService;
+  readonly providerQueryService?: ProviderQueryService;
+  readonly policyQueryService?: PolicyQueryService;
+  readonly settingsQueryService?: SettingsQueryService;
+  readonly commandService?: AppCommandService;
+  readonly cliCommandGateway?: CliCommandGateway;
 }
 
 type CliCommandEventStatus = "started" | "completed" | "failed";
@@ -112,6 +132,55 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
     options.onCliCommandEvent?.(event);
   }
 
+  function parseProjectId(value: unknown): string | undefined {
+    if (typeof value !== "string") {
+      return undefined;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  async function resolveScopedServices(projectId: string | undefined, reply: any): Promise<ProjectScopedServices | null> {
+    const resolver = options.resolveProjectScopedServices;
+    if (resolver && projectId) {
+      const scoped = await resolver(projectId);
+      if (!scoped) {
+        reply.code(404).send(
+          errorResponseSchema.parse({
+            code: "PROJECT_NOT_FOUND",
+            message: "Project not found."
+          })
+        );
+        return null;
+      }
+      return scoped;
+    }
+
+    if (!options.runQueryService) {
+      reply.code(503).send(
+        errorResponseSchema.parse({
+          code: "RUN_QUERY_SERVICE_UNAVAILABLE",
+          message: "Run query service is not configured."
+        })
+      );
+      return null;
+    }
+
+    return {
+      runQueryService: options.runQueryService,
+      runInsightsQueryService: options.runInsightsQueryService,
+      runComparisonQueryService: options.runComparisonQueryService,
+      reviewQueryService: options.reviewQueryService,
+      settingsQueryService: options.settingsQueryService,
+      providerQueryService: options.providerQueryService,
+      policyQueryService: options.policyQueryService,
+      artifactQueryService: options.artifactQueryService,
+      stagePlanQueryService: options.stagePlanQueryService,
+      commandService: options.commandService,
+      cliCommandGateway: options.cliCommandGateway
+    } satisfies ProjectScopedServices;
+  }
+
   server.get("/health", async () => {
     return healthResponseSchema.parse({ ok: true, service: "mergewright-api" });
   });
@@ -130,8 +199,47 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
     return listProjectsResponseSchema.parse({ projects });
   });
 
-  server.get("/providers", async (_request, reply) => {
-    const providerQueryService = options.providerQueryService;
+  server.post("/projects", async (request, reply) => {
+    const body = createProjectRequestSchema.safeParse(request.body);
+    if (!body.success) {
+      return reply.code(400).send(
+        errorResponseSchema.parse({
+          code: "VALIDATION_FAILED",
+          message: "Invalid project create request."
+        })
+      );
+    }
+
+    const projectQueryService = options.projectQueryService;
+    if (!projectQueryService) {
+      return reply.code(503).send(
+        errorResponseSchema.parse({
+          code: "PROJECT_QUERY_SERVICE_UNAVAILABLE",
+          message: "Project query service is not configured."
+        })
+      );
+    }
+
+    try {
+      const project = await projectQueryService.createProject(body.data.project);
+      return createProjectResponseSchema.parse({ project });
+    } catch (error) {
+      return reply.code(409).send(
+        errorResponseSchema.parse({
+          code: "PROJECT_CONFLICT",
+          message: error instanceof Error ? error.message : String(error)
+        })
+      );
+    }
+  });
+
+  server.get("/providers", async (request, reply) => {
+    const projectId = parseProjectId((request.query as Record<string, unknown> | undefined)?.projectId);
+    const scoped = await resolveScopedServices(projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const providerQueryService = scoped.providerQueryService;
     if (!providerQueryService) {
       return reply.code(503).send(
         errorResponseSchema.parse({
@@ -145,8 +253,13 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
     return getProvidersResponseSchema.parse({ inventory });
   });
 
-  server.get("/policy", async (_request, reply) => {
-    const policyQueryService = options.policyQueryService;
+  server.get("/policy", async (request, reply) => {
+    const projectId = parseProjectId((request.query as Record<string, unknown> | undefined)?.projectId);
+    const scoped = await resolveScopedServices(projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const policyQueryService = scoped.policyQueryService;
     if (!policyQueryService) {
       return reply.code(503).send(
         errorResponseSchema.parse({
@@ -160,8 +273,13 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
     return getPolicyResponseSchema.parse({ policy });
   });
 
-  server.get("/safety/write-status", async (_request, reply) => {
-    const policyQueryService = options.policyQueryService;
+  server.get("/safety/write-status", async (request, reply) => {
+    const projectId = parseProjectId((request.query as Record<string, unknown> | undefined)?.projectId);
+    const scoped = await resolveScopedServices(projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const policyQueryService = scoped.policyQueryService;
     if (!policyQueryService) {
       return reply.code(503).send(
         errorResponseSchema.parse({
@@ -175,8 +293,13 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
     return getWriteSafetyStatusResponseSchema.parse({ status });
   });
 
-  server.get("/settings", async (_request, reply) => {
-    const settingsQueryService = options.settingsQueryService;
+  server.get("/settings", async (request, reply) => {
+    const projectId = parseProjectId((request.query as Record<string, unknown> | undefined)?.projectId);
+    const scoped = await resolveScopedServices(projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const settingsQueryService = scoped.settingsQueryService;
     if (!settingsQueryService) {
       return reply.code(503).send(
         errorResponseSchema.parse({
@@ -201,7 +324,12 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       );
     }
 
-    const settingsQueryService = options.settingsQueryService;
+    const projectId = parseProjectId((request.query as Record<string, unknown> | undefined)?.projectId);
+    const scoped = await resolveScopedServices(projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const settingsQueryService = scoped.settingsQueryService;
     if (!settingsQueryService) {
       return reply.code(503).send(
         errorResponseSchema.parse({
@@ -215,8 +343,13 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
     return updateSettingsResponseSchema.parse({ settings });
   });
 
-  server.get("/reviews", async (_request, reply) => {
-    const reviewQueryService = options.reviewQueryService;
+  server.get("/reviews", async (request, reply) => {
+    const projectId = parseProjectId((request.query as Record<string, unknown> | undefined)?.projectId);
+    const scoped = await resolveScopedServices(projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const reviewQueryService = scoped.reviewQueryService;
     if (!reviewQueryService) {
       return reply.code(503).send(
         errorResponseSchema.parse({
@@ -242,7 +375,12 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       );
     }
 
-    const reviewQueryService = options.reviewQueryService;
+    const projectId = parseProjectId((request.query as Record<string, unknown> | undefined)?.projectId);
+    const scoped = await resolveScopedServices(projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const reviewQueryService = scoped.reviewQueryService;
     if (!reviewQueryService) {
       return reply.code(503).send(
         errorResponseSchema.parse({
@@ -277,7 +415,12 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       );
     }
 
-    const reviewQueryService = options.reviewQueryService;
+    const projectId = parseProjectId((request.query as Record<string, unknown> | undefined)?.projectId);
+    const scoped = await resolveScopedServices(projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const reviewQueryService = scoped.reviewQueryService;
     if (!reviewQueryService) {
       return reply.code(503).send(
         errorResponseSchema.parse({
@@ -334,6 +477,90 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
     return getProjectResponseSchema.parse({ project });
   });
 
+  server.put("/projects/:projectId", async (request, reply) => {
+    const params = getProjectParamsSchema.safeParse(request.params);
+    const body = updateProjectRequestSchema.safeParse(request.body);
+    if (!params.success || !body.success) {
+      return reply.code(400).send(
+        errorResponseSchema.parse({
+          code: "VALIDATION_FAILED",
+          message: "Invalid project update request."
+        })
+      );
+    }
+
+    const projectQueryService = options.projectQueryService;
+    if (!projectQueryService) {
+      return reply.code(503).send(
+        errorResponseSchema.parse({
+          code: "PROJECT_QUERY_SERVICE_UNAVAILABLE",
+          message: "Project query service is not configured."
+        })
+      );
+    }
+
+    try {
+      const project = await projectQueryService.updateProject(params.data.projectId, body.data.project);
+      if (!project) {
+        return reply.code(404).send(
+          errorResponseSchema.parse({
+            code: "PROJECT_NOT_FOUND",
+            message: "Project not found."
+          })
+        );
+      }
+      return updateProjectResponseSchema.parse({ project });
+    } catch (error) {
+      return reply.code(409).send(
+        errorResponseSchema.parse({
+          code: "PROJECT_CONFLICT",
+          message: error instanceof Error ? error.message : String(error)
+        })
+      );
+    }
+  });
+
+  server.delete("/projects/:projectId", async (request, reply) => {
+    const params = getProjectParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return reply.code(400).send(
+        errorResponseSchema.parse({
+          code: "VALIDATION_FAILED",
+          message: "Invalid project id."
+        })
+      );
+    }
+
+    const projectQueryService = options.projectQueryService;
+    if (!projectQueryService) {
+      return reply.code(503).send(
+        errorResponseSchema.parse({
+          code: "PROJECT_QUERY_SERVICE_UNAVAILABLE",
+          message: "Project query service is not configured."
+        })
+      );
+    }
+
+    const result = await projectQueryService.deleteProject(params.data.projectId);
+    if (!result) {
+      return reply.code(404).send(
+        errorResponseSchema.parse({
+          code: "PROJECT_NOT_FOUND",
+          message: "Project not found."
+        })
+      );
+    }
+    if (!result.ok) {
+      return reply.code(409).send(
+        errorResponseSchema.parse({
+          code: result.code,
+          message: result.reason
+        })
+      );
+    }
+    return deleteProjectResponseSchema.parse({ ok: true });
+  });
+
   server.get("/projects/:projectId/health", async (request, reply) => {
     const params = getProjectParamsSchema.safeParse(request.params);
     if (!params.success) {
@@ -379,8 +606,12 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       );
     }
 
+    const scoped = await resolveScopedServices(query.data.projectId, reply);
+    if (!scoped) {
+      return;
+    }
     const listRunsInput = query.data.status === undefined ? {} : { status: query.data.status };
-    const runs = await options.runQueryService.listRuns(listRunsInput);
+    const runs = await scoped.runQueryService.listRuns(listRunsInput);
     return listRunsResponseSchema.parse({ runs });
   });
 
@@ -395,7 +626,11 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       );
     }
 
-    const runComparisonQueryService = options.runComparisonQueryService;
+    const scoped = await resolveScopedServices(query.data.projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const runComparisonQueryService = scoped.runComparisonQueryService;
     if (!runComparisonQueryService) {
       return reply.code(503).send(
         errorResponseSchema.parse({
@@ -432,7 +667,12 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       );
     }
 
-    const run = await options.runQueryService.getRun({ runId: params.data.runId });
+    const projectId = parseProjectId((request.query as Record<string, unknown> | undefined)?.projectId);
+    const scoped = await resolveScopedServices(projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const run = await scoped.runQueryService.getRun({ runId: params.data.runId });
     if (!run) {
       return reply.code(404).send(
         errorResponseSchema.parse({
@@ -456,7 +696,12 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       );
     }
 
-    const artifactQueryService = options.artifactQueryService;
+    const projectId = parseProjectId((request.query as Record<string, unknown> | undefined)?.projectId);
+    const scoped = await resolveScopedServices(projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const artifactQueryService = scoped.artifactQueryService;
     if (!artifactQueryService) {
       return reply.code(503).send(
         errorResponseSchema.parse({
@@ -490,7 +735,12 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       );
     }
 
-    const runInsightsQueryService = options.runInsightsQueryService;
+    const projectId = parseProjectId((request.query as Record<string, unknown> | undefined)?.projectId);
+    const scoped = await resolveScopedServices(projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const runInsightsQueryService = scoped.runInsightsQueryService;
     if (!runInsightsQueryService) {
       return reply.code(503).send(
         errorResponseSchema.parse({
@@ -524,7 +774,12 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       );
     }
 
-    const runInsightsQueryService = options.runInsightsQueryService;
+    const projectId = parseProjectId((request.query as Record<string, unknown> | undefined)?.projectId);
+    const scoped = await resolveScopedServices(projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const runInsightsQueryService = scoped.runInsightsQueryService;
     if (!runInsightsQueryService) {
       return reply.code(503).send(
         errorResponseSchema.parse({
@@ -558,7 +813,12 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       );
     }
 
-    const runInsightsQueryService = options.runInsightsQueryService;
+    const projectId = parseProjectId((request.query as Record<string, unknown> | undefined)?.projectId);
+    const scoped = await resolveScopedServices(projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const runInsightsQueryService = scoped.runInsightsQueryService;
     if (!runInsightsQueryService) {
       return reply.code(503).send(
         errorResponseSchema.parse({
@@ -593,7 +853,11 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       );
     }
 
-    const artifactQueryService = options.artifactQueryService;
+    const scoped = await resolveScopedServices(query.data.projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const artifactQueryService = scoped.artifactQueryService;
     if (!artifactQueryService) {
       return reply.code(503).send(
         errorResponseSchema.parse({
@@ -622,7 +886,12 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       );
     }
 
-    const artifactQueryService = options.artifactQueryService;
+    const projectId = parseProjectId((request.query as Record<string, unknown> | undefined)?.projectId);
+    const scoped = await resolveScopedServices(projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const artifactQueryService = scoped.artifactQueryService;
     if (!artifactQueryService) {
       return reply.code(503).send(
         errorResponseSchema.parse({
@@ -657,7 +926,11 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       );
     }
 
-    const artifactQueryService = options.artifactQueryService;
+    const scoped = await resolveScopedServices(query.data.projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const artifactQueryService = scoped.artifactQueryService;
     if (!artifactQueryService) {
       return reply.code(503).send(
         errorResponseSchema.parse({
@@ -696,8 +969,13 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
     return getRunArtifactContentResponseSchema.parse(artifactContent);
   });
 
-  server.get("/stage-plans", async (_request, reply) => {
-    const stagePlanQueryService = options.stagePlanQueryService;
+  server.get("/stage-plans", async (request, reply) => {
+    const projectId = parseProjectId((request.query as Record<string, unknown> | undefined)?.projectId);
+    const scoped = await resolveScopedServices(projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const stagePlanQueryService = scoped.stagePlanQueryService;
     if (!stagePlanQueryService) {
       return reply.code(503).send(
         errorResponseSchema.parse({
@@ -722,7 +1000,12 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       );
     }
 
-    const stagePlanQueryService = options.stagePlanQueryService;
+    const projectId = parseProjectId((request.query as Record<string, unknown> | undefined)?.projectId);
+    const scoped = await resolveScopedServices(projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const stagePlanQueryService = scoped.stagePlanQueryService;
     if (!stagePlanQueryService) {
       return reply.code(503).send(
         errorResponseSchema.parse({
@@ -756,7 +1039,12 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       );
     }
 
-    const commandService = options.commandService;
+    const projectId = parseProjectId((request.query as Record<string, unknown> | undefined)?.projectId);
+    const scoped = await resolveScopedServices(projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const commandService = scoped.commandService;
     if (!commandService) {
       return reply.code(503).send(
         errorResponseSchema.parse({
@@ -781,7 +1069,12 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       );
     }
 
-    const commandService = options.commandService;
+    const projectId = parseProjectId((request.query as Record<string, unknown> | undefined)?.projectId);
+    const scoped = await resolveScopedServices(projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const commandService = scoped.commandService;
     if (!commandService) {
       return reply.code(503).send(
         errorResponseSchema.parse({
@@ -806,7 +1099,12 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       );
     }
 
-    const gateway = options.cliCommandGateway;
+    const projectId = parseProjectId((request.query as Record<string, unknown> | undefined)?.projectId);
+    const scoped = await resolveScopedServices(projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const gateway = scoped.cliCommandGateway;
     if (!gateway) {
       return reply.code(503).send(
         errorResponseSchema.parse({
@@ -851,7 +1149,12 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       );
     }
 
-    const gateway = options.cliCommandGateway;
+    const projectId = parseProjectId((request.query as Record<string, unknown> | undefined)?.projectId);
+    const scoped = await resolveScopedServices(projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const gateway = scoped.cliCommandGateway;
     if (!gateway) {
       return reply.code(503).send(
         errorResponseSchema.parse({

@@ -10,7 +10,7 @@ import { FilesystemCommandAuditStore } from "../../../src/application/commands/f
 import { DefaultArtifactQueryService } from "../../../src/application/queries/artifact-query-service.js";
 import { FilesystemRunReadRepository } from "../../../src/application/queries/filesystem-run-read-repository.js";
 import { StaticPolicyQueryService } from "../../../src/application/queries/policy-query-service.js";
-import { StaticProjectQueryService } from "../../../src/application/queries/project-query-service.js";
+import { FileProjectCatalogQueryService } from "../../../src/application/queries/project-query-service.js";
 import { StaticProviderQueryService } from "../../../src/application/queries/provider-query-service.js";
 import { DefaultReviewQueryService } from "../../../src/application/queries/review-query-service.js";
 import { DefaultRunComparisonQueryService } from "../../../src/application/queries/run-comparison-query-service.js";
@@ -59,40 +59,12 @@ async function main(): Promise<void> {
   const configPath = resolveConfigPath(options.orchestratorRoot, options.configArg);
   const config = await loadAndValidateConfig(configPath);
   const runsRoot = resolveRunsRoot(options.orchestratorRoot, config);
-
-  const runRepository = new FilesystemRunReadRepository({ runsRoot });
-  const runQueryService = new DefaultRunQueryService(runRepository);
-  const runInsightsQueryService = new DefaultRunInsightsQueryService({ runQueryService });
-  const runComparisonQueryService = new DefaultRunComparisonQueryService({
-    runQueryService,
-    changeReportPolicy: config.changeReport
-  });
-  const reviewQueryService = new DefaultReviewQueryService({
-    runQueryService,
-    runsRoot
-  });
-  const artifactQueryService = new DefaultArtifactQueryService(runRepository);
-  const projectQueryService = new StaticProjectQueryService({
-    projectId: "default",
-    orchestratorRoot: options.orchestratorRoot,
-    configPath,
-    runsRoot,
-    config
-  });
-  const providerQueryService = new StaticProviderQueryService({ config });
-  const policyQueryService = new StaticPolicyQueryService({
-    config,
-    workspaceRoot: config.workspaceRoot
-  });
-  const stagePlanQueryService = new FilesystemStagePlanQueryService({
-    orchestratorRoot: options.orchestratorRoot,
-    candidateRoots: [".artifacts", config.paths.stagesDir, config.paths.runsDir]
-  });
   const settingsQueryService = new FileSettingsQueryService({
     settingsPath: path.resolve(options.orchestratorRoot, ".artifacts", "web-settings.json"),
     defaults: {
       version: 1,
       project: {
+        activeProjectId: "default",
         defaultConfigPath: configPath,
         runsRoot,
         defaultProvider: config.agents.planner.backend,
@@ -110,38 +82,90 @@ async function main(): Promise<void> {
     }
   });
 
-  const commandAuditStore = new FilesystemCommandAuditStore({
-    auditDirectory: `${runsRoot}/command-audit`
-  });
-
-  const commandService = new DefaultAppCommandService({
-    auditStore: commandAuditStore,
-    startRunHandler: async (command) => executeStartRun(command, options.orchestratorRoot, configPath),
-    continueRunHandler: async (command) => executeContinue(command, options.orchestratorRoot, configPath),
-    retryPhaseHandler: async (command) => executeRetryPhase(command, options.orchestratorRoot, configPath),
-    executeBuilderHandler: async (command) => executeBuilder(command, options.orchestratorRoot, configPath)
-  });
-
-  const cliCommandGateway = new DefaultCliCommandGateway({
+  const projectQueryService = new FileProjectCatalogQueryService({
     orchestratorRoot: options.orchestratorRoot,
-    configPath,
-    runsRoot,
-    changeReportPolicy: config.changeReport
+    catalogPath: path.resolve(options.orchestratorRoot, ".artifacts", "projects.json"),
+    initialProject: {
+      id: "default",
+      name: config.projectName,
+      configPath
+    }
   });
+
+  const defaultSettings = await settingsQueryService.getSettings();
+  const defaultProjectId = defaultSettings.project.activeProjectId;
+
+  async function buildScopedServices(projectId: string) {
+    const context = await projectQueryService.resolveProjectContext(projectId);
+    if (!context) {
+      return null;
+    }
+
+    const runRepository = new FilesystemRunReadRepository({ runsRoot: context.runsRoot });
+    const runQueryService = new DefaultRunQueryService(runRepository);
+    const runInsightsQueryService = new DefaultRunInsightsQueryService({ runQueryService });
+    const runComparisonQueryService = new DefaultRunComparisonQueryService({
+      runQueryService,
+      changeReportPolicy: context.config.changeReport
+    });
+    const reviewQueryService = new DefaultReviewQueryService({
+      runQueryService,
+      runsRoot: context.runsRoot
+    });
+    const artifactQueryService = new DefaultArtifactQueryService(runRepository);
+    const providerQueryService = new StaticProviderQueryService({ config: context.config });
+    const policyQueryService = new StaticPolicyQueryService({
+      config: context.config,
+      workspaceRoot: context.config.workspaceRoot
+    });
+    const stagePlanQueryService = new FilesystemStagePlanQueryService({
+      orchestratorRoot: options.orchestratorRoot,
+      candidateRoots: [".artifacts", context.config.paths.stagesDir, context.config.paths.runsDir]
+    });
+    const commandAuditStore = new FilesystemCommandAuditStore({
+      auditDirectory: `${context.runsRoot}/command-audit`
+    });
+    const commandService = new DefaultAppCommandService({
+      auditStore: commandAuditStore,
+      startRunHandler: async (command) => executeStartRun(command, options.orchestratorRoot, context.configPath),
+      continueRunHandler: async (command) => executeContinue(command, options.orchestratorRoot, context.configPath),
+      retryPhaseHandler: async (command) => executeRetryPhase(command, options.orchestratorRoot, context.configPath),
+      executeBuilderHandler: async (command) => executeBuilder(command, options.orchestratorRoot, context.configPath)
+    });
+    const cliCommandGateway = new DefaultCliCommandGateway({
+      orchestratorRoot: options.orchestratorRoot,
+      configPath: context.configPath,
+      runsRoot: context.runsRoot,
+      changeReportPolicy: context.config.changeReport
+    });
+
+    return {
+      runQueryService,
+      runInsightsQueryService,
+      runComparisonQueryService,
+      reviewQueryService,
+      artifactQueryService,
+      providerQueryService,
+      policyQueryService,
+      settingsQueryService,
+      stagePlanQueryService,
+      commandService,
+      cliCommandGateway
+    };
+  }
+
+  const defaultScopedServices = await buildScopedServices(defaultProjectId);
+  if (!defaultScopedServices) {
+    throw new Error(`Default project not found: ${defaultProjectId}`);
+  }
 
   const server = createApiServer({
     projectQueryService,
-    providerQueryService,
-    policyQueryService,
-    runInsightsQueryService,
-    runComparisonQueryService,
-    reviewQueryService,
-    settingsQueryService,
-    runQueryService,
-    artifactQueryService,
-    stagePlanQueryService,
-    commandService,
-    cliCommandGateway
+    ...defaultScopedServices,
+    resolveProjectScopedServices: async (projectId) => {
+      const scoped = await buildScopedServices(projectId);
+      return scoped;
+    }
   });
 
   await server.listen({ host: options.host, port: options.port });

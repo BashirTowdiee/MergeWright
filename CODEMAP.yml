@@ -70,14 +70,24 @@ areas:
     path: apps/web
     purpose: Runnable Next.js App Router web control-room boundary guided by docs/ux/web-app-demo.html.
     public_entrypoints:
-      - apps/web/app/page.tsx
+      - apps/web/app/projects/page.tsx
+      - apps/web/app/runs/page.tsx
+      - apps/web/app/runs/[id]/page.tsx
+      - apps/web/app/results/[id]/page.tsx
+      - apps/web/app/review/[id]/page.tsx
+      - apps/web/app/commands/page.tsx
+      - apps/web/app/settings/page.tsx
       - apps/web/app/layout.tsx
       - apps/web/public/app.js
     important_files:
       - apps/web/package.json
       - apps/web/tsconfig.json
+      - apps/web/.env.example
+      - apps/web/app/_components/control-room-shell.tsx
+      - apps/web/app/_fragments/sidebar.html
+      - apps/web/app/_fragments/topbar.html
+      - apps/web/app/_fragments/sections
       - apps/web/app/globals.css
-      - apps/web/app/shell.html
       - apps/web/next.config.js
       - docs/ux/web-app-demo.html
     tests:

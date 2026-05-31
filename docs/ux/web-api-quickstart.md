@@ -26,7 +26,10 @@ API routes used by the web app:
 
 - `GET /health`
 - `GET /projects`
+- `POST /projects`
 - `GET /projects/:projectId`
+- `PUT /projects/:projectId`
+- `DELETE /projects/:projectId`
 - `GET /projects/:projectId/health`
 - `GET /reviews`
 - `POST /reviews/:reviewId/comments`
@@ -56,10 +59,13 @@ API routes used by the web app:
 - `POST /cli/commands/preview` (CLI-equivalent preview contract)
 - `GET /commands/:commandId/events?limit=<n>` (request-scoped lifecycle history)
 
+Most read/write routes now accept optional `projectId=<id>` query scoping. If omitted, the API uses the active/default project from settings.
+
 ## 3) Start web app
 
 ```bash
-NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:3040 npm run dev --workspace @mergewright/web
+cp apps/web/.env.example apps/web/.env.local
+npm run dev --workspace @mergewright/web
 ```
 
 Open:
@@ -67,6 +73,7 @@ Open:
 - `http://127.0.0.1:3050`
 
 The web app calls the API directly using `NEXT_PUBLIC_API_BASE_URL` (default `http://127.0.0.1:3040`).
+Override the API target by editing `apps/web/.env.local`.
 
 ## 4) Validate basic flow
 
@@ -81,7 +88,7 @@ The web app calls the API directly using `NEXT_PUBLIC_API_BASE_URL` (default `ht
 9. Command typed result + CLI summary lines render in the UI.
 10. Sidebar API health shows `healthy` when `GET /api/health` succeeds.
 11. Command execution mode supports `preview-first`, `read-only`, and `write-enabled with confirmation`.
-12. Settings page loads persisted settings and policy snapshots from `GET /api/settings`, `GET /api/providers`, `GET /api/policy`, and `GET /api/safety/write-status`.
+12. Settings page loads persisted settings and policy snapshots from `GET /api/settings`, `GET /api/providers`, `GET /api/policy`, and `GET /api/safety/write-status` for the selected project.
 13. Saving settings writes to `PUT /api/settings` and updates command defaults in the command launcher.
 14. Events tab loads run-scoped lifecycle history from `GET /api/runs/:runId/events?limit=<n>` and receives live updates from `/api/cli/events`.
 15. Compare runs page loads score/risk/check/reviewer/file deltas from `GET /api/runs/compare?runA=<id>&runB=<id>`.

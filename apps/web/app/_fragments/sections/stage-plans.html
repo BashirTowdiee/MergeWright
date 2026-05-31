@@ -1,0 +1,21 @@
+<section class="page" id="stage-plans" data-title="Stage plans" data-crumb="Projects / MergeWright / Stage plans">
+          <div class="grid-4">
+            <div class="metric"><span>Total plans</span><strong id="metricStagePlansTotal">0</strong><small>Discovered stage-plan.json files</small></div>
+            <div class="metric"><span>Running</span><strong id="metricStagePlansRunning">0</strong><small>status=running</small></div>
+            <div class="metric"><span>Ready</span><strong id="metricStagePlansReady">0</strong><small>status=ready</small></div>
+            <div class="metric"><span>Completed</span><strong id="metricStagePlansCompleted">0</strong><small>status=completed</small></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div><h2>Stage plan list</h2><p class="muted">Inspect stage status and launch stage commands.</p></div></div>
+            <div class="card-body">
+              <table>
+                <thead><tr><th>Plan</th><th>Status</th><th>Source</th><th>Stages</th><th>Path</th></tr></thead>
+                <tbody id="stagePlansTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="card"><div class="card-header"><h2 id="selectedStagePlanTitle">Stage plan detail</h2><span class="pill neutral" id="selectedStagePlanStatus">none</span></div><div class="card-body list" id="selectedStagePlanSummary"><div class="list-item muted">Select a stage plan to inspect details.</div></div></div>
+            <div class="card"><div class="card-header"><h2>Stages</h2><span class="pill blue" id="selectedStageCountPill">0 stages</span></div><div class="card-body list" id="selectedStagePlanStages"><div class="list-item muted">No stages loaded.</div></div></div>
+          </div>
+        </section>

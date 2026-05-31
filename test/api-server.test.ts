@@ -230,6 +230,7 @@ const writeSafetyStatus: WriteSafetyStatusSnapshot = {
 const settingsSnapshot: SettingsSnapshot = {
   version: 1,
   project: {
+    activeProjectId: "default",
     defaultConfigPath: "/tmp/config.json",
     runsRoot: "/tmp/runs",
     defaultProvider: "codex-local",
@@ -522,6 +523,9 @@ class FakeProjectQueryService implements ProjectQueryService {
   readonly listCalls: number[] = [];
   readonly getCalls: string[] = [];
   readonly healthCalls: string[] = [];
+  readonly createCalls: Array<{ name: string; configPath: string }> = [];
+  readonly updateCalls: Array<{ projectId: string; name?: string; configPath?: string }> = [];
+  readonly deleteCalls: string[] = [];
 
   async listProjects(): Promise<ProjectSummary[]> {
     this.listCalls.push(1);
@@ -541,6 +545,38 @@ class FakeProjectQueryService implements ProjectQueryService {
     if (projectId === projectSummary.id) {
       return projectHealth;
     }
+    return null;
+  }
+
+  async createProject(input: { name: string; configPath: string }): Promise<ProjectDetail> {
+    this.createCalls.push(input);
+    return { ...projectDetail, id: "new-project", name: input.name, configPath: input.configPath };
+  }
+
+  async updateProject(projectId: string, input: { name?: string; configPath?: string }): Promise<ProjectDetail | null> {
+    this.updateCalls.push({ projectId, ...input });
+    if (projectId !== projectSummary.id) {
+      return null;
+    }
+    return {
+      ...projectDetail,
+      name: input.name ?? projectDetail.name,
+      configPath: input.configPath ?? projectDetail.configPath
+    };
+  }
+
+  async deleteProject(projectId: string): Promise<{ ok: true } | { ok: false; code: "PROJECT_NOT_EMPTY"; reason: string } | null> {
+    this.deleteCalls.push(projectId);
+    if (projectId === "blocked") {
+      return { ok: false, code: "PROJECT_NOT_EMPTY", reason: "Project has data." };
+    }
+    if (projectId !== projectSummary.id) {
+      return null;
+    }
+    return { ok: true };
+  }
+
+  async resolveProjectContext(_projectId: string): Promise<null> {
     return null;
   }
 }

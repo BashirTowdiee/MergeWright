@@ -1,4 +1,5 @@
 const API_BASE_URL = (window.__MERGEWRIGHT_API_BASE_URL__ ?? "http://127.0.0.1:3040").replace(/\/$/, "");
+const routeContext = window.__MERGEWRIGHT_WEB_ROUTE__ ?? { page: "projects" };
 
 function toApiUrl(url) {
   if (typeof url !== "string") {
@@ -8,6 +9,18 @@ function toApiUrl(url) {
     return `${API_BASE_URL}${url}`;
   }
   return url;
+}
+
+function withProjectQuery(url) {
+  const projectId = state.selectedProjectId;
+  if (!projectId || typeof url !== "string" || !url.startsWith("/api/")) {
+    return url;
+  }
+  if (url.startsWith("/api/health") || url.startsWith("/api/projects")) {
+    return url;
+  }
+  const joiner = url.includes("?") ? "&" : "?";
+  return `${url}${joiner}projectId=${encodeURIComponent(projectId)}`;
 }
 
 const state = {
@@ -63,6 +76,14 @@ const nodes = {
   projectWorkspaceRoot: document.getElementById("projectWorkspaceRoot"),
   projectHealthChecks: document.getElementById("projectHealthChecks"),
   projectHealthWarnings: document.getElementById("projectHealthWarnings"),
+  projectCrudStatus: document.getElementById("projectCrudStatus"),
+  projectSelector: document.getElementById("projectSelector"),
+  projectReloadButton: document.getElementById("projectReloadButton"),
+  projectDeleteButton: document.getElementById("projectDeleteButton"),
+  projectNameInput: document.getElementById("projectNameInput"),
+  projectConfigPathInput: document.getElementById("projectConfigPathInput"),
+  projectCreateButton: document.getElementById("projectCreateButton"),
+  projectUpdateButton: document.getElementById("projectUpdateButton"),
   settingsConfigPath: document.getElementById("settingsConfigPath"),
   settingsRunsRoot: document.getElementById("settingsRunsRoot"),
   settingsDefaultProvider: document.getElementById("settingsDefaultProvider"),
@@ -195,6 +216,26 @@ function showPage(id) {
   }
 }
 
+function routeForPage(id) {
+  if (id === "projects") return "/projects";
+  if (id === "runs") return "/runs";
+  if (id === "commands") return "/commands";
+  if (id === "settings") return "/settings";
+  if (id === "run-detail" && state.selectedRunId) return `/runs/${encodeURIComponent(state.selectedRunId)}`;
+  if (id === "results" && state.selectedRunId) return `/results/${encodeURIComponent(state.selectedRunId)}`;
+  if (id === "review" && state.selectedRunId) return `/review/${encodeURIComponent(state.selectedRunId)}`;
+  return undefined;
+}
+
+function navigateToPage(id) {
+  const route = routeForPage(id);
+  if (!route) {
+    showPage(id);
+    return;
+  }
+  window.location.assign(route);
+}
+
 function toPillClass(status) {
   const value = String(status || "unknown").toLowerCase();
   if (value === "ready" || value === "passed" || value === "pass") return "green";
@@ -252,7 +293,7 @@ function appendLifecycleEvent(event) {
 }
 
 async function fetchJson(url, init) {
-  const requestUrl = toApiUrl(url);
+  const requestUrl = toApiUrl(withProjectQuery(url));
   const response = await fetch(requestUrl, init);
   const payload = await response.json();
   if (!response.ok) {
@@ -312,6 +353,22 @@ function renderProjectOverview() {
   const checks = health.checks;
   nodes.projectHealthChecks.textContent = `config=${checks.configPathExists}, workspace=${checks.workspaceRootExists}, runs=${checks.runsRootExists}, stages=${checks.stagesRootExists}, prompts=${checks.promptsRootExists}`;
   nodes.projectHealthWarnings.textContent = health.warnings.length > 0 ? health.warnings.join(" | ") : "none";
+  if (nodes.projectSelector) {
+    nodes.projectSelector.innerHTML = "";
+    for (const entry of state.projects) {
+      const option = document.createElement("option");
+      option.value = entry.id;
+      option.textContent = `${entry.name} (${entry.id})`;
+      nodes.projectSelector.append(option);
+    }
+    nodes.projectSelector.value = state.selectedProjectId || "";
+  }
+  if (nodes.projectNameInput) {
+    nodes.projectNameInput.value = project.name || "";
+  }
+  if (nodes.projectConfigPathInput) {
+    nodes.projectConfigPathInput.value = project.configPath || "";
+  }
 }
 
 function renderSettingsOverview() {
@@ -330,6 +387,9 @@ function renderSettingsOverview() {
   nodes.settingsArtifactRetention.value = String(settings?.retention.artifactDays ?? 30);
   nodes.settingsTheme.value = settings?.ui.theme || "system";
   nodes.settingsKeyboardShortcuts.checked = settings?.ui.keyboardShortcuts ?? true;
+  if (settings?.project.activeProjectId && state.projects.some((entry) => entry.id === settings.project.activeProjectId)) {
+    state.selectedProjectId = settings.project.activeProjectId;
+  }
   nodes.settingsSaveStatus.textContent = state.settingsDraftStatus;
 
   renderSettingsProviderOptions(effectiveProvider);
@@ -506,6 +566,7 @@ async function saveSettings() {
   const payload = {
     settings: {
       project: {
+        activeProjectId: state.selectedProjectId || "default",
         defaultConfigPath: nodes.settingsConfigPath.value.trim(),
         runsRoot: nodes.settingsRunsRoot.value.trim(),
         defaultProvider: nodes.settingsDefaultProvider.value.trim(),
@@ -532,6 +593,55 @@ async function saveSettings() {
   state.settingsDraftStatus = `saved ${new Date().toLocaleTimeString()}`;
   applySettingsDefaultsToCommandLauncher();
   renderSettingsOverview();
+}
+
+async function createProject() {
+  const name = nodes.projectNameInput.value.trim();
+  const configPath = nodes.projectConfigPathInput.value.trim();
+  if (!name || !configPath) {
+    nodes.projectCrudStatus.textContent = "name + config required";
+    return;
+  }
+  await fetchJson("/api/projects", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ project: { name, configPath } })
+  });
+  nodes.projectCrudStatus.textContent = "project created";
+  await loadProjects();
+}
+
+async function updateSelectedProject() {
+  if (!state.selectedProjectId) {
+    nodes.projectCrudStatus.textContent = "no project selected";
+    return;
+  }
+  const payload = {
+    project: {
+      name: nodes.projectNameInput.value.trim() || undefined,
+      configPath: nodes.projectConfigPathInput.value.trim() || undefined
+    }
+  };
+  await fetchJson(`/api/projects/${encodeURIComponent(state.selectedProjectId)}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  nodes.projectCrudStatus.textContent = "project updated";
+  await loadProjects();
+}
+
+async function deleteSelectedProject() {
+  if (!state.selectedProjectId) {
+    nodes.projectCrudStatus.textContent = "no project selected";
+    return;
+  }
+  await fetchJson(`/api/projects/${encodeURIComponent(state.selectedProjectId)}`, {
+    method: "DELETE"
+  });
+  nodes.projectCrudStatus.textContent = "project deleted";
+  state.selectedProjectId = undefined;
+  await loadProjects();
 }
 
 function updateRunMetrics() {
@@ -595,7 +705,7 @@ function renderRunTable() {
     inspectButton.textContent = run.title || run.id;
     inspectButton.addEventListener("click", async () => {
       await selectRun(run.id);
-      showPage("run-detail");
+      navigateToPage("run-detail");
     });
     runCell.append(inspectButton);
     const runIdLine = document.createElement("div");
@@ -624,7 +734,7 @@ function renderRunTable() {
       nodes.commandSelect.value = "continue-run";
       nodes.commandRunIdInput.value = run.id;
       updateCommandPreview();
-      showPage("commands");
+      navigateToPage("commands");
     });
     actionCell.append(continueButton);
 
@@ -735,7 +845,7 @@ function renderSelectedStagePlan() {
       nodes.commandStageIdInput.value = stage.id;
       nodes.commandStagePlanInput.value = plan.path;
       updateCommandPreview();
-      showPage("commands");
+      navigateToPage("commands");
     });
     const fixButton = document.createElement("button");
     fixButton.className = "button-secondary";
@@ -745,7 +855,7 @@ function renderSelectedStagePlan() {
       nodes.commandStageIdInput.value = stage.id;
       nodes.commandStagePlanInput.value = plan.path;
       updateCommandPreview();
-      showPage("commands");
+      navigateToPage("commands");
     });
     actions.append(runButton, fixButton);
     item.append(row, meta, actions);
@@ -1867,7 +1977,7 @@ async function executeGatewayCommand() {
 
   if (payload.command.runId) {
     await selectRun(payload.command.runId);
-    showPage("run-detail");
+    navigateToPage("run-detail");
   } else {
     await loadRecentCliEvents();
   }
@@ -1932,7 +2042,7 @@ function wireTabs() {
 
 function wireEvents() {
   for (const link of nodes.links) {
-    link.addEventListener("click", () => showPage(link.dataset.pageLink));
+    link.addEventListener("click", () => navigateToPage(link.dataset.pageLink));
   }
 
   nodes.refreshRunsButton.addEventListener("click", () => {
@@ -1951,6 +2061,38 @@ function wireEvents() {
   });
 
   nodes.runsFilterInput.addEventListener("input", applyRunFilter);
+  nodes.projectReloadButton?.addEventListener("click", () => {
+    void loadProjects().catch((error) => {
+      nodes.projectCrudStatus.textContent = error instanceof Error ? error.message : String(error);
+    });
+  });
+  nodes.projectSelector?.addEventListener("change", () => {
+    state.selectedProjectId = nodes.projectSelector.value || undefined;
+    void (async () => {
+      await loadProjects();
+      await loadSettingsData();
+      await loadRuns();
+      await loadStagePlans();
+      await loadReviews();
+    })().catch((error) => {
+      nodes.projectCrudStatus.textContent = error instanceof Error ? error.message : String(error);
+    });
+  });
+  nodes.projectCreateButton?.addEventListener("click", () => {
+    void createProject().catch((error) => {
+      nodes.projectCrudStatus.textContent = error instanceof Error ? error.message : String(error);
+    });
+  });
+  nodes.projectUpdateButton?.addEventListener("click", () => {
+    void updateSelectedProject().catch((error) => {
+      nodes.projectCrudStatus.textContent = error instanceof Error ? error.message : String(error);
+    });
+  });
+  nodes.projectDeleteButton?.addEventListener("click", () => {
+    void deleteSelectedProject().catch((error) => {
+      nodes.projectCrudStatus.textContent = error instanceof Error ? error.message : String(error);
+    });
+  });
   nodes.saveSettingsButton.addEventListener("click", () => {
     void saveSettings().catch((error) => {
       state.settingsDraftStatus = "save failed";
@@ -2032,7 +2174,11 @@ async function boot() {
   await loadRuns();
   await loadStagePlans();
   await loadReviews();
-  await loadRecentCliEvents(state.selectedRunId);
+  if (routeContext?.runId) {
+    await selectRun(routeContext.runId);
+  }
+  showPage(routeContext?.page ?? "projects");
+  await loadRecentCliEvents(routeContext?.runId ?? state.selectedRunId);
   startCliEventStream();
   renderApprovalQueue();
 }

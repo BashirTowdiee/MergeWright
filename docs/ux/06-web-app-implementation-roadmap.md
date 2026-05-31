@@ -34,14 +34,17 @@ Current progress is no longer just proposed. The following are implemented and r
   - `GET /stage-plans/:stagePlanId`
 - API project routes:
   - `GET /projects`
+  - `POST /projects`
   - `GET /projects/:projectId`
+  - `PUT /projects/:projectId`
+  - `DELETE /projects/:projectId`
   - `GET /projects/:projectId/health`
 - API provider and policy routes:
-  - `GET /providers`
-  - `GET /policy`
-  - `GET /safety/write-status`
-  - `GET /settings`
-  - `PUT /settings`
+  - `GET /providers` (optional `projectId` query scope)
+  - `GET /policy` (optional `projectId` query scope)
+  - `GET /safety/write-status` (optional `projectId` query scope)
+  - `GET /settings` (optional `projectId` query scope)
+  - `PUT /settings` (optional `projectId` query scope)
 - API command routes:
   - `POST /commands` (typed app commands)
   - `POST /commands/preview` (typed command preview)

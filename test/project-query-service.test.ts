@@ -4,13 +4,12 @@ import os from "node:os";
 import path from "node:path";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import type { OrchestratorConfig } from "../src/config/types.js";
-import { StaticProjectQueryService } from "../src/application/queries/project-query-service.js";
+import { FileProjectCatalogQueryService } from "../src/application/queries/project-query-service.js";
 
 async function createFixture(): Promise<{
   orchestratorRoot: string;
   configPath: string;
   runsRoot: string;
-  config: OrchestratorConfig;
 }> {
   const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "mw-project-query-"));
   const workspaceRoot = path.join(orchestratorRoot, "workspace");
@@ -23,7 +22,6 @@ async function createFixture(): Promise<{
   await mkdir(runsRoot, { recursive: true });
   await mkdir(stagesRoot, { recursive: true });
   await mkdir(promptsRoot, { recursive: true });
-  await writeFile(configPath, "{}\n", "utf8");
 
   const config: OrchestratorConfig = {
     version: 1,
@@ -64,18 +62,21 @@ async function createFixture(): Promise<{
       autoPush: false
     }
   };
+  await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 
-  return { orchestratorRoot, configPath, runsRoot, config };
+  return { orchestratorRoot, configPath, runsRoot };
 }
 
-test("StaticProjectQueryService exposes a single configured project and healthy status", async () => {
+test("FileProjectCatalogQueryService exposes seeded default project and health", async () => {
   const fixture = await createFixture();
-  const service = new StaticProjectQueryService({
-    projectId: "default",
+  const service = new FileProjectCatalogQueryService({
     orchestratorRoot: fixture.orchestratorRoot,
-    configPath: fixture.configPath,
-    runsRoot: fixture.runsRoot,
-    config: fixture.config
+    catalogPath: path.join(fixture.orchestratorRoot, ".artifacts", "projects.json"),
+    initialProject: {
+      id: "default",
+      name: "MergeWright",
+      configPath: fixture.configPath
+    }
   });
 
   const projects = await service.listProjects();
@@ -93,26 +94,31 @@ test("StaticProjectQueryService exposes a single configured project and healthy 
   assert.deepEqual(health?.warnings, []);
 });
 
-test("StaticProjectQueryService health reports missing path warnings", async () => {
+test("FileProjectCatalogQueryService supports create, update, and delete guard", async () => {
   const fixture = await createFixture();
-  const service = new StaticProjectQueryService({
-    projectId: "default",
+  const service = new FileProjectCatalogQueryService({
     orchestratorRoot: fixture.orchestratorRoot,
-    configPath: path.join(fixture.orchestratorRoot, "missing-config.json"),
-    runsRoot: path.join(fixture.orchestratorRoot, "missing-runs"),
-    config: {
-      ...fixture.config,
-      workspaceRoot: path.join(fixture.orchestratorRoot, "missing-workspace"),
-      paths: {
-        ...fixture.config.paths,
-        stagesDir: "missing-stages",
-        promptsDir: "missing-prompts"
-      }
+    catalogPath: path.join(fixture.orchestratorRoot, ".artifacts", "projects.json"),
+    initialProject: {
+      id: "default",
+      name: "MergeWright",
+      configPath: fixture.configPath
     }
   });
 
-  const health = await service.getProjectHealth("default");
-  assert.ok(health);
-  assert.equal(health?.healthy, false);
-  assert.equal(health?.warnings.length, 5);
+  const created = await service.createProject({
+    name: "MergeWright",
+    configPath: fixture.configPath
+  });
+  assert.equal(created.id, "mergewright");
+
+  const updated = await service.updateProject(created.id, { name: "MergeWright Updated" });
+  assert.equal(updated?.name, "MergeWright Updated");
+
+  await mkdir(path.join(fixture.runsRoot, "run-1"), { recursive: true });
+  const blocked = await service.deleteProject("default");
+  assert.equal(blocked?.ok, false);
+  if (blocked?.ok === false) {
+    assert.equal(blocked.code, "PROJECT_NOT_EMPTY");
+  }
 });

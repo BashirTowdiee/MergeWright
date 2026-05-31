@@ -2,6 +2,7 @@ export type SettingsDefaultMode = "preview-first" | "read-only" | "write-enabled
 export type SettingsTheme = "system" | "light" | "dark";
 
 export interface SettingsProjectSnapshot {
+  activeProjectId: string;
   defaultConfigPath: string;
   runsRoot: string;
   defaultProvider: string;
