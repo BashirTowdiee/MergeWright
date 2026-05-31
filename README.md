@@ -88,12 +88,24 @@ npm run mergewright -- --help
 Start the API + web control room (demo-guided slice):
 
 ```bash
-npm run start --workspace @mergewright/api -- --config config.example.json --host 127.0.0.1 --port 3040
+# API can start without --config (uses project catalog + active/default project)
+npm run start --workspace @mergewright/api -- --host 127.0.0.1 --port 3040
+
+# Optional first-run bootstrap: seed default project from a config file
+# npm run start --workspace @mergewright/api -- --config config.example.json --host 127.0.0.1 --port 3040
+
 cp apps/web/.env.example apps/web/.env.local
 npm run dev --workspace @mergewright/web
 ```
 
 Then open `http://127.0.0.1:3050`.
+
+Project model in API/web:
+
+- Projects are stored in `.artifacts/projects.json`.
+- Active project is stored in `.artifacts/web-settings.json` (`project.activeProjectId`).
+- Project CRUD routes are available: `GET/POST /projects`, `GET/PUT/DELETE /projects/:projectId`, `GET /projects/:projectId/health`.
+- Most run/review/settings/provider/policy/stage/command routes accept optional `projectId` query scoping; when omitted, API uses active/default project.
 
 Create project scaffolding:
 

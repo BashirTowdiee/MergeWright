@@ -56,19 +56,20 @@ interface ExecuteBuilderOverrides {
 
 async function main(): Promise<void> {
   const options = parseRuntimeOptions(process.argv.slice(2), process.cwd());
-  const configPath = resolveConfigPath(options.orchestratorRoot, options.configArg);
-  const config = await loadAndValidateConfig(configPath);
-  const runsRoot = resolveRunsRoot(options.orchestratorRoot, config);
+  const hasBootstrapConfig = Boolean(options.configArg.trim());
+  const bootstrapConfigPath = hasBootstrapConfig ? resolveConfigPath(options.orchestratorRoot, options.configArg) : undefined;
+  const bootstrapConfig = bootstrapConfigPath ? await loadAndValidateConfig(bootstrapConfigPath) : undefined;
+  const bootstrapRunsRoot = bootstrapConfig ? resolveRunsRoot(options.orchestratorRoot, bootstrapConfig) : path.resolve(options.orchestratorRoot, "runs");
   const settingsQueryService = new FileSettingsQueryService({
     settingsPath: path.resolve(options.orchestratorRoot, ".artifacts", "web-settings.json"),
     defaults: {
       version: 1,
       project: {
         activeProjectId: "default",
-        defaultConfigPath: configPath,
-        runsRoot,
-        defaultProvider: config.agents.planner.backend,
-        defaultModel: config.agents.planner.model,
+        defaultConfigPath: bootstrapConfigPath ?? "config.example.json",
+        runsRoot: bootstrapRunsRoot,
+        defaultProvider: bootstrapConfig?.agents.planner.backend ?? "codex",
+        defaultModel: bootstrapConfig?.agents.planner.model ?? "gpt-5.3-codex",
         defaultMode: "preview-first"
       },
       retention: {
@@ -85,15 +86,20 @@ async function main(): Promise<void> {
   const projectQueryService = new FileProjectCatalogQueryService({
     orchestratorRoot: options.orchestratorRoot,
     catalogPath: path.resolve(options.orchestratorRoot, ".artifacts", "projects.json"),
-    initialProject: {
-      id: "default",
-      name: config.projectName,
-      configPath
-    }
+    initialProject:
+      bootstrapConfigPath && bootstrapConfig
+        ? {
+            id: "default",
+            name: bootstrapConfig.projectName,
+            configPath: bootstrapConfigPath
+          }
+        : undefined
   });
 
-  const defaultSettings = await settingsQueryService.getSettings();
-  const defaultProjectId = defaultSettings.project.activeProjectId;
+  async function getActiveProjectId(): Promise<string | null> {
+    const defaultSettings = await settingsQueryService.getSettings();
+    return defaultSettings.project.activeProjectId?.trim() ? defaultSettings.project.activeProjectId : null;
+  }
 
   async function buildScopedServices(projectId: string) {
     const context = await projectQueryService.resolveProjectContext(projectId);
@@ -154,18 +160,17 @@ async function main(): Promise<void> {
     };
   }
 
-  const defaultScopedServices = await buildScopedServices(defaultProjectId);
-  if (!defaultScopedServices) {
-    throw new Error(`Default project not found: ${defaultProjectId}`);
-  }
+  const defaultProjectId = await getActiveProjectId();
+  const defaultScopedServices = defaultProjectId ? await buildScopedServices(defaultProjectId) : null;
 
   const server = createApiServer({
     projectQueryService,
-    ...defaultScopedServices,
+    ...(defaultScopedServices ?? {}),
     resolveProjectScopedServices: async (projectId) => {
       const scoped = await buildScopedServices(projectId);
       return scoped;
-    }
+    },
+    resolveDefaultProjectId: getActiveProjectId
   });
 
   await server.listen({ host: options.host, port: options.port });
@@ -239,19 +244,15 @@ function parseRuntimeOptions(argv: string[], cwd: string): ApiServerRuntimeOptio
     throw new Error(`Unknown option: ${token}`);
   }
 
-  if (!options.configArg) {
-    throw new Error(`Missing required --config <config-path>.\n\n${renderHelpText()}`);
-  }
-
   return options;
 }
 
 function renderHelpText(): string {
   return [
-    "Usage: node dist/apps/api/src/server.js --config <config-path> [--host <host>] [--port <port>] [--orchestrator-root <path>]",
+    "Usage: node dist/apps/api/src/server.js [--config <config-path>] [--host <host>] [--port <port>] [--orchestrator-root <path>]",
     "",
     "Options:",
-    "  --config             Required. MergeWright config file path.",
+    "  --config             Optional. MergeWright config file path used to seed default project on first run.",
     "  --host               API host (default: 127.0.0.1).",
     "  --port               API port (default: 3040).",
     "  --orchestrator-root  Base root used to resolve config and runs paths (default: cwd)."

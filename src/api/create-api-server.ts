@@ -80,6 +80,7 @@ export interface CreateApiServerOptions {
   readonly artifactQueryService?: ArtifactQueryService;
   readonly stagePlanQueryService?: StagePlanQueryService;
   readonly resolveProjectScopedServices?: (projectId: string) => Promise<ProjectScopedServices | null>;
+  readonly resolveDefaultProjectId?: () => Promise<string | null>;
   readonly commandService?: AppCommandService;
   readonly cliCommandGateway?: CliCommandGateway;
   readonly onCliCommandEvent?: (event: CliCommandEvent) => void;
@@ -142,8 +143,9 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
 
   async function resolveScopedServices(projectId: string | undefined, reply: any): Promise<ProjectScopedServices | null> {
     const resolver = options.resolveProjectScopedServices;
-    if (resolver && projectId) {
-      const scoped = await resolver(projectId);
+    const targetProjectId = projectId ?? (options.resolveDefaultProjectId ? await options.resolveDefaultProjectId() : null) ?? undefined;
+    if (resolver && targetProjectId) {
+      const scoped = await resolver(targetProjectId);
       if (!scoped) {
         reply.code(404).send(
           errorResponseSchema.parse({
