@@ -2961,9 +2961,8 @@ test("init-project unknown args fail clearly", () => {
 
 test("init-project success prints example run command", async () => {
   const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "orchestrator-init-cli-"));
-  await mkdir(path.join(orchestratorRoot, "configs"), { recursive: true });
   await mkdir(path.join(orchestratorRoot, "stages"), { recursive: true });
-  await mkdir(path.join(orchestratorRoot, "runs"), { recursive: true });
+  await mkdir(path.join(orchestratorRoot, ".artifacts"), { recursive: true });
   const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "target-repo-init-cli-"));
   await mkdir(path.join(workspaceRoot, ".git"), { recursive: true });
 
@@ -2976,7 +2975,7 @@ test("init-project success prints example run command", async () => {
     (line) => output.push(line)
   );
   assert.ok(output.some((line) => line.includes("Project initialization summary")));
-  assert.ok(output.some((line) => line.includes("example run command: npm run agent -- run example-stage --config configs/my-app.json --preset plan --dry-run")));
+  assert.ok(output.some((line) => line.includes("example run command: npm run agent -- run example-stage --config .artifacts/projects/my-app/config.json --preset plan --dry-run")));
 });
 
 test("check-write-safety prints clear output and uses injected handler", async () => {

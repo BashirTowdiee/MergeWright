@@ -31,7 +31,7 @@ Classic run is for single-stage execution with `run` and `continue-run`.
 
 ## Artefacts
 
-Generated under `runs/<project>/<run-id>/`, including:
+Generated under `.artifacts/runs/<project>/<run-id>/`, including:
 
 - rendered prompts
 - per-phase command/stdout/stderr/exit artefacts

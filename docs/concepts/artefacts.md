@@ -1,6 +1,6 @@
 # Artefacts
 
-Classic run artefacts are under `runs/<project>/<run-id>/` and include rendered prompts, execution logs, parse outputs, checks outputs, and `run.json`.
+Classic run artefacts are under `.artifacts/runs/<project>/<run-id>/` and include rendered prompts, execution logs, parse outputs, checks outputs, and `run.json`.
 
 Stage Plan artefacts are adjacent to canonical `stage-plan.json`:
 

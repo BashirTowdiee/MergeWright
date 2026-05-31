@@ -10,19 +10,19 @@ npm run agent -- init-project "My App" --workspace /absolute/path/to/target-repo
 
 Expected:
 - Creates orchestrator files only:
-  - `configs/my-app.json`
+  - `.artifacts/projects/my-app/config.json`
   - `stages/my-app/example-stage.md`
-  - `runs/my-app/.gitkeep`
+  - `.artifacts/runs/my-app/.gitkeep`
 - Does not write inside the target workspace.
 
 ## 2) Run a dry-run preset
 
 ```bash
-npm run agent -- run example-stage --config configs/my-app.json --preset full-readonly --dry-run
+npm run agent -- run example-stage --config .artifacts/projects/my-app/config.json --preset full-readonly --dry-run
 ```
 
 Expected:
-- Creates a new run directory under `runs/my-app/<run-id>/`
+- Creates a new run directory under `.artifacts/runs/my-app/<run-id>/`
 - Writes run artefacts and `run.json`
 - Does not execute real Codex
 - Does not run configured checks
@@ -30,9 +30,9 @@ Expected:
 ## 3) Inspect runs
 
 ```bash
-npm run agent -- list-runs --config configs/my-app.json
-npm run agent -- show-run <run-id> --config configs/my-app.json
-npm run agent -- open-run <run-id> --config configs/my-app.json
+npm run agent -- list-runs --config .artifacts/projects/my-app/config.json
+npm run agent -- show-run <run-id> --config .artifacts/projects/my-app/config.json
+npm run agent -- open-run <run-id> --config .artifacts/projects/my-app/config.json
 ```
 
 Expected:
@@ -43,7 +43,7 @@ Expected:
 ## 4) Continue a run in dry-run mode
 
 ```bash
-npm run agent -- continue-run <run-id> --config configs/my-app.json --execute-builder --dry-run
+npm run agent -- continue-run <run-id> --config .artifacts/projects/my-app/config.json --execute-builder --dry-run
 ```
 
 Expected:

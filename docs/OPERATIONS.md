@@ -31,15 +31,15 @@ npm run agent -- init-project --help
 
 ```bash
 npm run agent -- init-project "My App" --workspace /path/to/repo
-npm run agent -- run stage-01-example --config configs/my-app.json --preset plan --dry-run
-npm run agent -- list-runs --config configs/my-app.json
-npm run agent -- show-run <run-id> --config configs/my-app.json
-npm run agent -- continue-run <run-id> --config configs/my-app.json --execute-reviewer
+npm run agent -- run stage-01-example --config .artifacts/projects/my-app/config.json --preset plan --dry-run
+npm run agent -- list-runs --config .artifacts/projects/my-app/config.json
+npm run agent -- show-run <run-id> --config .artifacts/projects/my-app/config.json
+npm run agent -- continue-run <run-id> --config .artifacts/projects/my-app/config.json --execute-reviewer
 ```
 
 ## Project Config
 
-Project configs live in `configs/` and define:
+Project configs are runtime-local and default to `.artifacts/projects/<project-id>/config.json` (created by `init-project` or web project init) and define:
 
 - target workspace root
 - stages/prompts/runs paths
@@ -51,12 +51,12 @@ No implicit config default exists; always pass `--config`.
 
 ## Run Folder Cleanup
 
-Runs accumulate under `runs/<project>/`.
+Runs accumulate under `.artifacts/runs/<project>/`.
 
 Recommended cleanup approach:
 
 - remove obsolete run directories manually
-- keep `runs/<project>/.gitkeep`
+- keep `.artifacts/runs/<project>/.gitkeep`
 - keep any run artefacts needed for audit/debug
 
 ## Troubleshoot Failed Runs

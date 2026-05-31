@@ -165,10 +165,12 @@ function resolveAndValidateRunsBaseDir(
     );
   }
 
-  const expected = path.resolve(orchestratorRoot, "runs", normalizeProjectNameForRunPath(projectName));
-  if (resolved !== expected) {
+  const projectSegment = normalizeProjectNameForRunPath(projectName);
+  const expectedCurrent = path.resolve(orchestratorRoot, ".artifacts", "runs", projectSegment);
+  const expectedLegacy = path.resolve(orchestratorRoot, "runs", projectSegment);
+  if (resolved !== expectedCurrent && resolved !== expectedLegacy) {
     throw new Error(
-      `Invalid config: paths.runsDir must resolve to runs/<projectName>. Expected: ${expected}. Resolved: ${resolved}`
+      `Invalid config: paths.runsDir must resolve to .artifacts/runs/<projectName> (or legacy runs/<projectName>). Expected: ${expectedCurrent}. Resolved: ${resolved}`
     );
   }
 

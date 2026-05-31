@@ -219,8 +219,8 @@ Status: implemented.
 Command:
 
 ```bash
-npm run mergewright -- prove <run-id> --config configs/my-app.json
-npm run mergewright -- prove <run-id> --config configs/my-app.json --json
+npm run mergewright -- prove <run-id> --config .artifacts/projects/my-app/config.json
+npm run mergewright -- prove <run-id> --config .artifacts/projects/my-app/config.json --json
 ```
 
 Semantics:
@@ -366,7 +366,7 @@ Status: implemented.
 Command:
 
 ```bash
-npm run mergewright -- compare-runs <run-id-a> <run-id-b> --config configs/my-app.json
+npm run mergewright -- compare-runs <run-id-a> <run-id-b> --config .artifacts/projects/my-app/config.json
 ```
 
 Acceptance:
@@ -459,7 +459,7 @@ The evidence-first flow now covers manifest, report, prove, run comparison, and 
 Success looks like:
 
 ```bash
-npm run mergewright -- probe-opencode --config configs/my-app.json --validate-readonly-contract
+npm run mergewright -- probe-opencode --config .artifacts/projects/my-app/config.json --validate-readonly-contract
 ```
 
 And the command can answer:

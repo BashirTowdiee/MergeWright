@@ -16,9 +16,8 @@ async function writePromptTemplates(orchestratorRoot: string): Promise<void> {
 
 async function makeAcceptanceFixture(): Promise<{ orchestratorRoot: string; workspaceRoot: string }> {
   const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "orchestrator-stage-o-"));
-  await mkdir(path.join(orchestratorRoot, "configs"), { recursive: true });
   await mkdir(path.join(orchestratorRoot, "stages"), { recursive: true });
-  await mkdir(path.join(orchestratorRoot, "runs"), { recursive: true });
+  await mkdir(path.join(orchestratorRoot, ".artifacts"), { recursive: true });
   await writePromptTemplates(orchestratorRoot);
 
   const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "target-workspace-stage-o-"));
@@ -27,7 +26,7 @@ async function makeAcceptanceFixture(): Promise<{ orchestratorRoot: string; work
 }
 
 async function readRunId(orchestratorRoot: string, slug: string): Promise<string> {
-  const runsRoot = path.join(orchestratorRoot, "runs", slug);
+  const runsRoot = path.join(orchestratorRoot, ".artifacts", "runs", slug);
   const entries = await readdir(runsRoot, { withFileTypes: true });
   const runIds = entries
     .filter((entry) => entry.isDirectory())
@@ -49,7 +48,7 @@ test("Stage O acceptance: init, run dry-run, list/show, continue dry-run, open-r
     (line) => output.push(line)
   );
 
-  const configArg = "configs/myapp.json";
+  const configArg = ".artifacts/projects/myapp/config.json";
   await runCommand(
     parseArgs(["run", "example-stage", "--config", configArg, "--preset", "full-readonly", "--dry-run"]),
     orchestratorRoot,
@@ -59,7 +58,7 @@ test("Stage O acceptance: init, run dry-run, list/show, continue dry-run, open-r
   );
 
   const runId = await readRunId(orchestratorRoot, "myapp");
-  const runDir = path.join(orchestratorRoot, "runs", "myapp", runId);
+  const runDir = path.join(orchestratorRoot, ".artifacts", "runs", "myapp", runId);
   const runJsonPath = path.join(runDir, "run.json");
 
   const runJson = JSON.parse(await readFile(runJsonPath, "utf8")) as {
@@ -94,7 +93,7 @@ test("Stage O acceptance: init, run dry-run, list/show, continue dry-run, open-r
   assert.ok(showOutput.some((line) => line.includes("status:")));
 
   const continuationRunId = "20260513-120000-example-stage-cont";
-  const continuationRunDir = path.join(orchestratorRoot, "runs", "myapp", continuationRunId);
+  const continuationRunDir = path.join(orchestratorRoot, ".artifacts", "runs", "myapp", continuationRunId);
   await mkdir(continuationRunDir, { recursive: true });
   await writeFile(path.join(continuationRunDir, "builder-prompt.extracted.md"), "builder prompt", "utf8");
   await writeFile(path.join(continuationRunDir, "01-stage-input.md"), "stage", "utf8");

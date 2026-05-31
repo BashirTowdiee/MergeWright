@@ -786,6 +786,57 @@ test("GET /projects lists projects through the query service", async () => {
   assert.equal(projectQueryService.listCalls.length, 1);
 });
 
+test("POST /projects/init scaffolds and registers project", async () => {
+  const projectQueryService = new FakeProjectQueryService();
+  const initCalls: Array<{ name: string; workspacePath: string; force: boolean }> = [];
+  const server = createApiServer({
+    runQueryService: new FakeRunQueryService(),
+    projectQueryService,
+    initProject: async (input) => {
+      initCalls.push(input);
+      return { configPath: "/tmp/generated-config.json" };
+    }
+  });
+  const response = await server.inject({
+    method: "POST",
+    url: "/projects/init",
+    payload: {
+      project: {
+        name: "New Project",
+        workspacePath: "/tmp/workspace"
+      }
+    }
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(initCalls, [{ name: "New Project", workspacePath: "/tmp/workspace", force: false }]);
+  assert.deepEqual(projectQueryService.createCalls, [{ name: "New Project", configPath: "/tmp/generated-config.json" }]);
+});
+
+test("POST /projects/init returns 503 when init is not configured", async () => {
+  const projectQueryService = new FakeProjectQueryService();
+  const server = createApiServer({
+    runQueryService: new FakeRunQueryService(),
+    projectQueryService
+  });
+  const response = await server.inject({
+    method: "POST",
+    url: "/projects/init",
+    payload: {
+      project: {
+        name: "New Project",
+        workspacePath: "/tmp/workspace"
+      }
+    }
+  });
+
+  assert.equal(response.statusCode, 503);
+  assert.deepEqual(response.json(), {
+    code: "PROJECT_QUERY_SERVICE_UNAVAILABLE",
+    message: "Project init is not configured."
+  });
+});
+
 test("GET /projects/:projectId returns project detail", async () => {
   const projectQueryService = new FakeProjectQueryService();
   const server = createApiServer({ runQueryService: new FakeRunQueryService(), projectQueryService });

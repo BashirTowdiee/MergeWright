@@ -28,7 +28,7 @@ test("unsupported-only name fails", () => {
 test("generated config paths use slug and absolute workspace", () => {
   const cfg = buildProjectConfig("My App", "my-app", "/tmp/workspace");
   assert.equal(cfg.paths.stagesDir, "stages/my-app");
-  assert.equal(cfg.paths.runsDir, "runs/my-app");
+  assert.equal(cfg.paths.runsDir, ".artifacts/runs/my-app");
   assert.equal(cfg.workspaceRoot, "/tmp/workspace");
   assert.deepEqual(cfg.commands.checks, []);
 });
@@ -42,9 +42,8 @@ test("example stage is generic and not acme-specific", () => {
 
 async function makeFixture(): Promise<{ orchestratorRoot: string; workspaceRoot: string }> {
   const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "orchestrator-init-"));
-  await mkdir(path.join(orchestratorRoot, "configs"), { recursive: true });
   await mkdir(path.join(orchestratorRoot, "stages"), { recursive: true });
-  await mkdir(path.join(orchestratorRoot, "runs"), { recursive: true });
+  await mkdir(path.join(orchestratorRoot, ".artifacts"), { recursive: true });
   const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "target-workspace-"));
   await mkdir(path.join(workspaceRoot, ".git"), { recursive: true });
   return { orchestratorRoot, workspaceRoot };
@@ -61,12 +60,12 @@ test("init-project creates config, stage, and runs gitkeep without writing works
   });
 
   assert.equal(result.projectSlug, "my-app");
-  await access(path.join(orchestratorRoot, "configs", "my-app.json"));
+  await access(path.join(orchestratorRoot, ".artifacts", "projects", "my-app", "config.json"));
   await access(path.join(orchestratorRoot, "stages", "my-app", "example-stage.md"));
-  await access(path.join(orchestratorRoot, "runs", "my-app", ".gitkeep"));
+  await access(path.join(orchestratorRoot, ".artifacts", "runs", "my-app", ".gitkeep"));
   await assert.rejects(access(path.join(workspaceRoot, "runs")));
 
-  const cfgRaw = await readFile(path.join(orchestratorRoot, "configs", "my-app.json"), "utf8");
+  const cfgRaw = await readFile(path.join(orchestratorRoot, ".artifacts", "projects", "my-app", "config.json"), "utf8");
   const cfg = JSON.parse(cfgRaw) as { workspaceRoot: string; commands: { checks: unknown[] } };
   assert.equal(cfg.workspaceRoot, workspaceRoot);
   assert.deepEqual(cfg.commands.checks, []);
@@ -99,9 +98,8 @@ test("fails if workspace is not a directory", async () => {
 
 test("fails if workspace has no .git", async () => {
   const orchestratorRoot = await mkdtemp(path.join(os.tmpdir(), "orchestrator-init-"));
-  await mkdir(path.join(orchestratorRoot, "configs"), { recursive: true });
   await mkdir(path.join(orchestratorRoot, "stages"), { recursive: true });
-  await mkdir(path.join(orchestratorRoot, "runs"), { recursive: true });
+  await mkdir(path.join(orchestratorRoot, ".artifacts"), { recursive: true });
   const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), "target-workspace-no-git-"));
 
   await assert.rejects(
@@ -129,12 +127,12 @@ test("overwrites config and stage when --force is provided", async () => {
   const stage = await readFile(stagePath, "utf8");
   assert.match(stage, /Replace this file with a real stage/);
 
-  const runsStat = await stat(path.join(orchestratorRoot, "runs", "my-app"));
+  const runsStat = await stat(path.join(orchestratorRoot, ".artifacts", "runs", "my-app"));
   assert.equal(runsStat.isDirectory(), true);
 });
 
-test("runs folder follows runs/<slug>", async () => {
+test("runs folder follows .artifacts/runs/<slug>", async () => {
   const { orchestratorRoot, workspaceRoot } = await makeFixture();
   await initProject({ orchestratorRoot, projectName: "Temp Project", workspaceArg: workspaceRoot, force: false, verbose: false });
-  await access(path.join(orchestratorRoot, "runs", "temp-project", ".gitkeep"));
+  await access(path.join(orchestratorRoot, ".artifacts", "runs", "temp-project", ".gitkeep"));
 });

@@ -22,7 +22,7 @@ npm run agent -- init-project "My App" --workspace /path/to/repo
 4. Run a first read-only classic run:
 
 ```bash
-npm run agent -- run stage-01-example --config configs/my-app.json --preset plan --dry-run
+npm run agent -- run stage-01-example --config .artifacts/projects/my-app/config.json --preset plan --dry-run
 ```
 
 5. Choose workflow docs:

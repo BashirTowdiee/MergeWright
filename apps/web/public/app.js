@@ -82,7 +82,9 @@ const nodes = {
   projectDeleteButton: document.getElementById("projectDeleteButton"),
   projectNameInput: document.getElementById("projectNameInput"),
   projectConfigPathInput: document.getElementById("projectConfigPathInput"),
+  projectWorkspacePathInput: document.getElementById("projectWorkspacePathInput"),
   projectCreateButton: document.getElementById("projectCreateButton"),
+  projectInitButton: document.getElementById("projectInitButton"),
   projectUpdateButton: document.getElementById("projectUpdateButton"),
   settingsConfigPath: document.getElementById("settingsConfigPath"),
   settingsRunsRoot: document.getElementById("settingsRunsRoot"),
@@ -369,6 +371,9 @@ function renderProjectOverview() {
   if (nodes.projectConfigPathInput) {
     nodes.projectConfigPathInput.value = project.configPath || "";
   }
+  if (nodes.projectWorkspacePathInput) {
+    nodes.projectWorkspacePathInput.value = project.workspaceRoot || "";
+  }
 }
 
 function renderSettingsOverview() {
@@ -608,6 +613,27 @@ async function createProject() {
     body: JSON.stringify({ project: { name, configPath } })
   });
   nodes.projectCrudStatus.textContent = "project created";
+  await loadProjects();
+}
+
+async function initAndCreateProject() {
+  const name = nodes.projectNameInput.value.trim();
+  const workspacePath = nodes.projectWorkspacePathInput.value.trim();
+  if (!name || !workspacePath) {
+    nodes.projectCrudStatus.textContent = "name + workspace required";
+    return;
+  }
+  await fetchJson("/api/projects/init", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      project: {
+        name,
+        workspacePath
+      }
+    })
+  });
+  nodes.projectCrudStatus.textContent = "project initialized";
   await loadProjects();
 }
 
@@ -2080,6 +2106,11 @@ function wireEvents() {
   });
   nodes.projectCreateButton?.addEventListener("click", () => {
     void createProject().catch((error) => {
+      nodes.projectCrudStatus.textContent = error instanceof Error ? error.message : String(error);
+    });
+  });
+  nodes.projectInitButton?.addEventListener("click", () => {
+    void initAndCreateProject().catch((error) => {
       nodes.projectCrudStatus.textContent = error instanceof Error ? error.message : String(error);
     });
   });

@@ -457,10 +457,10 @@ test("builder and reviewer command artefacts include backend metadata via config
   }
 });
 
-test("runsDir invariant passes for projectName Acme and runs/acme", async () => {
+test("runsDir invariant passes for projectName Acme and .artifacts/runs/acme", async () => {
   const { orchestratorRoot, configPath } = await makeFixture({
     projectName: "Acme",
-    runsDir: "runs/acme"
+    runsDir: ".artifacts/runs/acme"
   });
   const result = await runStage({
     stageName: "example-stage",
@@ -471,7 +471,7 @@ test("runsDir invariant passes for projectName Acme and runs/acme", async () => 
     verbose: false,
     orchestratorRoot
   });
-  assert.match(result.runDir, /runs\/acme\//);
+  assert.match(result.runDir, /\.artifacts\/runs\/acme\//);
 });
 
 test("runsDir invariant fails for mismatched runs dir", async () => {
@@ -490,7 +490,7 @@ test("runsDir invariant fails for mismatched runs dir", async () => {
         verbose: false,
         orchestratorRoot
       }),
-    /paths\.runsDir must resolve to runs\/<projectName>/
+    /paths\.runsDir must resolve to \.artifacts\/runs\/<projectName>/
   );
 });
 

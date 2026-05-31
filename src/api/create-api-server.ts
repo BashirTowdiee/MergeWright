@@ -28,6 +28,8 @@ import {
   getProjectHealthResponseSchema,
   createProjectRequestSchema,
   createProjectResponseSchema,
+  initProjectRequestSchema,
+  initProjectResponseSchema,
   updateProjectRequestSchema,
   updateProjectResponseSchema,
   deleteProjectResponseSchema,
@@ -84,6 +86,7 @@ export interface CreateApiServerOptions {
   readonly commandService?: AppCommandService;
   readonly cliCommandGateway?: CliCommandGateway;
   readonly onCliCommandEvent?: (event: CliCommandEvent) => void;
+  readonly initProject?: (input: { name: string; workspacePath: string; force: boolean }) => Promise<{ configPath: string }>;
 }
 
 export interface ProjectScopedServices {
@@ -225,6 +228,48 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
     try {
       const project = await projectQueryService.createProject(body.data.project);
       return createProjectResponseSchema.parse({ project });
+    } catch (error) {
+      return reply.code(409).send(
+        errorResponseSchema.parse({
+          code: "PROJECT_CONFLICT",
+          message: error instanceof Error ? error.message : String(error)
+        })
+      );
+    }
+  });
+
+  server.post("/projects/init", async (request, reply) => {
+    const body = initProjectRequestSchema.safeParse(request.body);
+    if (!body.success) {
+      return reply.code(400).send(
+        errorResponseSchema.parse({
+          code: "VALIDATION_FAILED",
+          message: "Invalid project init request."
+        })
+      );
+    }
+
+    const projectQueryService = options.projectQueryService;
+    if (!projectQueryService || !options.initProject) {
+      return reply.code(503).send(
+        errorResponseSchema.parse({
+          code: "PROJECT_QUERY_SERVICE_UNAVAILABLE",
+          message: "Project init is not configured."
+        })
+      );
+    }
+
+    try {
+      const initResult = await options.initProject({
+        name: body.data.project.name,
+        workspacePath: body.data.project.workspacePath,
+        force: body.data.project.force ?? false
+      });
+      const project = await projectQueryService.createProject({
+        name: body.data.project.name,
+        configPath: initResult.configPath
+      });
+      return initProjectResponseSchema.parse({ project });
     } catch (error) {
       return reply.code(409).send(
         errorResponseSchema.parse({

@@ -104,8 +104,14 @@ Project model in API/web:
 
 - Projects are stored in `.artifacts/projects.json`.
 - Active project is stored in `.artifacts/web-settings.json` (`project.activeProjectId`).
-- Project CRUD routes are available: `GET/POST /projects`, `GET/PUT/DELETE /projects/:projectId`, `GET /projects/:projectId/health`.
+- Project routes are available: `GET/POST /projects`, `POST /projects/init`, `GET/PUT/DELETE /projects/:projectId`, `GET /projects/:projectId/health`.
 - Most run/review/settings/provider/policy/stage/command routes accept optional `projectId` query scoping; when omitted, API uses active/default project.
+
+Project init from web:
+
+- Open `Projects` in the web app.
+- Use `Project name` + `Workspace path`.
+- Click `Init + Create` to scaffold config/stage/runs and register the project in the catalog.
 
 Create project scaffolding:
 
@@ -118,7 +124,7 @@ Validate write readiness:
 
 ```bash
 npm run mergewright -- check-write-safety \
-  --config configs/my-app.json
+  --config .artifacts/projects/my-app/config.json
 ```
 
 ## Common commands
@@ -127,7 +133,7 @@ npm run mergewright -- check-write-safety \
 
 ```bash
 npm run mergewright -- run stage-01-example \
-  --config configs/my-app.json \
+  --config .artifacts/projects/my-app/config.json \
   --preset plan \
   --dry-run
 ```
@@ -136,7 +142,7 @@ npm run mergewright -- run stage-01-example \
 
 ```bash
 npm run mergewright -- run stage-01-example \
-  --config configs/my-app.json \
+  --config .artifacts/projects/my-app/config.json \
   --auto-chain \
   --allow-writes \
   --max-fix-attempts 2
@@ -146,7 +152,7 @@ npm run mergewright -- run stage-01-example \
 
 ```bash
 npm run mergewright -- continue-run <run-id> \
-  --config configs/my-app.json \
+  --config .artifacts/projects/my-app/config.json \
   --execute-reviewer \
   --run-checks
 ```
@@ -155,20 +161,20 @@ npm run mergewright -- continue-run <run-id> \
 
 ```bash
 npm run mergewright -- list-runs \
-  --config configs/my-app.json
+  --config .artifacts/projects/my-app/config.json
 
 npm run mergewright -- show-run <run-id> \
-  --config configs/my-app.json
+  --config .artifacts/projects/my-app/config.json
 
 npm run mergewright -- open-run <run-id> \
-  --config configs/my-app.json
+  --config .artifacts/projects/my-app/config.json
 ```
 
 ### Generate an AI Change Report
 
 ```bash
 npm run mergewright -- report-run <run-id> \
-  --config configs/my-app.json \
+  --config .artifacts/projects/my-app/config.json \
   --pr-summary
 ```
 
@@ -190,7 +196,7 @@ npm run mergewright -- import-stage-plan \
 npm run mergewright -- run-stages \
   --stage-plan .artifacts/runs/provider-switching/stage-plan.json \
   --stop-after-each-stage \
-  --config configs/my-app.json \
+  --config .artifacts/projects/my-app/config.json \
   --allow-writes
 ```
 
@@ -199,7 +205,7 @@ npm run mergewright -- run-stages \
 ```bash
 npm run mergewright -- fix-stage stage-01-provider-contract \
   --stage-plan .artifacts/runs/provider-switching/stage-plan.json \
-  --config configs/my-app.json \
+  --config .artifacts/projects/my-app/config.json \
   --feedback "The provider contract still leaks vendor-specific message shapes." \
   --allow-writes
 ```
@@ -225,7 +231,7 @@ npm run mergewright -- accept-stage stage-01-provider-contract \
 npm run mergewright -- reassess-stage-plan \
   --stage-plan .artifacts/runs/provider-switching/stage-plan.json \
   --from stage-01-provider-contract \
-  --config configs/my-app.json
+  --config .artifacts/projects/my-app/config.json
 ```
 
 ### Continue after gates pass
@@ -233,7 +239,7 @@ npm run mergewright -- reassess-stage-plan \
 ```bash
 npm run mergewright -- continue-stages \
   --stage-plan .artifacts/runs/provider-switching/stage-plan.json \
-  --config configs/my-app.json \
+  --config .artifacts/projects/my-app/config.json \
   --allow-writes
 ```
 

@@ -20,6 +20,7 @@ import { FileSettingsQueryService } from "../../../src/application/queries/setti
 import { FilesystemStagePlanQueryService } from "../../../src/application/queries/stage-plan-query-service.js";
 import { continueRun } from "../../../src/continue-run.js";
 import { loadAndValidateConfig, resolveConfigPath } from "../../../src/config.js";
+import { initProject as initProjectFiles } from "../../../src/init-project.js";
 import { runStage } from "../../../src/runner.js";
 import { resolveRunsRoot } from "../../../src/runs.js";
 
@@ -59,14 +60,16 @@ async function main(): Promise<void> {
   const hasBootstrapConfig = Boolean(options.configArg.trim());
   const bootstrapConfigPath = hasBootstrapConfig ? resolveConfigPath(options.orchestratorRoot, options.configArg) : undefined;
   const bootstrapConfig = bootstrapConfigPath ? await loadAndValidateConfig(bootstrapConfigPath) : undefined;
-  const bootstrapRunsRoot = bootstrapConfig ? resolveRunsRoot(options.orchestratorRoot, bootstrapConfig) : path.resolve(options.orchestratorRoot, "runs");
+  const bootstrapRunsRoot = bootstrapConfig
+    ? resolveRunsRoot(options.orchestratorRoot, bootstrapConfig)
+    : path.resolve(options.orchestratorRoot, ".artifacts", "runs", "default");
   const settingsQueryService = new FileSettingsQueryService({
     settingsPath: path.resolve(options.orchestratorRoot, ".artifacts", "web-settings.json"),
     defaults: {
       version: 1,
       project: {
         activeProjectId: "default",
-        defaultConfigPath: bootstrapConfigPath ?? "config.example.json",
+        defaultConfigPath: bootstrapConfigPath ?? ".artifacts/projects/default/config.json",
         runsRoot: bootstrapRunsRoot,
         defaultProvider: bootstrapConfig?.agents.planner.backend ?? "codex",
         defaultModel: bootstrapConfig?.agents.planner.model ?? "gpt-5.3-codex",
@@ -170,7 +173,17 @@ async function main(): Promise<void> {
       const scoped = await buildScopedServices(projectId);
       return scoped;
     },
-    resolveDefaultProjectId: getActiveProjectId
+    resolveDefaultProjectId: getActiveProjectId,
+    initProject: async (input) => {
+      const result = await initProjectFiles({
+        orchestratorRoot: options.orchestratorRoot,
+        projectName: input.name,
+        workspaceArg: input.workspacePath,
+        force: input.force,
+        verbose: false
+      });
+      return { configPath: result.configPath };
+    }
   });
 
   await server.listen({ host: options.host, port: options.port });

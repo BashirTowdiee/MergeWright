@@ -565,6 +565,14 @@ export const createProjectRequestSchema = z.object({
   })
 });
 
+export const initProjectRequestSchema = z.object({
+  project: z.object({
+    name: z.string().min(1),
+    workspacePath: z.string().min(1),
+    force: z.boolean().optional()
+  })
+});
+
 export const updateProjectRequestSchema = z.object({
   project: z
     .object({
@@ -577,6 +585,10 @@ export const updateProjectRequestSchema = z.object({
 });
 
 export const createProjectResponseSchema = z.object({
+  project: projectDetailSchema
+});
+
+export const initProjectResponseSchema = z.object({
   project: projectDetailSchema
 });
 

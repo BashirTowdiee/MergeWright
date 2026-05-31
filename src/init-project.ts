@@ -53,7 +53,7 @@ export function buildProjectConfig(projectName: string, projectSlug: string, wor
     paths: {
       stagesDir: `stages/${projectSlug}`,
       promptsDir: "prompts",
-      runsDir: `runs/${projectSlug}`
+      runsDir: `.artifacts/runs/${projectSlug}`
     },
     executionBackends: {
       codex: { type: "codex-cli" }
@@ -125,11 +125,11 @@ export async function initProject(options: InitProjectOptions): Promise<InitProj
     throw new Error(`Workspace path does not look like a git repository: missing ${gitDir}`);
   }
 
-  const configPath = resolveChildPath(options.orchestratorRoot, "configs", `${slug}.json`);
+  const configPath = resolveChildPath(options.orchestratorRoot, ".artifacts", "projects", slug, "config.json");
   const stagesPath = resolveChildPath(options.orchestratorRoot, "stages", slug);
   const stageFilePath = resolveChildPath(options.orchestratorRoot, "stages", slug, "example-stage.md");
-  const runsPath = resolveChildPath(options.orchestratorRoot, "runs", slug);
-  const gitkeepPath = resolveChildPath(options.orchestratorRoot, "runs", slug, ".gitkeep");
+  const runsPath = resolveChildPath(options.orchestratorRoot, ".artifacts", "runs", slug);
+  const gitkeepPath = resolveChildPath(options.orchestratorRoot, ".artifacts", "runs", slug, ".gitkeep");
 
   if (!options.force) {
     await assertDoesNotExist(configPath, "config");

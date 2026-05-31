@@ -17,15 +17,15 @@
 - Checks are blocked while `postWriteReview.status` is `pending` or `failed`.
 
 ## Recommended Workflow
-1. `npm run agent -- check-write-safety --config configs/my-app.json`
-2. `npm run agent -- run <stage-name> --config configs/my-app.json --execute-planner --execute-builder --execute-reviewer --allow-writes`
-3. Inspect `runs/<project>/<run-id>/write-audit/builder/summary.json` (or `fix/summary.json`)
+1. `npm run agent -- check-write-safety --config .artifacts/projects/my-app/config.json`
+2. `npm run agent -- run <stage-name> --config .artifacts/projects/my-app/config.json --execute-planner --execute-builder --execute-reviewer --allow-writes`
+3. Inspect `.artifacts/runs/<project>/<run-id>/write-audit/builder/summary.json` (or `fix/summary.json`)
 4. If needed, continue fix flow:
-5. `npm run agent -- continue-run <run-id> --config configs/my-app.json --plan-fix --execute-fix --allow-writes`
+5. `npm run agent -- continue-run <run-id> --config .artifacts/projects/my-app/config.json --plan-fix --execute-fix --allow-writes`
 6. Complete reviewer gate (if pending):
-7. `npm run agent -- continue-run <run-id> --config configs/my-app.json --execute-reviewer`
+7. `npm run agent -- continue-run <run-id> --config .artifacts/projects/my-app/config.json --execute-reviewer`
 8. Run checks:
-9. `npm run agent -- continue-run <run-id> --config configs/my-app.json --run-checks`
+9. `npm run agent -- continue-run <run-id> --config .artifacts/projects/my-app/config.json --run-checks`
 10. Manually inspect and commit in target repo.
 
 ## Write-Audit Inspection
