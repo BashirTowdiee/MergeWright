@@ -39,6 +39,13 @@ export interface RunArtefact {
   sizeBytes?: number;
 }
 
+export interface RunArtefactContent {
+  artifact: RunArtefact;
+  content: string;
+  truncated: boolean;
+  maxBytes: number;
+}
+
 export type SafeActionId =
   | "continue"
   | "request-fix"

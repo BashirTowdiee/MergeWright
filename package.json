@@ -19,6 +19,8 @@
     "build:apps": "npm run build --workspaces --if-present --include-workspace-root=false",
     "build:packages": "npm run build --workspaces --if-present --include-workspace-root=false --workspace packages/*",
     "test": "npm run build && node --test dist/test/**/*.test.js",
+    "api:start": "npm run build --workspace @mergewright/api && npm run start --workspace @mergewright/api -- --config config.example.json",
+    "web:start": "npm run build --workspace @mergewright/web && npm run start --workspace @mergewright/web",
     "agent": "npm run mergewright --",
     "mergewright": "npm run build && node dist/apps/cli/src/main.js",
     "docs:dev": "npm --prefix docs-site run dev",

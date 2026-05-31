@@ -2,11 +2,11 @@
 
 ## Status
 
-Accepted product direction. The TUI is the primary human interface for MergeWright.
+Historical reference only. The TUI is superseded by the web-first control room direction.
 
 ## Purpose
 
-This document defines the initial design direction for the MergeWright TUI.
+This document captures the initial TUI design direction that informed later API and web extraction work.
 
 The TUI should be a terminal-native control surface for supervising local AI coding workflows. It should not feel like a web dashboard, SaaS console, or CI/CD clone.
 
@@ -16,13 +16,13 @@ The TUI should be a terminal-native control surface for supervising local AI cod
 
 The CLI remains the automation surface. It is best for scripts, exact command execution, local CI-style workflows, one-off commands, and debugging command behaviour.
 
-### TUI
+### TUI (legacy compatibility surface)
 
-The TUI is the primary human interface. It is best for run selection, run inspection, phase flow visibility, artefact browsing, log review, reviewer finding inspection, safe next actions, fix-loop control, and report generation.
+The TUI remains a compatibility surface for local read-only run inspection while web/API parity is completed.
 
 ### Web, API, and editor surfaces
 
-These are optional future complements after the TUI and application service boundaries prove useful.
+The web app is the primary human interface. The API is the orchestration boundary for UI clients. CLI remains the automation and scripting surface.
 
 ## Product feel
 

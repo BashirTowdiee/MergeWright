@@ -85,6 +85,15 @@ npm run build
 npm run mergewright -- --help
 ```
 
+Start the API + web control room (demo-guided slice):
+
+```bash
+npm run start --workspace @mergewright/api -- --config config.example.json --host 127.0.0.1 --port 3040
+npm run start --workspace @mergewright/web -- --host 127.0.0.1 --port 3050 --api-base-url http://127.0.0.1:3040
+```
+
+Then open `http://127.0.0.1:3050`.
+
 Create project scaffolding:
 
 ```bash

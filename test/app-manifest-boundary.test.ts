@@ -34,3 +34,12 @@ test("CLI app manifest exposes its built entrypoints", async () => {
   assert.equal(manifest.exports?.["."]?.types, "../../dist/apps/cli/src/main.d.ts");
   assert.equal(manifest.exports?.["."]?.default, "../../dist/apps/cli/src/main.js");
 });
+
+test("Web app manifest exposes its built entrypoints", async () => {
+  const manifest = await readManifest("apps/web/package.json");
+
+  assert.equal(manifest.main, "../../dist/apps/web/src/server.js");
+  assert.equal(manifest.types, "../../dist/apps/web/src/server.d.ts");
+  assert.equal(manifest.exports?.["."]?.types, "../../dist/apps/web/src/server.d.ts");
+  assert.equal(manifest.exports?.["."]?.default, "../../dist/apps/web/src/server.js");
+});

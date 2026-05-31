@@ -1,21 +1,18 @@
 # Architecture Overview
 
-MergeWright is a CLI delivery harness for controlled AI-assisted engineering workflows.
+MergeWright is a local-first AI software delivery harness for controlled, auditable engineering workflows.
 
-It coordinates phase/stage execution, captures auditable artefacts, and turns agent-generated work into reviewable delivery evidence. The architecture should optimise for merge confidence rather than generic agent runtime breadth.
+The web app is the primary human interface. The CLI remains the scriptable automation surface. Both must use shared application/workflow logic through a stable API/service boundary rather than duplicating orchestration logic in UI clients.
+
+MergeWright coordinates phase/stage execution, captures auditable artefacts, and turns agent-generated work into reviewable delivery evidence. The architecture should optimise for merge confidence rather than generic agent runtime breadth.
 
 ## Core model
 
-Current high-level flow:
+Current high-level operator model:
 
 ```text
-CLI
-  -> config and safety validation
-  -> prompt rendering
-  -> phase or stage execution
-  -> artefact writing
-  -> metadata updates
-  -> report generation
+Web app -> Fastify API -> application services -> workflow/domain -> adapters
+CLI     -> application services -> workflow/domain -> adapters
 ```
 
 Target delivery-harness flow:
@@ -47,6 +44,28 @@ Responsible for:
 - returning deterministic exit codes
 
 The CLI should not own delivery policy. It should call use-case level functions that can also be tested directly.
+
+### API layer
+
+Responsible for:
+
+- typed HTTP boundaries for web clients
+- request validation and response shaping
+- invoking application services/use cases
+- deterministic API-level status and error behavior
+
+Fastify routes should not embed orchestration policy. The API should remain a transport boundary over shared application/workflow logic.
+
+### Web UI layer
+
+Responsible for:
+
+- run and stage supervision UX
+- evidence, report, and blocker visualization
+- safe next-action and approval interactions
+- local UI state, filters, and view composition
+
+The web app must not shell out to CLI commands or parse CLI/TUI terminal output as product state.
 
 ### Workflow orchestration layer
 
@@ -123,6 +142,10 @@ Responsible for:
 - missing-evidence disclosure
 
 Reports should never overclaim. If tests did not run, checks are missing, or review evidence is unavailable, the report should say so explicitly.
+
+### Legacy TUI layer
+
+The TUI path is legacy/superseded product surface. Keep compatibility while needed for migration, but do not add new product feature investment to `src/tui/**`.
 
 ## Evidence-first priority order
 

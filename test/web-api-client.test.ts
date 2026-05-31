@@ -109,16 +109,368 @@ test("MergeWrightApiClient fetches run detail and artifact metadata", async () =
     fetch: createFetch(
       {
         "http://localhost:3000/runs/run-1": { run: runDetail },
+        "http://localhost:3000/runs/run-1/readiness": {
+          readiness: {
+            runId: "run-1",
+            ready: false,
+            status: "NEEDS_FIX",
+            score: 62,
+            risk: "high",
+            checksState: "failed",
+            reviewerVerdict: "FAIL",
+            missingEvidenceWarnings: ["Acceptance evidence missing."],
+            blockedReason: "Needs confirmation",
+            nextAction: "request-fix"
+          }
+        },
+        "http://localhost:3000/runs/run-1/review": {
+          review: {
+            runId: "run-1",
+            verdict: "FAIL",
+            blockingFindings: [
+              {
+                severity: "high",
+                message: "Missing acceptance coverage"
+              }
+            ],
+            nonBlockingFindings: [
+              {
+                severity: "low",
+                message: "Consider smaller helper modules"
+              }
+            ],
+            recommendedFixPrompt: "Fix acceptance coverage and rerun checks.",
+            testsObservedCount: 2,
+            acceptanceCriteriaCount: 3
+          }
+        },
+        "http://localhost:3000/runs/run-1/evidence": {
+          evidence: {
+            runId: "run-1",
+            available: true,
+            status: "needs_fix",
+            blockerCount: 2,
+            warningCount: 1,
+            items: [
+              {
+                id: "manifest",
+                label: "Evidence manifest",
+                status: "pass",
+                blocking: true,
+                note: "status=needs_fix",
+                sourcePath: "evidence.json"
+              }
+            ]
+          }
+        },
+        "http://localhost:3000/runs/run-1/phase-artifacts": {
+          phaseArtifacts: {
+            runId: "run-1",
+            phases: [
+              {
+                id: "planner",
+                label: "Planner",
+                status: "passed",
+                artifacts: [runDetail.artefacts[0]]
+              }
+            ],
+            unassignedArtifacts: []
+          }
+        },
+        "http://localhost:3000/runs/compare?runA=run-1&runB=run-2": {
+          comparison: {
+            version: 1,
+            runA: {
+              runId: "run-1",
+              status: "NEEDS_FIX",
+              score: 62,
+              risk: "high",
+              reviewerVerdict: "FAIL",
+              checksState: "failed",
+              changedFileCount: 5,
+              acceptanceCriteria: { expected: 3, passed: 1, failed: 2, unknown: 0 },
+              missingEvidenceWarnings: ["Acceptance evidence missing."]
+            },
+            runB: {
+              runId: "run-2",
+              status: "READY",
+              score: 91,
+              risk: "low",
+              reviewerVerdict: "PASS",
+              checksState: "passed",
+              changedFileCount: 4,
+              acceptanceCriteria: { expected: 3, passed: 3, failed: 0, unknown: 0 },
+              missingEvidenceWarnings: []
+            },
+            deltas: {
+              score: 29,
+              risk: "lower",
+              readinessChanged: true,
+              checksChanged: true,
+              reviewerChanged: true,
+              changedFileCount: -1
+            },
+            changedFiles: {
+              onlyInA: ["src/a.ts"],
+              onlyInB: ["src/b.ts"],
+              inBothCount: 2
+            },
+            checks: {
+              failedOnlyInA: ["npm test"],
+              failedOnlyInB: []
+            },
+            acceptance: {
+              regressions: [],
+              improvements: ["criteria-a: fail -> pass"]
+            }
+          }
+        },
+        "http://localhost:3000/runs/run-1/events?limit=20": {
+          events: [
+            {
+              timestamp: "2026-05-31T00:00:00.000Z",
+              requestId: "req-1",
+              command: "continue-run",
+              status: "started",
+              runId: "run-1"
+            }
+          ]
+        },
+        "http://localhost:3000/commands/req-1/events?limit=20": {
+          events: [
+            {
+              timestamp: "2026-05-31T00:00:01.000Z",
+              requestId: "req-1",
+              command: "continue-run",
+              status: "completed",
+              ok: true,
+              exitCode: 0,
+              runId: "run-1"
+            }
+          ]
+        },
         "http://localhost:3000/runs/run-1/artifacts?phaseId=planner": { artifacts: [runDetail.artefacts[0]] },
-        "http://localhost:3000/runs/run-1/artifacts/plan": { artifact: runDetail.artefacts[0] }
+        "http://localhost:3000/runs/run-1/artifacts/plan": { artifact: runDetail.artefacts[0] },
+        "http://localhost:3000/runs/run-1/artifacts/plan/content?maxBytes=2048": {
+          artifact: runDetail.artefacts[0],
+          content: "# plan",
+          truncated: false,
+          maxBytes: 2048
+        },
+        "http://localhost:3000/stage-plans": {
+          stagePlans: [
+            {
+              id: "c3RhZ2UtcGxhbnMvZGVtby9zdGFnZS1wbGFuLmpzb24",
+              planId: "provider-switching",
+              title: "Provider switching",
+              goal: "Migrate providers safely",
+              source: "imported",
+              status: "running",
+              updatedAt: "2026-05-31T02:00:00.000Z",
+              stageCount: 2,
+              path: "stage-plans/demo/stage-plan.json"
+            }
+          ]
+        },
+        "http://localhost:3000/stage-plans/c3RhZ2UtcGxhbnMvZGVtby9zdGFnZS1wbGFuLmpzb24": {
+          stagePlan: {
+            id: "c3RhZ2UtcGxhbnMvZGVtby9zdGFnZS1wbGFuLmpzb24",
+            planId: "provider-switching",
+            title: "Provider switching",
+            goal: "Migrate providers safely",
+            source: "imported",
+            status: "running",
+            createdAt: "2026-05-31T01:00:00.000Z",
+            updatedAt: "2026-05-31T02:00:00.000Z",
+            path: "stage-plans/demo/stage-plan.json",
+            stageCount: 2,
+            statusCounts: {
+              pending: 1,
+              running: 1,
+              reviewRequired: 0,
+              accepted: 0,
+              fixRequired: 0,
+              failed: 0,
+              committed: 0
+            },
+            stages: [
+              {
+                id: "stage-01-provider-contract",
+                index: 1,
+                title: "Provider contract",
+                status: "running",
+                dependsOn: [],
+                revision: 1,
+                acceptanceCriteriaCount: 2,
+                checksCount: 1
+              }
+            ]
+          }
+        },
+        "http://localhost:3000/projects": {
+          projects: [
+            {
+              id: "default",
+              name: "MergeWright",
+              configPath: "/tmp/config.json",
+              workspaceRoot: "/tmp/workspace",
+              runsRoot: "/tmp/runs",
+              defaultProvider: "codex-local"
+            }
+          ]
+        },
+        "http://localhost:3000/projects/default": {
+          project: {
+            id: "default",
+            name: "MergeWright",
+            configPath: "/tmp/config.json",
+            workspaceRoot: "/tmp/workspace",
+            runsRoot: "/tmp/runs",
+            defaultProvider: "codex-local",
+            orchestratorRoot: "/tmp/orchestrator",
+            stagesRoot: "/tmp/orchestrator/stages",
+            promptsRoot: "/tmp/orchestrator/prompts",
+            providers: ["codex-local", "opencode-local"]
+          }
+        },
+        "http://localhost:3000/projects/default/health": {
+          health: {
+            projectId: "default",
+            healthy: true,
+            checks: {
+              configPathExists: true,
+              workspaceRootExists: true,
+              runsRootExists: true,
+              stagesRootExists: true,
+              promptsRootExists: true
+            },
+            warnings: []
+          }
+        },
+        "http://localhost:3000/providers": {
+          inventory: {
+            defaultProvider: "codex-local",
+            providers: [
+              {
+                id: "codex-local",
+                type: "codex-cli",
+                command: "codex",
+                usedByRoles: ["planner", "builder", "reviewer"],
+                supportsReadOnly: true,
+                supportsWrites: true,
+                supportsProbe: false
+              }
+            ]
+          }
+        },
+        "http://localhost:3000/policy": {
+          policy: {
+            requireGitRepo: true,
+            requireCleanStart: true,
+            manualCommitOnly: true,
+            forbidAutoCommit: true,
+            forbidAutoPush: true,
+            writeSafetyEnabled: true,
+            requireCleanWorkingTree: true,
+            requireExplicitAllowWrites: true,
+            requireReviewAfterWrites: true,
+            allowedBranches: ["main"],
+            blockedPaths: ["package-lock.json"],
+            checkCount: 2
+          }
+        },
+        "http://localhost:3000/safety/write-status": {
+          status: {
+            checkedAt: "2026-05-31T00:00:00.000Z",
+            ok: true,
+            summary: "Write safety checks passed.",
+            failures: [],
+            warnings: [],
+            enabled: true,
+            branch: "feature/demo",
+            isGitWorkTree: true,
+            workingTreeState: "clean",
+            changedFilesCount: 0,
+            blockedMatchCount: 0
+          }
+        },
+        "http://localhost:3000/settings": {
+          settings: {
+            version: 1,
+            project: {
+              defaultConfigPath: "/tmp/config.json",
+              runsRoot: "/tmp/runs",
+              defaultProvider: "codex-local",
+              defaultModel: "gpt-5.3-codex",
+              defaultMode: "preview-first"
+            },
+            retention: {
+              evidenceDays: 30,
+              artifactDays: 30
+            },
+            ui: {
+              theme: "system",
+              keyboardShortcuts: true
+            },
+            updatedAt: "2026-05-31T00:00:00.000Z"
+          }
+        },
+        "http://localhost:3000/reviews": {
+          reviews: [
+            {
+              id: "run-1",
+              runId: "run-1",
+              title: "Run one",
+              status: "pending",
+              readinessStatus: "NEEDS_FIX",
+              reviewerVerdict: "FAIL",
+              checksState: "failed",
+              blockerCount: 1,
+              blockers: ["Missing acceptance coverage"],
+              commentCount: 1,
+              updatedAt: "2026-05-31T02:30:00.000Z",
+              comments: [
+                {
+                  id: "comment-1",
+                  author: "operator",
+                  message: "Please address the blocker.",
+                  createdAt: "2026-05-31T02:20:00.000Z"
+                }
+              ]
+            }
+          ]
+        }
       },
       calls
     )
   });
 
   assert.deepEqual(await client.getRun("run-1"), runDetail);
+  assert.equal((await client.getRunReadiness("run-1")).status, "NEEDS_FIX");
+  assert.equal((await client.getRunReview("run-1")).verdict, "FAIL");
+  assert.equal((await client.getRunEvidence("run-1")).available, true);
+  assert.equal((await client.getRunPhaseArtifacts("run-1")).phases.length, 1);
+  assert.equal((await client.getRunComparison("run-1", "run-2")).deltas.risk, "lower");
+  assert.equal((await client.getRunEvents("run-1", 20)).length, 1);
+  assert.equal((await client.getCommandEvents("req-1", 20))[0]?.status, "completed");
   assert.deepEqual(await client.listRunArtifacts("run-1", "planner"), [runDetail.artefacts[0]]);
   assert.deepEqual(await client.getRunArtifact("run-1", "plan"), runDetail.artefacts[0]);
+  assert.deepEqual(await client.getRunArtifactContent("run-1", "plan", 2048), {
+    artifact: runDetail.artefacts[0],
+    content: "# plan",
+    truncated: false,
+    maxBytes: 2048
+  });
+  assert.equal((await client.listProjects()).length, 1);
+  assert.equal((await client.getProject("default")).id, "default");
+  assert.equal((await client.getProjectHealth("default")).healthy, true);
+  assert.equal((await client.getProviderInventory()).defaultProvider, "codex-local");
+  assert.equal((await client.getPolicy()).writeSafetyEnabled, true);
+  assert.equal((await client.getWriteSafetyStatus()).ok, true);
+  assert.equal((await client.getSettings()).project.defaultMode, "preview-first");
+  assert.equal((await client.listReviews())[0]?.status, "pending");
+  assert.equal((await client.listStagePlans()).length, 1);
+  assert.equal((await client.getStagePlan("c3RhZ2UtcGxhbnMvZGVtby9zdGFnZS1wbGFuLmpzb24")).planId, "provider-switching");
 });
 
 test("MergeWrightApiClient submits commands through the API", async () => {
@@ -136,6 +488,83 @@ test("MergeWrightApiClient submits commands through the API", async () => {
       {
         "http://localhost:3000/commands": {
           result: { ok: true, commandId: "cmd-1", type: "select-task", message: "Accepted" }
+        },
+        "http://localhost:3000/commands/preview": {
+          description: {
+            commandId: "cmd-1",
+            type: "select-task",
+            title: "Select task",
+            summary: "Selects the active task for review.",
+            risk: "low",
+            requiresConfirmation: false,
+            preconditions: [],
+            effects: []
+          }
+        },
+        "http://localhost:3000/reviews/run-1/comments": {
+          review: {
+            id: "run-1",
+            runId: "run-1",
+            title: "Run one",
+            status: "pending",
+            readinessStatus: "NEEDS_FIX",
+            reviewerVerdict: "FAIL",
+            checksState: "failed",
+            blockerCount: 1,
+            blockers: ["Missing acceptance coverage"],
+            commentCount: 2,
+            updatedAt: "2026-05-31T03:00:00.000Z",
+            comments: [
+              { id: "comment-1", author: "operator", message: "Please address blocker.", createdAt: "2026-05-31T02:20:00.000Z" },
+              { id: "comment-2", author: "lead", message: "rerun reviewer", createdAt: "2026-05-31T03:00:00.000Z" }
+            ]
+          }
+        },
+        "http://localhost:3000/reviews/run-1/approval": {
+          review: {
+            id: "run-1",
+            runId: "run-1",
+            title: "Run one",
+            status: "approved",
+            readinessStatus: "NEEDS_FIX",
+            reviewerVerdict: "FAIL",
+            checksState: "failed",
+            blockerCount: 1,
+            blockers: ["Missing acceptance coverage"],
+            commentCount: 2,
+            updatedAt: "2026-05-31T03:01:00.000Z",
+            comments: [
+              { id: "comment-1", author: "operator", message: "Please address blocker.", createdAt: "2026-05-31T02:20:00.000Z" },
+              { id: "comment-2", author: "lead", message: "rerun reviewer", createdAt: "2026-05-31T03:00:00.000Z" }
+            ],
+            decision: {
+              decision: "approved",
+              author: "lead",
+              note: "looks good",
+              decidedAt: "2026-05-31T03:01:00.000Z"
+            }
+          }
+        },
+        "http://localhost:3000/settings": {
+          settings: {
+            version: 1,
+            project: {
+              defaultConfigPath: "/tmp/config.json",
+              runsRoot: "/tmp/runs",
+              defaultProvider: "opencode-local",
+              defaultModel: "gpt-5.3-codex",
+              defaultMode: "read-only"
+            },
+            retention: {
+              evidenceDays: 14,
+              artifactDays: 21
+            },
+            ui: {
+              theme: "dark",
+              keyboardShortcuts: false
+            },
+            updatedAt: "2026-05-31T03:02:00.000Z"
+          }
         }
       },
       calls
@@ -143,11 +572,50 @@ test("MergeWrightApiClient submits commands through the API", async () => {
   });
 
   const result = await client.submitCommand(command, { confirmationContextId: "ctx-1" });
+  const preview = await client.previewCommand(command);
+  const commented = await client.addReviewComment("run-1", "rerun reviewer", "lead");
+  const approved = await client.decideReview("run-1", "approved", "looks good", "lead");
+  const settings = await client.updateSettings({
+    project: {
+      defaultProvider: "opencode-local",
+      defaultMode: "read-only"
+    },
+    retention: {
+      evidenceDays: 14,
+      artifactDays: 21
+    },
+    ui: {
+      theme: "dark",
+      keyboardShortcuts: false
+    }
+  });
 
   assert.deepEqual(result, { ok: true, commandId: "cmd-1", type: "select-task", message: "Accepted" });
+  assert.equal(preview.commandId, "cmd-1");
+  assert.equal(commented.commentCount, 2);
+  assert.equal(approved.status, "approved");
+  assert.equal(settings.project.defaultProvider, "opencode-local");
   assert.equal(calls[0]?.init?.method, "POST");
   assert.equal(calls[0]?.init?.headers?.["content-type"], "application/json");
   assert.deepEqual(JSON.parse(calls[0]?.init?.body ?? "{}"), { command, options: { confirmationContextId: "ctx-1" } });
+  assert.equal(calls[1]?.url, "http://localhost:3000/commands/preview");
+  assert.equal(calls[4]?.init?.method, "PUT");
+  assert.deepEqual(JSON.parse(calls[4]?.init?.body ?? "{}"), {
+    settings: {
+      project: {
+        defaultProvider: "opencode-local",
+        defaultMode: "read-only"
+      },
+      retention: {
+        evidenceDays: 14,
+        artifactDays: 21
+      },
+      ui: {
+        theme: "dark",
+        keyboardShortcuts: false
+      }
+    }
+  });
 });
 
 test("MergeWrightApiClient throws structured API errors", async () => {

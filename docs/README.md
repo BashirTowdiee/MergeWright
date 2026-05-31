@@ -1,8 +1,8 @@
 # MergeWright Documentation
 
-MergeWright is a local-first CLI orchestrator for staged, auditable AI-assisted software delivery.
+MergeWright is a local-first software delivery harness for staged, auditable AI-assisted software delivery.
 
-The CLI remains the automation and scripting surface. The accepted product direction is to make a TUI the primary human interface for local run inspection, artefact review, safety gates, and controlled workflow actions.
+The web app is the primary human interface. The CLI remains the automation and scripting surface, and the Fastify API is the orchestration boundary that both humans and automation clients can use.
 
 ## Where to start
 
@@ -30,8 +30,8 @@ Use Stage Plan for larger or multi-step changes with explicit review gates.
 - Product requirements: [product/02-product-requirements.md](./product/02-product-requirements.md)
 - Roadmap: [product/04-roadmap.md](./product/04-roadmap.md)
 - Decisions and open questions: [product/05-decisions-and-open-questions.md](./product/05-decisions-and-open-questions.md)
-- TUI design: [ux/02-tui-design.md](./ux/02-tui-design.md)
-- TUI implementation plan: [ux/03-tui-implementation-plan.md](./ux/03-tui-implementation-plan.md)
+- Web interface implementation plan: [ux/04-web-interface-implementation-plan.md](./ux/04-web-interface-implementation-plan.md)
+- Web+API quickstart: [ux/web-api-quickstart.md](./ux/web-api-quickstart.md)
 
 ## CLI reference
 

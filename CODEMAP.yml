@@ -1,5 +1,5 @@
 version: 1
-last_updated: 2026-05-30
+last_updated: 2026-05-31
 project:
   name: mergewright
   type: npm-workspaces-typescript-monorepo
@@ -52,28 +52,35 @@ areas:
 
   - id: apps.api
     path: apps/api
-    purpose: API app workspace boundary manifest (implementation currently lives under src/api).
+    purpose: Runnable Fastify API app boundary for run inspection and CLI-equivalent command execution.
     public_entrypoints:
+      - apps/api/src/server.ts
       - src/api/create-api-server.ts
-      - src/api/run-api-schemas.ts
+      - src/api/cli-command-gateway.ts
     important_files:
       - apps/api/package.json
       - apps/api/tsconfig.json
+      - apps/api/src/server.ts
+      - src/api/run-api-schemas.ts
     tests:
       - test/api-server.test.ts
       - test/app-manifest-boundary.test.ts
 
   - id: apps.web
     path: apps/web
-    purpose: Web app workspace boundary manifest (client model code under src/web).
+    purpose: Runnable web control-room app boundary guided by docs/ux/web-app-demo.html.
     public_entrypoints:
-      - src/web/api-client.ts
-      - src/web/run-view-model.ts
+      - apps/web/src/server.ts
+      - apps/web/public/index.html
+      - apps/web/public/app.js
     important_files:
       - apps/web/package.json
       - apps/web/tsconfig.json
+      - docs/ux/web-app-demo.html
     tests:
       - test/web-api-client.test.ts
+      - test/app-manifest-boundary.test.ts
+      - test/web-shell-guidance.test.ts
 
   - id: packages.application
     path: packages/application
@@ -191,11 +198,52 @@ areas:
     important_files:
       - src/application/use-cases
       - src/application/queries
+      - src/application/queries/filesystem-run-read-repository.ts
+      - src/application/queries/policy-query-service.ts
+      - src/application/queries/project-query-service.ts
+      - src/application/queries/provider-query-service.ts
+      - src/application/queries/review-query-service.ts
+      - src/application/queries/run-comparison-query-service.ts
+      - src/application/queries/run-insights-query-service.ts
+      - src/application/queries/settings-query-service.ts
+      - src/application/queries/stage-plan-query-service.ts
       - src/application/read-models
+      - src/application/read-models/run-comparison-read-model.ts
+      - src/application/read-models/run-insights-read-model.ts
+      - src/application/read-models/run-phase-artifacts-read-model.ts
+      - src/application/read-models/review-read-model.ts
+      - src/application/read-models/policy-read-model.ts
+      - src/application/read-models/project-read-model.ts
+      - src/application/read-models/provider-read-model.ts
+      - src/application/read-models/settings-read-model.ts
+      - src/application/read-models/stage-plan-read-model.ts
     tests:
       - test/app-command-service.test.ts
       - test/evented-app-command-service.test.ts
+      - test/filesystem-run-read-repository.test.ts
+      - test/project-query-service.test.ts
+      - test/review-query-service.test.ts
+      - test/run-insights-query-service.test.ts
+      - test/settings-query-service.test.ts
+      - test/stage-plan-query-service.test.ts
       - test/*use-case*.test.ts
+
+  - id: src.api
+    path: src/api
+    purpose: API route composition, schemas, and CLI-equivalent gateway layer shared by apps/api.
+    public_entrypoints:
+      - src/api/create-api-server.ts
+      - src/api/run-api-schemas.ts
+      - src/api/cli-command-gateway.ts
+    important_files:
+      - src/api/create-api-server.ts
+      - src/api/cli-command-gateway.ts
+      - src/api/run-api-schemas.ts
+      - src/web/api-client.ts
+      - src/web/run-view-model.ts
+    tests:
+      - test/api-server.test.ts
+      - test/web-api-client.test.ts
 
   - id: src.safety-and-evidence
     path: src/safety

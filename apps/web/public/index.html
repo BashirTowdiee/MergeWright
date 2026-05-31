@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MergeWright Web Control Room</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --shell: #ffffff;
+      --surface: #ffffff;
+      --surface-2: #f9fbff;
+      --ink: #111827;
+      --muted: #667085;
+      --border: #e4e7ec;
+      --blue: #2563eb;
+      --green: #079455;
+      --amber: #dc6803;
+      --red: #d92d20;
+      --radius: 16px;
+      --shadow: 0 20px 40px rgba(16, 24, 40, 0.08);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); }
+    h1, h2, h3, p { margin: 0; }
+
+    .app { min-height: 100vh; display: grid; grid-template-columns: 260px minmax(0, 1fr); }
+    .sidebar {
+      background: #0f172a;
+      color: #e5e7eb;
+      padding: 18px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .brand { border-bottom: 1px solid rgba(255,255,255,0.08); padding: 8px 8px 12px; }
+    .brand strong { display: block; }
+    .brand span { color: #94a3b8; font-size: 12px; }
+    .nav-title { color: #94a3b8; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin: 8px; }
+    .nav { display: grid; gap: 4px; }
+    .nav-button {
+      border: 0;
+      background: transparent;
+      color: #cbd5e1;
+      border-radius: 10px;
+      padding: 10px;
+      text-align: left;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+    .nav-button.active { background: var(--blue); color: white; }
+    .nav-count { color: #94a3b8; font-size: 11px; }
+    .sidebar-footer { margin-top: auto; border-top: 1px solid rgba(255,255,255,0.08); padding: 10px 8px; color: #94a3b8; font-size: 12px; }
+
+    .main { display: grid; grid-template-rows: auto 1fr; min-width: 0; }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: rgba(246, 248, 251, 0.9);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .breadcrumbs { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+    .top-actions { display: flex; gap: 8px; }
+
+    .content { padding: 22px; display: grid; gap: 16px; }
+    .page { display: none; }
+    .page.active { display: grid; gap: 16px; }
+
+    .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .grid-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+
+    .metric {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: 0 8px 18px rgba(16,24,40,0.04);
+    }
+    .metric span { display: block; color: var(--muted); font-size: 12px; }
+    .metric strong { display: block; font-size: 24px; }
+    .metric small { color: var(--muted); font-size: 12px; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .card-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 10px; }
+    .card-body { padding: 14px 16px; }
+
+    .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .input, select, textarea {
+      border: 1px solid #d0d5dd;
+      border-radius: 10px;
+      padding: 8px 10px;
+      font: inherit;
+      width: 100%;
+    }
+    textarea { min-height: 92px; }
+
+    .button, .button-secondary, .button-ghost {
+      border-radius: 10px;
+      border: 1px solid transparent;
+      padding: 9px 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .button { background: var(--blue); color: white; }
+    .button-secondary { background: white; border-color: #d0d5dd; }
+    .button-ghost { background: transparent; border-color: #d0d5dd; color: var(--muted); }
+
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { border-bottom: 1px solid var(--border); padding: 10px 8px; text-align: left; vertical-align: top; }
+    th { color: var(--muted); text-transform: uppercase; font-size: 11px; letter-spacing: 0.04em; }
+
+    .pill { display: inline-flex; border-radius: 999px; border: 1px solid transparent; padding: 3px 8px; font-size: 11px; font-weight: 700; }
+    .pill.green { color: var(--green); border-color: #abefc6; background: #ecfdf3; }
+    .pill.amber { color: var(--amber); border-color: #fedf89; background: #fffaeb; }
+    .pill.red { color: var(--red); border-color: #fecdca; background: #fef3f2; }
+    .pill.blue { color: var(--blue); border-color: #bfdbfe; background: #eff6ff; }
+    .pill.neutral { color: #475467; border-color: #eaecf0; background: #f2f4f7; }
+
+    .timeline { display: grid; grid-template-columns: repeat(6, minmax(140px, 1fr)); gap: 10px; overflow-x: auto; }
+    .phase { border: 1px solid var(--border); border-radius: 12px; padding: 10px; background: var(--surface-2); }
+    .phase p { color: var(--muted); font-size: 12px; margin-top: 6px; }
+
+    .list { display: grid; gap: 8px; }
+    .list-item { border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); padding: 10px; }
+    .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+
+    pre {
+      margin: 0;
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 12px;
+      padding: 12px;
+      white-space: pre-wrap;
+      font: 12px/1.5 "SFMono-Regular", Menlo, Consolas, monospace;
+    }
+    .mono { font-family: "SFMono-Regular", Menlo, Consolas, monospace; }
+    .small { font-size: 12px; }
+    .muted { color: var(--muted); }
+
+    .tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+    .tab { border: 1px solid var(--border); border-radius: 999px; padding: 6px 9px; font-weight: 700; background: white; color: var(--muted); cursor: pointer; }
+    .tab.active { background: var(--blue); color: white; border-color: var(--blue); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    @media (max-width: 1100px) { .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; } }
+    @media (max-width: 840px) { .app { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><strong>MergeWright</strong><span>Web interface (demo-guided)</span></div>
+      <div>
+        <div class="nav-title">Workspace</div>
+        <nav class="nav">
+          <button class="nav-button active" data-page-link="projects"><span>Projects</span><span class="nav-count">demo</span></button>
+          <button class="nav-button" data-page-link="runs"><span>Runs</span><span class="nav-count" id="navRunsCount">0</span></button>
+          <button class="nav-button" data-page-link="stage-plans"><span>Stage plans</span><span class="nav-count" id="navStagePlansCount">0</span></button>
+          <button class="nav-button" data-page-link="run-detail"><span>Run detail</span><span class="nav-count">live</span></button>
+          <button class="nav-button" data-page-link="results"><span>Results</span><span class="nav-count">proof</span></button>
+          <button class="nav-button" data-page-link="review"><span>Review details</span><span class="nav-count">findings</span></button>
+          <button class="nav-button" data-page-link="compare"><span>Compare runs</span><span class="nav-count">delta</span></button>
+          <button class="nav-button" data-page-link="commands"><span>Commands</span><span class="nav-count">API</span></button>
+          <button class="nav-button" data-page-link="team"><span>Team review</span><span class="nav-count" id="teamPendingCount">0</span></button>
+          <button class="nav-button" data-page-link="settings"><span>Settings</span><span class="nav-count">local</span></button>
+        </nav>
+      </div>
+      <div class="sidebar-footer">
+        <div>Model: web-first</div>
+        <div>Boundary: Fastify API</div>
+        <div>CLI: automation surface</div>
+        <div>API: <span id="apiHealthStatus">checking...</span></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="breadcrumbs" id="breadcrumbs">Projects / MergeWright</div>
+          <h1 id="pageTitle">Projects</h1>
+        </div>
+        <div class="top-actions">
+          <button class="button-secondary" id="refreshRunsButton">Refresh runs</button>
+          <button class="button" data-page-link="commands">Run command</button>
+        </div>
+      </header>
+
+      <div class="content">
+        <section class="page active" id="projects" data-title="Projects" data-crumb="Projects / All">
+          <div class="grid-4">
+            <div class="metric"><span>Projects</span><strong id="metricProjectsTotal">0</strong><small>Loaded from API</small></div>
+            <div class="metric"><span>Health</span><strong id="metricProjectsHealthy">unknown</strong><small id="metricProjectsHealthyNote">awaiting load</small></div>
+            <div class="metric"><span>Default provider</span><strong id="projectDefaultProvider">-</strong><small>Planner backend</small></div>
+            <div class="metric"><span>Runs root</span><strong class="small mono" id="projectRunsRoot">-</strong><small>Filesystem path</small></div>
+          </div>
+          <div class="card"><div class="card-header"><h2>Project overview</h2><span class="pill blue">Guide: web-app-demo</span></div><div class="card-body"><p class="muted">This UI follows <code>docs/ux/web-app-demo.html</code> and consumes Fastify API routes for live run supervision and CLI-equivalent command execution.</p><div class="list" style="margin-top:12px"><div class="list-item"><strong id="projectName">-</strong><div class="mono small" id="projectIdLine">-</div></div><div class="list-item"><strong>Config path</strong><div class="mono small" id="projectConfigPath">-</div></div><div class="list-item"><strong>Workspace root</strong><div class="mono small" id="projectWorkspaceRoot">-</div></div><div class="list-item"><strong>Health checks</strong><div class="small muted" id="projectHealthChecks">-</div></div><div class="list-item"><strong>Warnings</strong><div class="small muted" id="projectHealthWarnings">none</div></div></div></div></div>
+        </section>
+
+        <section class="page" id="runs" data-title="Runs" data-crumb="Projects / MergeWright / Runs">
+          <div class="grid-4">
+            <div class="metric"><span>Total runs</span><strong id="metricTotalRuns">0</strong><small>Loaded from API</small></div>
+            <div class="metric"><span>Ready</span><strong id="metricReadyRuns">0</strong><small>Status READY/passed</small></div>
+            <div class="metric"><span>Blocked</span><strong id="metricBlockedRuns">0</strong><small>Needs action</small></div>
+            <div class="metric"><span>Running</span><strong id="metricRunningRuns">0</strong><small>In progress</small></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div><h2>Run list</h2><p class="muted">Filter, inspect, continue, compare, report.</p></div><div class="toolbar"><input class="input" id="runsFilterInput" style="width:220px" placeholder="filter by run id/title" /></div></div>
+            <div class="card-body">
+              <table>
+                <thead><tr><th>Run</th><th>Status</th><th>Mode</th><th>Branch</th><th>Next action</th></tr></thead>
+                <tbody id="runsTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="stage-plans" data-title="Stage plans" data-crumb="Projects / MergeWright / Stage plans">
+          <div class="grid-4">
+            <div class="metric"><span>Total plans</span><strong id="metricStagePlansTotal">0</strong><small>Discovered stage-plan.json files</small></div>
+            <div class="metric"><span>Running</span><strong id="metricStagePlansRunning">0</strong><small>status=running</small></div>
+            <div class="metric"><span>Ready</span><strong id="metricStagePlansReady">0</strong><small>status=ready</small></div>
+            <div class="metric"><span>Completed</span><strong id="metricStagePlansCompleted">0</strong><small>status=completed</small></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div><h2>Stage plan list</h2><p class="muted">Inspect stage status and launch stage commands.</p></div></div>
+            <div class="card-body">
+              <table>
+                <thead><tr><th>Plan</th><th>Status</th><th>Source</th><th>Stages</th><th>Path</th></tr></thead>
+                <tbody id="stagePlansTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="card"><div class="card-header"><h2 id="selectedStagePlanTitle">Stage plan detail</h2><span class="pill neutral" id="selectedStagePlanStatus">none</span></div><div class="card-body list" id="selectedStagePlanSummary"><div class="list-item muted">Select a stage plan to inspect details.</div></div></div>
+            <div class="card"><div class="card-header"><h2>Stages</h2><span class="pill blue" id="selectedStageCountPill">0 stages</span></div><div class="card-body list" id="selectedStagePlanStages"><div class="list-item muted">No stages loaded.</div></div></div>
+          </div>
+        </section>
+
+        <section class="page" id="run-detail" data-title="Run detail" data-crumb="Projects / MergeWright / Runs / Detail">
+          <div class="grid-4">
+            <div class="metric"><span>Readiness</span><strong id="detailReadinessStatus">unknown</strong><small id="detailReadinessNote">No run selected</small></div>
+            <div class="metric"><span>Score</span><strong id="detailScoreValue">n/a</strong><small id="detailRiskValue">risk unknown</small></div>
+            <div class="metric"><span>Reviewer</span><strong id="detailReviewerVerdict">UNKNOWN</strong><small id="detailFindingsCount">0 findings</small></div>
+            <div class="metric"><span>Checks</span><strong id="detailChecksState">unknown</strong><small id="detailWarningsCount">0 warnings</small></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><div><h2>Phase timeline</h2><p class="muted">Readable phase status from run artefacts.</p></div><span class="pill amber" id="timelineStatusPill">unknown</span></div>
+            <div class="card-body"><div class="timeline" id="phaseTimeline"></div></div>
+          </div>
+
+          <div class="grid-2">
+            <div class="card"><div class="card-header"><h2>Safe next actions</h2><span class="pill amber" id="actionsStatusPill">policy gated</span></div><div class="card-body list" id="safeActionsList"></div></div>
+            <div class="card"><div class="card-header"><h2>Run metadata</h2><span class="pill neutral">local</span></div><div class="card-body list"><div class="list-item"><strong>Workspace</strong><div class="mono small" id="detailWorkspace">-</div></div><div class="list-item"><strong>Run directory</strong><div class="mono small" id="detailRunDir">-</div></div><div class="list-item"><strong>Provider</strong><div id="detailProvider">-</div></div><div class="list-item"><strong>Model</strong><div id="detailModel">-</div></div></div></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><div><h2>Run artefacts</h2><p class="muted">Loaded from API artefact routes.</p></div><div class="toolbar"><span class="pill neutral" id="runArtifactScope">all phases</span><button class="button-ghost" id="clearPhaseFilterButton">Show all</button><span class="pill neutral" id="runArtifactsCount">0</span></div></div>
+            <div class="card-body">
+              <table>
+                <thead><tr><th>Title</th><th>Kind</th><th>Phase</th><th>Path</th><th>Size</th></tr></thead>
+                <tbody id="runArtifactsBody"></tbody>
+              </table>
+              <div class="list-item" style="margin-top:12px">
+                <div class="row"><strong id="artifactPreviewTitle">Artifact preview</strong><span class="pill neutral" id="artifactPreviewMeta">not loaded</span></div>
+                <pre id="artifactPreviewOutput">Select an artifact row to load content preview.</pre>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="results" data-title="Results" data-crumb="Projects / MergeWright / Results">
+          <div class="grid-2">
+            <div class="card"><div class="card-header"><div><h2>Merge readiness result</h2><p class="muted">Visual prove status</p></div><span class="pill amber" id="resultsStatusPill">unknown</span></div><div class="card-body"><div class="grid-3"><div class="metric"><span>Score</span><strong id="resultsScoreValue">n/a</strong><small>/100</small></div><div class="metric"><span>Reviewer</span><strong id="resultsReviewer">UNKNOWN</strong><small>verdict</small></div><div class="metric"><span>Checks</span><strong id="resultsChecks">unknown</strong><small>state</small></div></div><div style="margin-top:10px" class="metric"><span>Risk</span><strong id="resultsRisk">unknown</strong><small>risk level</small></div></div></div>
+            <div class="card"><div class="card-header"><h2>Proof output</h2><span class="pill blue">read-only</span></div><div class="card-body"><pre id="proofOutput">No proof generated yet.</pre></div></div>
+          </div>
+          <div class="card"><div class="card-header"><div><h2>Evidence map</h2><p class="muted">Why readiness passed/failed</p></div></div><div class="card-body"><table><thead><tr><th>Evidence</th><th>Status</th><th>Notes</th></tr></thead><tbody id="evidenceMapBody"></tbody></table></div></div>
+        </section>
+
+        <section class="page" id="review" data-title="Review details" data-crumb="Projects / MergeWright / Review details">
+          <div class="card"><div class="card-header"><div><h2>Reviewer findings</h2><p class="muted">Blocking and non-blocking findings</p></div><span class="pill red" id="reviewVerdictPill">unknown</span></div><div class="card-body list" id="reviewFindingsList"></div></div>
+        </section>
+
+        <section class="page" id="compare" data-title="Compare runs" data-crumb="Projects / MergeWright / Compare runs">
+          <div class="card">
+            <div class="card-header"><div><h2>Run comparison</h2><p class="muted">Phase 11 parity: compare readiness deltas between two runs.</p></div></div>
+            <div class="card-body list">
+              <div class="grid-2">
+                <div class="field"><label>Run A</label><input class="input mono" id="compareRunAInput" placeholder="run-id-a" /></div>
+                <div class="field"><label>Run B</label><input class="input mono" id="compareRunBInput" placeholder="run-id-b" /></div>
+              </div>
+              <div class="toolbar">
+                <button class="button" id="compareRunsButton">Compare</button>
+                <span class="pill neutral" id="compareStatusPill">not loaded</span>
+              </div>
+              <pre id="compareSummaryOutput">Pick two runs and click Compare.</pre>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="card"><div class="card-header"><h2>Changed files delta</h2><span class="pill blue">files</span></div><div class="card-body"><pre id="compareFilesOutput">No data.</pre></div></div>
+            <div class="card"><div class="card-header"><h2>Checks and acceptance</h2><span class="pill blue">quality</span></div><div class="card-body"><pre id="compareChecksOutput">No data.</pre></div></div>
+          </div>
+        </section>
+
+        <section class="page" id="commands" data-title="Commands" data-crumb="Projects / MergeWright / Commands">
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-header"><div><h2>Command launcher</h2><p class="muted">CLI-equivalent workflows via API</p></div><span class="pill blue">POST /api/cli/commands</span></div>
+              <div class="card-body list">
+                <div class="field"><label>Command</label><select id="commandSelect"><option value="continue-run">continue-run</option><option value="run">run</option><option value="prove">prove</option><option value="report-run">report-run</option><option value="compare-runs">compare-runs</option><option value="review-modes">review-modes</option><option value="check-write-safety">check-write-safety</option><option value="probe-opencode">probe-opencode</option><option value="run-stage">run-stage</option><option value="run-stages">run-stages</option><option value="continue-stages">continue-stages</option><option value="accept-stage">accept-stage</option><option value="fix-stage">fix-stage</option><option value="reassess-stage-plan">reassess-stage-plan</option></select></div>
+                <div class="field"><label>Run ID</label><input id="commandRunIdInput" class="input" /></div>
+                <div class="field"><label>Stage name (run)</label><input id="commandStageNameInput" class="input" value="stage-01-example" /></div>
+                <div class="field"><label>Stage ID (fix-stage)</label><input id="commandStageIdInput" class="input" value="stage-01-example" /></div>
+                <div class="field"><label>Stage plan path (fix-stage)</label><input id="commandStagePlanInput" class="input" value=".artifacts/runs/example/stage-plan.json" /></div>
+                <div class="field"><label>Compare run B (compare-runs)</label><input id="commandCompareRunIdInput" class="input" /></div>
+                <div class="field"><label>Modes (review-modes)</label><input id="commandModesInput" class="input" value="architecture,tests,docs,maintainability" /></div>
+                <div class="field"><label>Config</label><input id="commandConfigInput" class="input" value="config.example.json" /></div>
+                <div class="field"><label><input type="checkbox" id="commandStopAfterEachStage" checked /> Stop after each stage (run-stages)</label></div>
+                <div class="field"><label><input type="checkbox" id="commandAutoCommit" /> Auto-commit (accept-stage)</label></div>
+                <div class="field"><label>Commit message (accept-stage)</label><input id="commandCommitMessageInput" class="input" value="" /></div>
+                <div class="field"><label><input type="checkbox" id="commandReassessDownstream" /> Reassess downstream after fix-stage</label></div>
+                <div class="field"><label>Execution mode</label><select id="commandExecutionMode"><option value="preview-first">Preview first</option><option value="read-only">Read-only execute</option><option value="write-enabled">Write-enabled with confirmation</option></select></div>
+                <div class="field"><label><input type="checkbox" id="commandConfirmWrites" /> Confirm write-enabled execution</label></div>
+                <div class="field"><label>Instruction</label><textarea id="commandInstructionInput">Fix only stale roadmap wording. Web app is the main interface for CLI workflows. TUI is superseded.</textarea></div>
+                <div class="toolbar"><span class="pill amber" id="commandRiskPill">medium risk</span><button class="button" id="executeCommandButton">Preview command</button></div>
+                <pre id="commandPreview">Select a command to preview.</pre>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header"><h2>Command output</h2><span class="pill neutral">typed</span></div>
+              <div class="card-body list">
+                <div class="tabs"><button class="tab active" data-tab="typed-result">Typed result</button><button class="tab" data-tab="cli-summary">CLI summary</button><button class="tab" data-tab="events">Events</button></div>
+                <div id="typed-result" class="tab-panel active"><pre id="typedResultOutput">No command executed yet.</pre></div>
+                <div id="cli-summary" class="tab-panel"><pre id="cliSummaryOutput">No CLI summary yet.</pre></div>
+                <div id="events" class="tab-panel"><pre id="eventsOutput">No events yet.</pre></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="team" data-title="Team review" data-crumb="Projects / MergeWright / Team review">
+          <div class="grid-2">
+            <div class="card"><div class="card-header"><h2>Approval queue</h2><span class="pill amber" id="approvalQueuePill">0 pending</span></div><div class="card-body list" id="approvalQueueList"><div class="list-item muted">No pending approvals.</div></div></div>
+            <div class="card">
+              <div class="card-header"><h2>Review thread</h2><span class="pill blue" id="selectedReviewStatusPill">none</span></div>
+              <div class="card-body list">
+                <div class="field"><label>Selected review</label><select id="selectedReviewSelect"></select></div>
+                <div class="list" id="reviewCommentsList"><div class="list-item muted">No review selected.</div></div>
+                <div class="field"><label>Add comment</label><textarea id="reviewCommentInput" placeholder="Add a review comment..."></textarea></div>
+                <div class="toolbar"><button class="button-secondary" id="addReviewCommentButton">Add comment</button></div>
+                <div class="field"><label>Decision note</label><input class="input" id="reviewDecisionNoteInput" placeholder="Optional decision note" /></div>
+                <div class="toolbar"><button class="button" id="approveReviewButton">Approve</button><button class="button-secondary" id="requestChangesButton">Request changes</button></div>
+              </div>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="card"><div class="card-header"><h2>PR summary preview</h2><span class="pill blue" id="reviewPrSummaryPill">not loaded</span></div><div class="card-body"><pre id="reviewPrSummaryOutput">Select a review to load PR summary preview.</pre></div></div>
+            <div class="card"><div class="card-header"><h2>Audit trail</h2><span class="pill neutral" id="reviewAuditPill">0 events</span></div><div class="card-body"><pre id="reviewAuditOutput">Select a review to load audit trail.</pre></div></div>
+          </div>
+        </section>
+
+        <section class="page" id="settings" data-title="Settings" data-crumb="Projects / MergeWright / Settings">
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-header"><h2>Project settings</h2><span class="pill neutral" id="settingsSaveStatus">not saved</span></div>
+              <div class="card-body list">
+                <div class="field"><label>Default config path</label><input class="input mono" id="settingsConfigPath" value="config.example.json" /></div>
+                <div class="field"><label>Runs root</label><input class="input mono" id="settingsRunsRoot" value=".artifacts/runs" /></div>
+                <div class="field"><label>Default provider</label><select class="input" id="settingsDefaultProvider"></select></div>
+                <div class="field"><label>Default model</label><input class="input mono" id="settingsDefaultModel" value="gpt-5.3-codex" /></div>
+                <div class="field"><label>Default execution mode</label><select class="input" id="settingsDefaultMode"><option value="preview-first">Preview first</option><option value="read-only">Read-only execute</option><option value="write-enabled">Write-enabled with confirmation</option></select></div>
+                <div class="field"><label>Evidence retention days</label><input class="input" id="settingsEvidenceRetention" type="number" min="1" value="30" /></div>
+                <div class="field"><label>Artifact retention days</label><input class="input" id="settingsArtifactRetention" type="number" min="1" value="30" /></div>
+                <div class="field"><label>Theme</label><select class="input" id="settingsTheme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
+                <div class="field"><label><input type="checkbox" id="settingsKeyboardShortcuts" checked /> Enable keyboard shortcuts</label></div>
+                <div class="list-item"><strong>API base</strong><div class="mono small">/api</div></div>
+                <div class="list-item"><strong>Runs source</strong><div class="mono small">GET /api/runs</div></div>
+                <div class="toolbar"><button class="button" id="saveSettingsButton">Save settings</button></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header"><h2>Policy settings</h2><span class="pill blue" id="settingsWriteSafetyPill">loading</span></div>
+              <div class="card-body list">
+                <div class="list-item"><strong>Require git repo</strong><p id="settingsRequireGitRepo">-</p></div>
+                <div class="list-item"><strong>Require clean start</strong><p id="settingsRequireCleanStart">-</p></div>
+                <div class="list-item"><strong>Manual commit only</strong><p id="settingsManualCommitOnly">-</p></div>
+                <div class="list-item"><strong>Write safety</strong><p id="settingsWriteSafetySummary">-</p></div>
+                <div class="list-item"><strong>Blocked paths</strong><p class="mono small" id="settingsBlockedPaths">-</p></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h2>Providers</h2><span class="pill neutral" id="settingsProvidersPill">0 providers</span></div>
+            <div class="card-body">
+              <table>
+                <thead>
+                  <tr><th>Provider</th><th>Type</th><th>Command</th><th>Roles</th><th>Probe</th></tr>
+                </thead>
+                <tbody id="settingsProvidersBody">
+                  <tr><td colspan="5" class="muted">Providers not loaded.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

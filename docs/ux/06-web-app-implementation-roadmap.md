@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed implementation roadmap for turning the web demo and information architecture into the real MergeWright web app.
+Active implementation roadmap for turning the web demo and information architecture into the real MergeWright web app.
 
 This roadmap assumes:
 
@@ -10,6 +10,58 @@ This roadmap assumes:
 - CLI remains the automation and scripting surface.
 - API is the orchestration boundary for web clients.
 - TUI is superseded.
+
+## Implementation snapshot (May 31, 2026)
+
+Current progress is no longer just proposed. The following are implemented and runnable:
+
+- API app server: `apps/api/src/server.ts`.
+- Web app server and shell: `apps/web/src/server.ts`, `apps/web/public/index.html`, `apps/web/public/app.js`.
+- API run/artifact routes:
+  - `GET /health`
+  - `GET /runs`
+  - `GET /runs/compare?runA=<id>&runB=<id>`
+  - `GET /runs/:runId`
+  - `GET /runs/:runId/readiness`
+  - `GET /runs/:runId/review`
+  - `GET /runs/:runId/evidence`
+  - `GET /runs/:runId/phase-artifacts`
+  - `GET /runs/:runId/artifacts`
+  - `GET /runs/:runId/artifacts/:artifactId`
+  - `GET /runs/:runId/artifacts/:artifactId/content`
+- API stage plan routes:
+  - `GET /stage-plans`
+  - `GET /stage-plans/:stagePlanId`
+- API project routes:
+  - `GET /projects`
+  - `GET /projects/:projectId`
+  - `GET /projects/:projectId/health`
+- API provider and policy routes:
+  - `GET /providers`
+  - `GET /policy`
+  - `GET /safety/write-status`
+  - `GET /settings`
+  - `PUT /settings`
+- API command routes:
+  - `POST /commands` (typed app commands)
+  - `POST /commands/preview` (typed command preview)
+  - `POST /cli/commands` (CLI-equivalent command gateway)
+- API command event routes:
+  - `GET /runs/:runId/events?limit=<n>` (run-scoped lifecycle history)
+  - `GET /commands/:commandId/events?limit=<n>` (request-scoped lifecycle history)
+  - `GET /cli/events` (SSE lifecycle stream)
+  - `GET /cli/events/recent?limit=<n>` (recent lifecycle history)
+- Web command launcher currently supports:
+  - `run`, `continue-run`, `prove`, `report-run`, `compare-runs`, `review-modes`
+  - `check-write-safety`, `probe-opencode`
+  - `run-stage`, `run-stages`, `continue-stages`, `accept-stage`, `fix-stage`, `reassess-stage-plan`
+
+Phase progress against this roadmap:
+
+- Phase 1 (web shell/navigation): implemented as a runnable static shell.
+- Phases 2-9 and 14: partially implemented in the current shell (projects, runs, stage plans, run detail, results/proof visualization, review, command launcher, team queue, PR summary preview, audit trail).
+- Phases 12-13 and 15: partially implemented through provider inventory, policy/safety visibility, and persisted local settings.
+- Phases 10-11: partially implemented (evidence map and dedicated compare-runs page now wired; deeper matrix/interaction polish remains).
 
 ## Current foundation
 
@@ -396,30 +448,43 @@ Current API covers:
 
 ```text
 GET /health
+GET /projects
+GET /projects/:projectId
+GET /projects/:projectId/health
+GET /reviews
+POST /reviews/:reviewId/comments
+POST /reviews/:reviewId/approval
+GET /providers
+GET /policy
+GET /safety/write-status
+GET /settings
+PUT /settings
 GET /runs
+GET /runs/compare?runA=<id>&runB=<id>
 GET /runs/:runId
+GET /runs/:runId/readiness
+GET /runs/:runId/review
+GET /runs/:runId/evidence
+GET /runs/:runId/phase-artifacts
+GET /runs/:runId/events
 GET /runs/:runId/artifacts
 GET /runs/:runId/artifacts/:artifactId
+GET /runs/:runId/artifacts/:artifactId/content
+GET /stage-plans
+GET /stage-plans/:stagePlanId
 POST /commands
+POST /commands/preview
+POST /cli/commands
+POST /cli/commands/preview
+GET /commands/:commandId/events
+GET /cli/events
+GET /cli/events/recent?limit=<n>
 ```
 
 Likely next API additions:
 
 ```text
-GET /projects
-GET /projects/:projectId/health
-GET /runs/:runId/artifacts/:artifactId/content
-GET /runs/:runId/readiness
-GET /runs/:runId/review
-GET /runs/:runId/evidence
-GET /runs/:runId/events
-POST /commands/preview
-GET /commands/:commandId/events
-GET /stage-plans
-GET /stage-plans/:stagePlanId
-GET /providers
-GET /policy
-GET /safety/write-status
+No mandatory new endpoint for this slice; prioritize deeper UI parity/polish over route expansion.
 ```
 
 ## UI risk controls

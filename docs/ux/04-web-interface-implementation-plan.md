@@ -10,6 +10,8 @@ The web app is the primary human interface for MergeWright. The CLI remains the 
 
 This document defines the implementation plan for the MergeWright web interface.
 
+The design reference for this implementation is `docs/ux/web-app-demo.html`. When implementation choices are ambiguous, prefer the demo's interaction model and terminology unless it conflicts with architecture boundaries in this document.
+
 The web interface should be a local-first operator control room for safe, staged, auditable AI coding workflows. It should not be a thin visual wrapper over the CLI, a generic admin dashboard, or a chat-first app.
 
 ## Product concept
