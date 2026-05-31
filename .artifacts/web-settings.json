@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "project": {
+    "defaultConfigPath": "/absolute/path/to/orchestrator/configs/rn-fastify-next.json",
+    "runsRoot": "/absolute/path/to/orchestrator/runs/rn-fastify-next",
+    "defaultProvider": "codex",
+    "defaultModel": "gpt-5.3-codex",
+    "defaultMode": "preview-first"
+  },
+  "retention": {
+    "evidenceDays": 30,
+    "artifactDays": 30
+  },
+  "ui": {
+    "theme": "system",
+    "keyboardShortcuts": true
+  },
+  "updatedAt": "2026-05-31T03:47:46.231Z"
+}

@@ -59,14 +59,14 @@ API routes used by the web app:
 ## 3) Start web app
 
 ```bash
-npm run start --workspace @mergewright/web -- --host 127.0.0.1 --port 3050 --api-base-url http://127.0.0.1:3040
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:3040 npm run dev --workspace @mergewright/web
 ```
 
 Open:
 
 - `http://127.0.0.1:3050`
 
-The web server proxies `/api/*` to the API base URL, so browser calls stay same-origin.
+The web app calls the API directly using `NEXT_PUBLIC_API_BASE_URL` (default `http://127.0.0.1:3040`).
 
 ## 4) Validate basic flow
 

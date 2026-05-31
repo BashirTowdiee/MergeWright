@@ -89,7 +89,7 @@ Start the API + web control room (demo-guided slice):
 
 ```bash
 npm run start --workspace @mergewright/api -- --config config.example.json --host 127.0.0.1 --port 3040
-npm run start --workspace @mergewright/web -- --host 127.0.0.1 --port 3050 --api-base-url http://127.0.0.1:3040
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:3040 npm run dev --workspace @mergewright/web
 ```
 
 Then open `http://127.0.0.1:3050`.

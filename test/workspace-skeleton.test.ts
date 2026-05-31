@@ -17,6 +17,7 @@ interface TsConfigJson {
   readonly compilerOptions?: {
     readonly rootDir?: string;
     readonly outDir?: string;
+    readonly noEmit?: boolean;
   };
   readonly include?: readonly string[];
 }
@@ -84,6 +85,11 @@ test("app workspace TypeScript configs extend the root config with app-local out
     const tsconfig = await readJson<TsConfigJson>(`apps/${appName}/tsconfig.json`);
 
     assert.equal(tsconfig.extends, "../../tsconfig.json", `${appName} should extend the root tsconfig`);
+    if (appName === "web") {
+      assert.equal(tsconfig.compilerOptions?.noEmit, true, "web should use Next.js type-checking without root tsc emission");
+      assert.deepEqual(tsconfig.include, ["next-env.d.ts", "app/**/*.ts", "app/**/*.tsx"]);
+      continue;
+    }
     assert.equal(tsconfig.compilerOptions?.rootDir, "../..", `${appName} should compile from the repository root during migration`);
     assert.equal(tsconfig.compilerOptions?.outDir, `../../dist/apps/${appName}`, `${appName} should emit under its app dist folder`);
     assert.deepEqual(tsconfig.include, ["src/**/*.ts", "src/**/*.tsx"], `${appName} should include only app-local source files`);
@@ -113,6 +119,12 @@ test("app workspace packages expose local build scripts", async () => {
   for (const appName of appWorkspaces) {
     const packageJson = await readPackageJson(`apps/${appName}`);
 
+    if (appName === "web") {
+      assert.equal(packageJson.scripts?.build, "next build --webpack");
+      assert.equal(packageJson.scripts?.dev, "next dev --webpack --hostname 127.0.0.1 --port 3050");
+      assert.equal(packageJson.scripts?.start, "next start --hostname 127.0.0.1 --port 3050");
+      continue;
+    }
     assert.equal(packageJson.scripts?.build, "tsc -p tsconfig.json", `${appName} should build from its app-local tsconfig`);
   }
 });

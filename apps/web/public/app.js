@@ -1,3 +1,15 @@
+const API_BASE_URL = (window.__MERGEWRIGHT_API_BASE_URL__ ?? "http://127.0.0.1:3040").replace(/\/$/, "");
+
+function toApiUrl(url) {
+  if (typeof url !== "string") {
+    return url;
+  }
+  if (url.startsWith("/api/")) {
+    return `${API_BASE_URL}${url}`;
+  }
+  return url;
+}
+
 const state = {
   projects: [],
   selectedProjectId: undefined,
@@ -240,10 +252,11 @@ function appendLifecycleEvent(event) {
 }
 
 async function fetchJson(url, init) {
-  const response = await fetch(url, init);
+  const requestUrl = toApiUrl(url);
+  const response = await fetch(requestUrl, init);
   const payload = await response.json();
   if (!response.ok) {
-    throw new Error(`API ${response.status}: ${url}`);
+    throw new Error(`API ${response.status}: ${requestUrl}`);
   }
   return payload;
 }
@@ -1745,7 +1758,7 @@ async function executeGatewayCommand() {
       requestId: `preview-${new Date().toISOString()}`,
       command: buildGatewayPayload()
     };
-    const response = await fetch("/api/cli/commands/preview", {
+    const response = await fetch(toApiUrl("/api/cli/commands/preview"), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(previewPayload)
@@ -1809,7 +1822,7 @@ async function executeGatewayCommand() {
   };
 
   const startedAt = new Date().toISOString();
-  const response = await fetch("/api/cli/commands", {
+  const response = await fetch(toApiUrl("/api/cli/commands"), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(payload)
@@ -1866,7 +1879,7 @@ function startCliEventStream() {
     return;
   }
 
-  const stream = new EventSource("/api/cli/events");
+  const stream = new EventSource(toApiUrl("/api/cli/events"));
   stream.onmessage = (message) => {
     try {
       const payload = JSON.parse(message.data);

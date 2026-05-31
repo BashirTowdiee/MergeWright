@@ -16,7 +16,7 @@ This roadmap assumes:
 Current progress is no longer just proposed. The following are implemented and runnable:
 
 - API app server: `apps/api/src/server.ts`.
-- Web app server and shell: `apps/web/src/server.ts`, `apps/web/public/index.html`, `apps/web/public/app.js`.
+- Web app shell runtime: `apps/web/app/page.tsx`, `apps/web/app/layout.tsx`, `apps/web/app/globals.css`, `apps/web/public/app.js`.
 - API run/artifact routes:
   - `GET /health`
   - `GET /runs`
@@ -58,7 +58,7 @@ Current progress is no longer just proposed. The following are implemented and r
 
 Phase progress against this roadmap:
 
-- Phase 1 (web shell/navigation): implemented as a runnable static shell.
+- Phase 1 (web shell/navigation): implemented as a runnable Next.js parity shell.
 - Phases 2-9 and 14: partially implemented in the current shell (projects, runs, stage plans, run detail, results/proof visualization, review, command launcher, team queue, PR summary preview, audit trail).
 - Phases 12-13 and 15: partially implemented through provider inventory, policy/safety visibility, and persisted local settings.
 - Phases 10-11: partially implemented (evidence map and dedicated compare-runs page now wired; deeper matrix/interaction polish remains).

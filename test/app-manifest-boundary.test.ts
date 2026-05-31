@@ -11,6 +11,8 @@ interface Manifest {
       readonly default?: string;
     };
   };
+  readonly scripts?: Record<string, string>;
+  readonly dependencies?: Record<string, string>;
 }
 
 async function readManifest(path: string): Promise<Manifest> {
@@ -35,11 +37,11 @@ test("CLI app manifest exposes its built entrypoints", async () => {
   assert.equal(manifest.exports?.["."]?.default, "../../dist/apps/cli/src/main.js");
 });
 
-test("Web app manifest exposes its built entrypoints", async () => {
+test("Web app manifest exposes Next.js runtime scripts", async () => {
   const manifest = await readManifest("apps/web/package.json");
 
-  assert.equal(manifest.main, "../../dist/apps/web/src/server.js");
-  assert.equal(manifest.types, "../../dist/apps/web/src/server.d.ts");
-  assert.equal(manifest.exports?.["."]?.types, "../../dist/apps/web/src/server.d.ts");
-  assert.equal(manifest.exports?.["."]?.default, "../../dist/apps/web/src/server.js");
+  assert.equal(manifest.scripts?.dev, "next dev --webpack --hostname 127.0.0.1 --port 3050");
+  assert.equal(manifest.scripts?.build, "next build --webpack");
+  assert.equal(manifest.scripts?.start, "next start --hostname 127.0.0.1 --port 3050");
+  assert.ok(typeof manifest.dependencies?.next === "string");
 });

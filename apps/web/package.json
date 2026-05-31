@@ -4,16 +4,14 @@
   "private": true,
   "type": "module",
   "description": "MergeWright web control room application boundary.",
-  "main": "../../dist/apps/web/src/server.js",
-  "types": "../../dist/apps/web/src/server.d.ts",
-  "exports": {
-    ".": {
-      "types": "../../dist/apps/web/src/server.d.ts",
-      "default": "../../dist/apps/web/src/server.js"
-    }
-  },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "start": "node ../../dist/apps/web/src/server.js"
+    "dev": "next dev --webpack --hostname 127.0.0.1 --port 3050",
+    "build": "next build --webpack",
+    "start": "next start --hostname 127.0.0.1 --port 3050"
+  },
+  "dependencies": {
+    "next": "^16.0.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
   }
 }

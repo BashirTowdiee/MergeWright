@@ -20,5 +20,9 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     "test/**/*.ts"
+  ],
+  "exclude": [
+    "apps/web/app/**/*",
+    "apps/web/next-env.d.ts"
   ]
 }

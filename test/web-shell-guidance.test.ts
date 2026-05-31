@@ -3,11 +3,19 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-const INDEX_PATH = path.join(process.cwd(), "apps", "web", "public", "index.html");
+const PAGE_PATH = path.join(process.cwd(), "apps", "web", "app", "page.tsx");
+const SHELL_PATH = path.join(process.cwd(), "apps", "web", "app", "shell.html");
+const GLOBALS_CSS_PATH = path.join(process.cwd(), "apps", "web", "app", "globals.css");
 const APP_JS_PATH = path.join(process.cwd(), "apps", "web", "public", "app.js");
 
 test("web shell keeps demo-guided control room pages", async () => {
-  const html = await readFile(INDEX_PATH, "utf8");
+  const page = await readFile(PAGE_PATH, "utf8");
+  const html = await readFile(SHELL_PATH, "utf8");
+  const css = await readFile(GLOBALS_CSS_PATH, "utf8");
+
+  assert.ok(page.includes("window.__MERGEWRIGHT_API_BASE_URL__"));
+  assert.ok(page.includes('Script src="/app.js"'));
+  assert.ok(css.includes(".app { min-height: 100vh;"));
 
   assert.ok(html.includes('id="projects"'));
   assert.ok(html.includes('id="metricProjectsTotal"'));
@@ -67,6 +75,8 @@ test("web shell keeps demo-guided control room pages", async () => {
 test("web shell is wired to API run data and CLI gateway", async () => {
   const source = await readFile(APP_JS_PATH, "utf8");
 
+  assert.ok(source.includes('const API_BASE_URL = (window.__MERGEWRIGHT_API_BASE_URL__ ?? "http://127.0.0.1:3040")'));
+  assert.ok(source.includes("function toApiUrl(url)"));
   assert.ok(source.includes('fetchJson("/api/health")'));
   assert.ok(source.includes('fetchJson("/api/projects")'));
   assert.ok(source.includes('fetchJson("/api/providers")'));
@@ -90,14 +100,14 @@ test("web shell is wired to API run data and CLI gateway", async () => {
   assert.ok(source.includes("fetchJson(`/api/runs/${encodeURIComponent(runId)}/artifacts`)"));
   assert.ok(source.includes('/artifacts/${encodeURIComponent(artifactId)}/content?maxBytes=256000'));
   assert.ok(source.includes('fetchJson("/api/cli/events/recent?limit=80")'));
-  assert.ok(source.includes('fetch("/api/cli/commands"'));
-  assert.ok(source.includes('fetch("/api/cli/commands/preview"'));
+  assert.ok(source.includes('fetch(toApiUrl("/api/cli/commands"'));
+  assert.ok(source.includes('fetch(toApiUrl("/api/cli/commands/preview"'));
   assert.ok(source.includes("fetchJson(`/api/reviews/${encodeURIComponent(review.id)}/comments`"));
   assert.ok(source.includes("fetchJson(`/api/reviews/${encodeURIComponent(review.id)}/approval`"));
   assert.ok(source.includes("fetchJson(`/api/runs/${encodeURIComponent(review.runId)}/artifacts`)"));
   assert.ok(source.includes("/artifacts/${encodeURIComponent(prSummaryArtifact.id)}/content?maxBytes=64000"));
   assert.ok(source.includes("fetchJson(`/api/runs/${encodeURIComponent(review.runId)}/events?limit=40`)"));
-  assert.ok(source.includes('new EventSource("/api/cli/events")'));
+  assert.ok(source.includes('new EventSource(toApiUrl("/api/cli/events"))'));
   assert.ok(source.includes("buildGatewayPayload"));
   assert.ok(source.includes('"fix-stage"'));
   assert.ok(source.includes('"check-write-safety"'));
