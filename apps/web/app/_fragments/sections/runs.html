@@ -1,12 +1,12 @@
-<section class="page" id="runs" data-title="Runs" data-crumb="Projects / MergeWright / Runs">
-          <div class="grid-4">
+<section class="page stack runs-page" id="runs" data-title="Runs" data-crumb="Projects / MergeWright / Runs">
+          <div class="metric-grid">
             <div class="metric"><span>Total runs</span><strong id="metricTotalRuns">0</strong><small>Loaded from API</small></div>
             <div class="metric"><span>Ready</span><strong id="metricReadyRuns">0</strong><small>Status READY/passed</small></div>
             <div class="metric"><span>Blocked</span><strong id="metricBlockedRuns">0</strong><small>Needs action</small></div>
             <div class="metric"><span>Running</span><strong id="metricRunningRuns">0</strong><small>In progress</small></div>
           </div>
           <div class="card">
-            <div class="card-header"><div><h2>Run list</h2><p class="muted">Filter, inspect, continue, compare, report.</p></div><div class="toolbar"><input class="input" id="runsFilterInput" style="width:220px" placeholder="filter by run id/title" /></div></div>
+            <div class="card-header"><div><h2>Run list</h2><p class="muted">Filter, inspect, continue, compare, report.</p></div><div class="toolbar"><input class="input runs-filter-input" id="runsFilterInput" placeholder="filter by run id/title" /></div></div>
             <div class="card-body">
               <table>
                 <thead><tr><th>Run</th><th>Status</th><th>Mode</th><th>Branch</th><th>Next action</th></tr></thead>

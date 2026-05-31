@@ -584,6 +584,18 @@ export const updateProjectRequestSchema = z.object({
     })
 });
 
+export const updateProjectConfigRequestSchema = z.object({
+  config: z
+    .object({
+      runsDir: z.string().min(1).optional(),
+      defaultProvider: z.string().min(1).optional(),
+      defaultModel: z.string().min(1).optional()
+    })
+    .refine((value) => value.runsDir !== undefined || value.defaultProvider !== undefined || value.defaultModel !== undefined, {
+      message: "At least one project config field is required."
+    })
+});
+
 export const createProjectResponseSchema = z.object({
   project: projectDetailSchema
 });
@@ -593,6 +605,10 @@ export const initProjectResponseSchema = z.object({
 });
 
 export const updateProjectResponseSchema = z.object({
+  project: projectDetailSchema
+});
+
+export const updateProjectConfigResponseSchema = z.object({
   project: projectDetailSchema
 });
 
@@ -711,4 +727,8 @@ export const getWriteSafetyStatusResponseSchema = z.object({
 export const errorResponseSchema = z.object({
   code: z.string(),
   message: z.string()
+});
+
+export const selectWorkspaceResponseSchema = z.object({
+  workspacePath: z.string().min(1)
 });

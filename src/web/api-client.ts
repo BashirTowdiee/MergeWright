@@ -38,6 +38,8 @@ import {
   createProjectRequestSchema,
   updateProjectRequestSchema,
   updateProjectResponseSchema,
+  updateProjectConfigRequestSchema,
+  updateProjectConfigResponseSchema,
   deleteProjectResponseSchema,
   listStagePlansResponseSchema,
   listRunArtifactsResponseSchema,
@@ -140,6 +142,16 @@ export class MergeWrightApiClient {
       body: JSON.stringify(request)
     });
     return updateProjectResponseSchema.parse(payload).project;
+  }
+
+  async updateProjectConfig(projectId: string, input: { runsDir?: string; defaultProvider?: string; defaultModel?: string }): Promise<ProjectDetail> {
+    const request = updateProjectConfigRequestSchema.parse({ config: input });
+    const payload = await this.request(`/projects/${encodeURIComponent(projectId)}/config`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(request)
+    });
+    return updateProjectConfigResponseSchema.parse(payload).project;
   }
 
   async deleteProject(projectId: string): Promise<void> {

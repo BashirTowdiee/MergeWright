@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import path from "node:path";
 import process from "node:process";
 import { createApiServer } from "../../../src/api/create-api-server.js";
@@ -54,6 +56,8 @@ interface ExecuteBuilderOverrides {
   readonly executeReviewer?: boolean;
   readonly runChecks?: boolean;
 }
+
+const execFileAsync = promisify(execFile);
 
 async function main(): Promise<void> {
   const options = parseRuntimeOptions(process.argv.slice(2), process.cwd());
@@ -183,6 +187,14 @@ async function main(): Promise<void> {
         verbose: false
       });
       return { configPath: result.configPath };
+    },
+    selectWorkspacePath: async () => {
+      const { stdout } = await execFileAsync("osascript", [
+        "-e",
+        'POSIX path of (choose folder with prompt "Select workspace folder")'
+      ]);
+      const workspacePath = stdout.trim();
+      return workspacePath.length > 0 ? workspacePath : null;
     }
   });
 

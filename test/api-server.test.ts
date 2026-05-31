@@ -525,6 +525,7 @@ class FakeProjectQueryService implements ProjectQueryService {
   readonly healthCalls: string[] = [];
   readonly createCalls: Array<{ name: string; configPath: string }> = [];
   readonly updateCalls: Array<{ projectId: string; name?: string; configPath?: string }> = [];
+  readonly updateConfigCalls: Array<{ projectId: string; runsDir?: string; defaultProvider?: string; defaultModel?: string }> = [];
   readonly deleteCalls: string[] = [];
 
   async listProjects(): Promise<ProjectSummary[]> {
@@ -574,6 +575,21 @@ class FakeProjectQueryService implements ProjectQueryService {
       return null;
     }
     return { ok: true };
+  }
+
+  async updateProjectConfig(
+    projectId: string,
+    input: { runsDir?: string; defaultProvider?: string; defaultModel?: string }
+  ): Promise<ProjectDetail | null> {
+    this.updateConfigCalls.push({ projectId, ...input });
+    if (projectId !== projectSummary.id) {
+      return null;
+    }
+    return {
+      ...projectDetail,
+      runsRoot: input.runsDir ?? projectDetail.runsRoot,
+      defaultProvider: input.defaultProvider ?? projectDetail.defaultProvider
+    };
   }
 
   async resolveProjectContext(_projectId: string): Promise<null> {
@@ -837,6 +853,53 @@ test("POST /projects/init returns 503 when init is not configured", async () => 
   });
 });
 
+test("POST /system/select-workspace returns selected path", async () => {
+  const server = createApiServer({
+    runQueryService: new FakeRunQueryService(),
+    selectWorkspacePath: async () => "/tmp/workspace-selected"
+  });
+  const response = await server.inject({
+    method: "POST",
+    url: "/system/select-workspace"
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json(), { workspacePath: "/tmp/workspace-selected" });
+});
+
+test("POST /system/select-workspace returns 503 when picker is unavailable", async () => {
+  const server = createApiServer({
+    runQueryService: new FakeRunQueryService()
+  });
+  const response = await server.inject({
+    method: "POST",
+    url: "/system/select-workspace"
+  });
+
+  assert.equal(response.statusCode, 503);
+  assert.deepEqual(response.json(), {
+    code: "WORKSPACE_PICKER_UNAVAILABLE",
+    message: "Workspace picker is not configured."
+  });
+});
+
+test("POST /system/select-workspace returns 409 when picker is cancelled", async () => {
+  const server = createApiServer({
+    runQueryService: new FakeRunQueryService(),
+    selectWorkspacePath: async () => null
+  });
+  const response = await server.inject({
+    method: "POST",
+    url: "/system/select-workspace"
+  });
+
+  assert.equal(response.statusCode, 409);
+  assert.deepEqual(response.json(), {
+    code: "WORKSPACE_PICKER_CANCELLED",
+    message: "Workspace selection was cancelled."
+  });
+});
+
 test("GET /projects/:projectId returns project detail", async () => {
   const projectQueryService = new FakeProjectQueryService();
   const server = createApiServer({ runQueryService: new FakeRunQueryService(), projectQueryService });
@@ -855,6 +918,49 @@ test("GET /projects/:projectId/health returns project health", async () => {
   assert.equal(response.statusCode, 200);
   assert.deepEqual(response.json(), { health: projectHealth });
   assert.deepEqual(projectQueryService.healthCalls, ["default"]);
+});
+
+test("PUT /projects/:projectId/config updates project config", async () => {
+  const projectQueryService = new FakeProjectQueryService();
+  const server = createApiServer({ runQueryService: new FakeRunQueryService(), projectQueryService });
+  const response = await server.inject({
+    method: "PUT",
+    url: "/projects/default/config",
+    payload: {
+      config: {
+        runsDir: ".artifacts/runs/default",
+        defaultProvider: "opencode-local",
+        defaultModel: "gpt-5.3-codex"
+      }
+    }
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(projectQueryService.updateConfigCalls.length, 1);
+  assert.deepEqual(projectQueryService.updateConfigCalls[0], {
+    projectId: "default",
+    runsDir: ".artifacts/runs/default",
+    defaultProvider: "opencode-local",
+    defaultModel: "gpt-5.3-codex"
+  });
+});
+
+test("PUT /projects/:projectId/config validates request payload", async () => {
+  const projectQueryService = new FakeProjectQueryService();
+  const server = createApiServer({ runQueryService: new FakeRunQueryService(), projectQueryService });
+  const response = await server.inject({
+    method: "PUT",
+    url: "/projects/default/config",
+    payload: {
+      config: {}
+    }
+  });
+
+  assert.equal(response.statusCode, 400);
+  assert.deepEqual(response.json(), {
+    code: "VALIDATION_FAILED",
+    message: "Invalid project config update request."
+  });
 });
 
 test("GET /projects/:projectId returns 404 for missing project", async () => {

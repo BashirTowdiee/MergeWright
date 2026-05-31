@@ -1,8 +1,8 @@
-<section class="page" id="settings" data-title="Settings" data-crumb="Projects / MergeWright / Settings">
+<section class="page stack settings-page" id="settings" data-title="Settings" data-crumb="Projects / MergeWright / Settings">
           <div class="grid-2">
             <div class="card">
               <div class="card-header"><h2>Project settings</h2><span class="pill neutral" id="settingsSaveStatus">not saved</span></div>
-              <div class="card-body list">
+              <div class="card-body list form-grid settings-form">
                 <div class="field"><label>Default config path</label><input class="input mono" id="settingsConfigPath" value="config.example.json" /></div>
                 <div class="field"><label>Runs root</label><input class="input mono" id="settingsRunsRoot" value=".artifacts/runs" /></div>
                 <div class="field"><label>Default provider</label><select class="input" id="settingsDefaultProvider"></select></div>
@@ -14,7 +14,10 @@
                 <div class="field"><label><input type="checkbox" id="settingsKeyboardShortcuts" checked /> Enable keyboard shortcuts</label></div>
                 <div class="list-item"><strong>API base</strong><div class="mono small">/api</div></div>
                 <div class="list-item"><strong>Runs source</strong><div class="mono small">GET /api/runs</div></div>
-                <div class="toolbar"><button class="button" id="saveSettingsButton">Save settings</button></div>
+                <div class="toolbar">
+                  <button class="button" id="saveSettingsButton">Save settings</button>
+                  <button class="button-secondary" id="saveProjectConfigButton">Apply to project config</button>
+                </div>
               </div>
             </div>
             <div class="card">

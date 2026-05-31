@@ -31,7 +31,7 @@ async function loadShellHtml(): Promise<string> {
 
 export async function ControlRoomShell({ route }: { route: RouteContext }) {
   const shellHtml = await loadShellHtml();
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:3040";
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api";
 
   return (
     <>

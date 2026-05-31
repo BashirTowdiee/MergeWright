@@ -32,6 +32,8 @@ import {
   initProjectResponseSchema,
   updateProjectRequestSchema,
   updateProjectResponseSchema,
+  updateProjectConfigRequestSchema,
+  updateProjectConfigResponseSchema,
   deleteProjectResponseSchema,
   getProjectParamsSchema,
   getProjectResponseSchema,
@@ -64,6 +66,7 @@ import {
   previewCommandResponseSchema,
   submitCommandRequestSchema,
   submitCommandResponseSchema,
+  selectWorkspaceResponseSchema,
   updateSettingsRequestSchema,
   updateSettingsResponseSchema,
   reviewIdParamsSchema
@@ -87,6 +90,7 @@ export interface CreateApiServerOptions {
   readonly cliCommandGateway?: CliCommandGateway;
   readonly onCliCommandEvent?: (event: CliCommandEvent) => void;
   readonly initProject?: (input: { name: string; workspacePath: string; force: boolean }) => Promise<{ configPath: string }>;
+  readonly selectWorkspacePath?: () => Promise<string | null>;
 }
 
 export interface ProjectScopedServices {
@@ -124,6 +128,18 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
   const cliEventSubscribers = new Set<(event: CliCommandEvent) => void>();
   const cliEventHistory: CliCommandEvent[] = [];
   const cliEventHistoryLimit = 500;
+
+  server.addHook("onRequest", async (request, reply) => {
+    const origin = request.headers.origin;
+    reply.header("Access-Control-Allow-Origin", typeof origin === "string" && origin.length > 0 ? origin : "*");
+    reply.header("Vary", "Origin");
+    reply.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+    reply.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  });
+
+  server.options("/*", async (_request, reply) => {
+    return reply.code(204).send();
+  });
 
   function publishCliCommandEvent(event: CliCommandEvent): void {
     cliEventHistory.push(event);
@@ -274,6 +290,37 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       return reply.code(409).send(
         errorResponseSchema.parse({
           code: "PROJECT_CONFLICT",
+          message: error instanceof Error ? error.message : String(error)
+        })
+      );
+    }
+  });
+
+  server.post("/system/select-workspace", async (_request, reply) => {
+    if (!options.selectWorkspacePath) {
+      return reply.code(503).send(
+        errorResponseSchema.parse({
+          code: "WORKSPACE_PICKER_UNAVAILABLE",
+          message: "Workspace picker is not configured."
+        })
+      );
+    }
+
+    try {
+      const workspacePath = await options.selectWorkspacePath();
+      if (!workspacePath) {
+        return reply.code(409).send(
+          errorResponseSchema.parse({
+            code: "WORKSPACE_PICKER_CANCELLED",
+            message: "Workspace selection was cancelled."
+          })
+        );
+      }
+      return selectWorkspaceResponseSchema.parse({ workspacePath });
+    } catch (error) {
+      return reply.code(409).send(
+        errorResponseSchema.parse({
+          code: "WORKSPACE_PICKER_FAILED",
           message: error instanceof Error ? error.message : String(error)
         })
       );
@@ -606,6 +653,49 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       );
     }
     return deleteProjectResponseSchema.parse({ ok: true });
+  });
+
+  server.put("/projects/:projectId/config", async (request, reply) => {
+    const params = getProjectParamsSchema.safeParse(request.params);
+    const body = updateProjectConfigRequestSchema.safeParse(request.body);
+    if (!params.success || !body.success) {
+      return reply.code(400).send(
+        errorResponseSchema.parse({
+          code: "VALIDATION_FAILED",
+          message: "Invalid project config update request."
+        })
+      );
+    }
+
+    const projectQueryService = options.projectQueryService;
+    if (!projectQueryService) {
+      return reply.code(503).send(
+        errorResponseSchema.parse({
+          code: "PROJECT_QUERY_SERVICE_UNAVAILABLE",
+          message: "Project query service is not configured."
+        })
+      );
+    }
+
+    try {
+      const project = await projectQueryService.updateProjectConfig(params.data.projectId, body.data.config);
+      if (!project) {
+        return reply.code(404).send(
+          errorResponseSchema.parse({
+            code: "PROJECT_NOT_FOUND",
+            message: "Project not found."
+          })
+        );
+      }
+      return updateProjectConfigResponseSchema.parse({ project });
+    } catch (error) {
+      return reply.code(409).send(
+        errorResponseSchema.parse({
+          code: "PROJECT_CONFLICT",
+          message: error instanceof Error ? error.message : String(error)
+        })
+      );
+    }
   });
 
   server.get("/projects/:projectId/health", async (request, reply) => {

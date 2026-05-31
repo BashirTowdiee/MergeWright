@@ -1,8 +1,8 @@
-<section class="page" id="commands" data-title="Commands" data-crumb="Projects / MergeWright / Commands">
+<section class="page stack commands-page" id="commands" data-title="Commands" data-crumb="Projects / MergeWright / Commands">
           <div class="grid-2">
             <div class="card">
               <div class="card-header"><div><h2>Command launcher</h2><p class="muted">CLI-equivalent workflows via API</p></div><span class="pill blue">POST /api/cli/commands</span></div>
-              <div class="card-body list">
+              <div class="card-body list form-grid commands-form">
                 <div class="field"><label>Command</label><select id="commandSelect"><option value="continue-run">continue-run</option><option value="run">run</option><option value="prove">prove</option><option value="report-run">report-run</option><option value="compare-runs">compare-runs</option><option value="review-modes">review-modes</option><option value="check-write-safety">check-write-safety</option><option value="probe-opencode">probe-opencode</option><option value="run-stage">run-stage</option><option value="run-stages">run-stages</option><option value="continue-stages">continue-stages</option><option value="accept-stage">accept-stage</option><option value="fix-stage">fix-stage</option><option value="reassess-stage-plan">reassess-stage-plan</option></select></div>
                 <div class="field"><label>Run ID</label><input id="commandRunIdInput" class="input" /></div>
                 <div class="field"><label>Stage name (run)</label><input id="commandStageNameInput" class="input" value="stage-01-example" /></div>
@@ -25,7 +25,7 @@
 
             <div class="card">
               <div class="card-header"><h2>Command output</h2><span class="pill neutral">typed</span></div>
-              <div class="card-body list">
+              <div class="card-body list stack">
                 <div class="tabs"><button class="tab active" data-tab="typed-result">Typed result</button><button class="tab" data-tab="cli-summary">CLI summary</button><button class="tab" data-tab="events">Events</button></div>
                 <div id="typed-result" class="tab-panel active"><pre id="typedResultOutput">No command executed yet.</pre></div>
                 <div id="cli-summary" class="tab-panel"><pre id="cliSummaryOutput">No CLI summary yet.</pre></div>

@@ -14,12 +14,19 @@ export interface ProjectUpdateInput {
   configPath?: string;
 }
 
+export interface ProjectConfigUpdateInput {
+  runsDir?: string;
+  defaultProvider?: string;
+  defaultModel?: string;
+}
+
 export interface ProjectQueryService {
   listProjects(): Promise<ProjectSummary[]>;
   getProject(projectId: string): Promise<ProjectDetail | null>;
   getProjectHealth(projectId: string): Promise<ProjectHealth | null>;
   createProject(input: ProjectCreateInput): Promise<ProjectDetail>;
   updateProject(projectId: string, input: ProjectUpdateInput): Promise<ProjectDetail | null>;
+  updateProjectConfig(projectId: string, input: ProjectConfigUpdateInput): Promise<ProjectDetail | null>;
   deleteProject(projectId: string): Promise<{ ok: true } | { ok: false; code: "PROJECT_NOT_EMPTY"; reason: string } | null>;
   resolveProjectContext(projectId: string): Promise<ProjectContext | null>;
 }
@@ -157,6 +164,49 @@ export class FileProjectCatalogQueryService implements ProjectQueryService {
       throw new Error("Failed to resolve updated project.");
     }
     return context.project;
+  }
+
+  async updateProjectConfig(projectId: string, input: ProjectConfigUpdateInput): Promise<ProjectDetail | null> {
+    const context = await this.resolveProjectContext(projectId);
+    if (!context) {
+      return null;
+    }
+
+    const runsDir = input.runsDir?.trim();
+    const defaultProvider = input.defaultProvider?.trim();
+    const defaultModel = input.defaultModel?.trim();
+
+    const nextConfig: OrchestratorConfig = {
+      ...context.config,
+      paths: {
+        ...context.config.paths,
+        ...(runsDir ? { runsDir } : {})
+      },
+      agents: cloneAgents(context.config.agents)
+    };
+
+    if (defaultProvider) {
+      if (!nextConfig.executionBackends[defaultProvider]) {
+        throw new Error(`Unknown default provider: ${defaultProvider}`);
+      }
+      nextConfig.agents.planner.backend = defaultProvider;
+      nextConfig.agents.builder.backend = defaultProvider;
+      nextConfig.agents.reviewer.backend = defaultProvider;
+    }
+
+    if (defaultModel) {
+      nextConfig.agents.planner.model = defaultModel;
+      nextConfig.agents.builder.model = defaultModel;
+      nextConfig.agents.reviewer.model = defaultModel;
+    }
+
+    await writeFile(context.configPath, `${JSON.stringify(nextConfig, null, 2)}\n`, "utf8");
+
+    const refreshed = await this.resolveProjectContext(projectId);
+    if (!refreshed) {
+      throw new Error("Failed to resolve updated project config.");
+    }
+    return refreshed.project;
   }
 
   async deleteProject(projectId: string): Promise<{ ok: true } | { ok: false; code: "PROJECT_NOT_EMPTY"; reason: string } | null> {
@@ -353,6 +403,14 @@ function uniqueSlug(base: string, taken: Set<string>): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function cloneAgents(agents: OrchestratorConfig["agents"]): OrchestratorConfig["agents"] {
+  return {
+    planner: { ...agents.planner },
+    builder: { ...agents.builder },
+    reviewer: { ...agents.reviewer }
+  };
 }
 
 async function exists(targetPath: string): Promise<boolean> {

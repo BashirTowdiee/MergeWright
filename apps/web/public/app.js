@@ -6,7 +6,12 @@ function toApiUrl(url) {
     return url;
   }
   if (url.startsWith("/api/")) {
-    return `${API_BASE_URL}${url}`;
+    if (API_BASE_URL === "/api" || API_BASE_URL.endsWith("/api")) {
+      return url;
+    }
+    const baseHasApiPrefix = API_BASE_URL.endsWith("/api");
+    const routePath = baseHasApiPrefix ? url : url.replace(/^\/api/, "");
+    return `${API_BASE_URL}${routePath}`;
   }
   return url;
 }
@@ -83,6 +88,7 @@ const nodes = {
   projectNameInput: document.getElementById("projectNameInput"),
   projectConfigPathInput: document.getElementById("projectConfigPathInput"),
   projectWorkspacePathInput: document.getElementById("projectWorkspacePathInput"),
+  projectWorkspaceBrowseButton: document.getElementById("projectWorkspaceBrowseButton"),
   projectCreateButton: document.getElementById("projectCreateButton"),
   projectInitButton: document.getElementById("projectInitButton"),
   projectUpdateButton: document.getElementById("projectUpdateButton"),
@@ -97,6 +103,7 @@ const nodes = {
   settingsKeyboardShortcuts: document.getElementById("settingsKeyboardShortcuts"),
   settingsSaveStatus: document.getElementById("settingsSaveStatus"),
   saveSettingsButton: document.getElementById("saveSettingsButton"),
+  saveProjectConfigButton: document.getElementById("saveProjectConfigButton"),
   settingsWriteSafetyPill: document.getElementById("settingsWriteSafetyPill"),
   settingsRequireGitRepo: document.getElementById("settingsRequireGitRepo"),
   settingsRequireCleanStart: document.getElementById("settingsRequireCleanStart"),
@@ -299,7 +306,11 @@ async function fetchJson(url, init) {
   const response = await fetch(requestUrl, init);
   const payload = await response.json();
   if (!response.ok) {
-    throw new Error(`API ${response.status}: ${requestUrl}`);
+    const message =
+      payload && typeof payload === "object" && typeof payload.message === "string"
+        ? payload.message
+        : `API ${response.status}: ${requestUrl}`;
+    throw new Error(message);
   }
   return payload;
 }
@@ -600,6 +611,31 @@ async function saveSettings() {
   renderSettingsOverview();
 }
 
+async function saveProjectConfig() {
+  if (!state.selectedProjectId) {
+    throw new Error("No active project selected.");
+  }
+
+  const payload = {
+    config: {
+      runsDir: nodes.settingsRunsRoot.value.trim(),
+      defaultProvider: nodes.settingsDefaultProvider.value.trim(),
+      defaultModel: nodes.settingsDefaultModel.value.trim()
+    }
+  };
+
+  const result = await fetchJson(`/api/projects/${encodeURIComponent(state.selectedProjectId)}/config`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  state.selectedProject = result.project;
+  state.settingsDraftStatus = `project config saved ${new Date().toLocaleTimeString()}`;
+  renderProjectOverview();
+  renderSettingsOverview();
+}
+
 async function createProject() {
   const name = nodes.projectNameInput.value.trim();
   const configPath = nodes.projectConfigPathInput.value.trim();
@@ -635,6 +671,27 @@ async function initAndCreateProject() {
   });
   nodes.projectCrudStatus.textContent = "project initialized";
   await loadProjects();
+}
+
+async function browseWorkspacePath() {
+  try {
+    const payload = await fetchJson("/api/system/select-workspace", {
+      method: "POST"
+    });
+    const workspacePath = typeof payload.workspacePath === "string" ? payload.workspacePath.trim() : "";
+    if (!workspacePath) {
+      throw new Error("Workspace picker returned an empty path.");
+    }
+    nodes.projectWorkspacePathInput.value = workspacePath;
+    nodes.projectCrudStatus.textContent = "workspace selected";
+  } catch (error) {
+    const base = error instanceof Error ? error.message : String(error);
+    if (base.toLowerCase().includes("cancelled")) {
+      nodes.projectCrudStatus.textContent = "workspace selection cancelled";
+      return;
+    }
+    throw new Error(`Browse failed: ${base}. If this route is new, restart the API server.`);
+  }
 }
 
 async function updateSelectedProject() {
@@ -2114,6 +2171,11 @@ function wireEvents() {
       nodes.projectCrudStatus.textContent = error instanceof Error ? error.message : String(error);
     });
   });
+  nodes.projectWorkspaceBrowseButton?.addEventListener("click", () => {
+    void browseWorkspacePath().catch((error) => {
+      nodes.projectCrudStatus.textContent = error instanceof Error ? error.message : String(error);
+    });
+  });
   nodes.projectUpdateButton?.addEventListener("click", () => {
     void updateSelectedProject().catch((error) => {
       nodes.projectCrudStatus.textContent = error instanceof Error ? error.message : String(error);
@@ -2127,6 +2189,13 @@ function wireEvents() {
   nodes.saveSettingsButton.addEventListener("click", () => {
     void saveSettings().catch((error) => {
       state.settingsDraftStatus = "save failed";
+      renderSettingsOverview();
+      nodes.typedResultOutput.textContent = `Error: ${error instanceof Error ? error.message : String(error)}`;
+    });
+  });
+  nodes.saveProjectConfigButton?.addEventListener("click", () => {
+    void saveProjectConfig().catch((error) => {
+      state.settingsDraftStatus = "project config save failed";
       renderSettingsOverview();
       nodes.typedResultOutput.textContent = `Error: ${error instanceof Error ? error.message : String(error)}`;
     });

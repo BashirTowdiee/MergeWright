@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import type { OrchestratorConfig } from "../src/config/types.js";
 import { FileProjectCatalogQueryService } from "../src/application/queries/project-query-service.js";
 
@@ -121,4 +121,35 @@ test("FileProjectCatalogQueryService supports create, update, and delete guard",
   if (blocked?.ok === false) {
     assert.equal(blocked.code, "PROJECT_NOT_EMPTY");
   }
+});
+
+test("FileProjectCatalogQueryService updates project config defaults", async () => {
+  const fixture = await createFixture();
+  const service = new FileProjectCatalogQueryService({
+    orchestratorRoot: fixture.orchestratorRoot,
+    catalogPath: path.join(fixture.orchestratorRoot, ".artifacts", "projects.json"),
+    initialProject: {
+      id: "default",
+      name: "MergeWright",
+      configPath: fixture.configPath
+    }
+  });
+
+  const updated = await service.updateProjectConfig("default", {
+    runsDir: ".artifacts/runs/default",
+    defaultProvider: "opencode-local",
+    defaultModel: "gpt-5.3-codex"
+  });
+  assert.ok(updated);
+  assert.equal(updated?.defaultProvider, "opencode-local");
+  assert.equal(updated?.runsRoot, path.join(fixture.orchestratorRoot, ".artifacts", "runs", "default"));
+
+  const persisted = JSON.parse(await readFile(fixture.configPath, "utf8")) as OrchestratorConfig;
+  assert.equal(persisted.paths.runsDir, ".artifacts/runs/default");
+  assert.equal(persisted.agents.planner.backend, "opencode-local");
+  assert.equal(persisted.agents.builder.backend, "opencode-local");
+  assert.equal(persisted.agents.reviewer.backend, "opencode-local");
+  assert.equal(persisted.agents.planner.model, "gpt-5.3-codex");
+  assert.equal(persisted.agents.builder.model, "gpt-5.3-codex");
+  assert.equal(persisted.agents.reviewer.model, "gpt-5.3-codex");
 });
