@@ -100,6 +100,45 @@ npm run dev --workspace @mergewright/web
 
 Then open `http://127.0.0.1:3050`.
 
+## Docker dev stack
+
+Run API + web + docs with one command:
+
+```bash
+npm run docker:dev:up
+```
+
+Services:
+
+- Web: `http://127.0.0.1:3050`
+- API: `http://127.0.0.1:3040`
+- Docs: `http://127.0.0.1:4321`
+
+Useful commands:
+
+```bash
+npm run docker:dev:logs
+npm run docker:dev:down
+npm run docker:dev:rebuild
+```
+
+Persistence model:
+
+- Runtime project/run/settings data is persisted in Docker named volume `mergewright_artifacts`.
+- Code is bind-mounted from the host for local iteration.
+
+Reset persisted Docker state:
+
+```bash
+docker compose down -v
+```
+
+Finder workspace picker caveat in containers:
+
+- `POST /system/select-workspace` uses macOS `osascript` folder picker.
+- Inside Linux containers this picker is not available by default.
+- Use manual workspace path entry in the web form, or run API on host if native Finder selection is required.
+
 Project model in API/web:
 
 - Projects are stored in `.artifacts/projects.json`.

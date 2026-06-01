@@ -205,11 +205,16 @@ async function main(): Promise<void> {
 }
 
 function parseRuntimeOptions(argv: string[], cwd: string): ApiServerRuntimeOptions {
+  const envHost = process.env.API_HOST;
+  const envPort = process.env.API_PORT;
+  const envRoot = process.env.ORCHESTRATOR_ROOT;
+  const parsedEnvPort = envPort ? Number.parseInt(envPort, 10) : Number.NaN;
+
   const options: ApiServerRuntimeOptions = {
-    orchestratorRoot: cwd,
+    orchestratorRoot: envRoot && envRoot.trim().length > 0 ? envRoot : cwd,
     configArg: "",
-    host: "127.0.0.1",
-    port: 3040
+    host: envHost && envHost.trim().length > 0 ? envHost : "127.0.0.1",
+    port: Number.isFinite(parsedEnvPort) && parsedEnvPort >= 1 && parsedEnvPort <= 65535 ? parsedEnvPort : 3040
   };
 
   for (let index = 0; index < argv.length; index += 1) {

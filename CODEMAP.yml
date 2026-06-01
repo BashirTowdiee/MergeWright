@@ -1,5 +1,5 @@
 version: 1
-last_updated: 2026-05-31
+last_updated: 2026-06-01
 project:
   name: mergewright
   type: npm-workspaces-typescript-monorepo
@@ -22,6 +22,11 @@ commands:
     - npm run docs:build
     - npm run docs:preview
     - npm run docs:check
+  docker:
+    - npm run docker:dev:up
+    - npm run docker:dev:down
+    - npm run docker:dev:logs
+    - npm run docker:dev:rebuild
 
 source_of_truth:
   - README.md
@@ -35,6 +40,8 @@ source_of_truth:
   - SECURITY.md
   - src/config/types.ts
   - config.example.json
+  - docker-compose.yml
+  - .dockerignore
 
 areas:
   - id: apps.cli
@@ -94,6 +101,18 @@ areas:
       - test/web-api-client.test.ts
       - test/app-manifest-boundary.test.ts
       - test/web-shell-guidance.test.ts
+
+  - id: infra.docker
+    path: .
+    purpose: Local Docker orchestration for API, web, and docs development workflow.
+    public_entrypoints:
+      - docker-compose.yml
+    important_files:
+      - .dockerignore
+      - docker-compose.yml
+      - apps/api/Dockerfile
+      - apps/web/Dockerfile
+      - docs-site/Dockerfile
 
   - id: packages.application
     path: packages/application

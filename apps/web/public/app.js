@@ -505,6 +505,10 @@ function applySettingsDefaultsToCommandLauncher() {
   updateCommandPreview();
 }
 
+function hasActiveProject() {
+  return typeof state.selectedProjectId === "string" && state.selectedProjectId.trim().length > 0;
+}
+
 async function loadProjects() {
   try {
     const listPayload = await fetchJson("/api/projects");
@@ -544,6 +548,16 @@ async function loadProjects() {
 }
 
 async function loadSettingsData() {
+  if (!hasActiveProject()) {
+    state.settingsSnapshot = undefined;
+    state.providerInventory = undefined;
+    state.policySnapshot = undefined;
+    state.writeSafetyStatus = undefined;
+    state.settingsDraftStatus = "no project selected";
+    renderSettingsOverview();
+    return;
+  }
+
   try {
     const settingsPayload = await fetchJson("/api/settings");
     state.settingsSnapshot = settingsPayload.settings;
@@ -954,6 +968,16 @@ async function selectStagePlan(stagePlanId) {
 }
 
 async function loadStagePlans() {
+  if (!hasActiveProject()) {
+    state.stagePlans = [];
+    state.selectedStagePlanId = undefined;
+    state.selectedStagePlan = undefined;
+    updateStagePlanMetrics();
+    renderStagePlansTable();
+    renderSelectedStagePlan();
+    return;
+  }
+
   try {
     const payload = await fetchJson("/api/stage-plans");
     state.stagePlans = Array.isArray(payload.stagePlans) ? payload.stagePlans : [];
@@ -1145,6 +1169,17 @@ async function loadSelectedReviewContext() {
 }
 
 async function loadReviews() {
+  if (!hasActiveProject()) {
+    state.reviews = [];
+    state.selectedReviewId = undefined;
+    state.selectedReviewPrSummary = undefined;
+    state.selectedReviewAuditEvents = [];
+    renderReviewThread();
+    renderReviewSupportPanels();
+    renderApprovalQueue();
+    return;
+  }
+
   try {
     const payload = await fetchJson("/api/reviews");
     state.reviews = Array.isArray(payload.reviews) ? payload.reviews : [];
@@ -1263,6 +1298,23 @@ function renderApprovalQueue() {
 }
 
 async function loadRuns() {
+  if (!hasActiveProject()) {
+    state.runs = [];
+    state.filteredRuns = [];
+    state.selectedRunId = undefined;
+    state.selectedRun = undefined;
+    state.selectedRunReadiness = undefined;
+    state.selectedRunReview = undefined;
+    state.selectedRunEvidence = undefined;
+    state.selectedRunPhaseArtifacts = undefined;
+    state.selectedRunArtifacts = [];
+    state.selectedArtifactContent = undefined;
+    updateRunMetrics();
+    applyRunFilter();
+    renderRunDetail();
+    return;
+  }
+
   const payload = await fetchJson("/api/runs");
   state.runs = Array.isArray(payload.runs) ? payload.runs : [];
   updateRunMetrics();

@@ -26,7 +26,11 @@
     "docs:dev": "npm --prefix docs-site run dev",
     "docs:build": "npm --prefix docs-site run build",
     "docs:preview": "npm --prefix docs-site run preview",
-    "docs:check": "npm --prefix docs-site run check"
+    "docs:check": "npm --prefix docs-site run check",
+    "docker:dev:up": "docker compose up --build",
+    "docker:dev:down": "docker compose down",
+    "docker:dev:logs": "docker compose logs -f",
+    "docker:dev:rebuild": "docker compose build --no-cache"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
