@@ -32,6 +32,7 @@ async function loadShellHtml(): Promise<string> {
 export async function ControlRoomShell({ route }: { route: RouteContext }) {
   const shellHtml = await loadShellHtml();
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api";
+  const workspacePickerEnabled = process.env.NEXT_PUBLIC_WORKSPACE_PICKER_ENABLED !== "false";
 
   return (
     <>
@@ -41,6 +42,9 @@ export async function ControlRoomShell({ route }: { route: RouteContext }) {
       </Script>
       <Script id="route-context" strategy="beforeInteractive">
         {`window.__MERGEWRIGHT_WEB_ROUTE__ = ${JSON.stringify(route)};`}
+      </Script>
+      <Script id="workspace-picker-enabled" strategy="beforeInteractive">
+        {`window.__MERGEWRIGHT_WORKSPACE_PICKER_ENABLED__ = ${JSON.stringify(workspacePickerEnabled)};`}
       </Script>
       <Script src="/app.js" strategy="afterInteractive" />
     </>

@@ -137,6 +137,7 @@ Finder workspace picker caveat in containers:
 
 - `POST /system/select-workspace` uses macOS `osascript` folder picker.
 - Inside Linux containers this picker is not available by default.
+- Docker web service sets `NEXT_PUBLIC_WORKSPACE_PICKER_ENABLED=false` to disable the Finder button and avoid failing requests.
 - Use manual workspace path entry in the web form, or run API on host if native Finder selection is required.
 
 Project model in API/web:

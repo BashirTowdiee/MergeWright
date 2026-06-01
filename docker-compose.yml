@@ -28,6 +28,7 @@ services:
       target: web-dev
     environment:
       NEXT_PUBLIC_API_BASE_URL: /api
+      NEXT_PUBLIC_WORKSPACE_PICKER_ENABLED: "false"
       API_PROXY_TARGET: http://api:3040
     ports:
       - "3050:3050"

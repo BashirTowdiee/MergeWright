@@ -1,5 +1,6 @@
 const API_BASE_URL = (window.__MERGEWRIGHT_API_BASE_URL__ ?? "http://127.0.0.1:3040").replace(/\/$/, "");
 const routeContext = window.__MERGEWRIGHT_WEB_ROUTE__ ?? { page: "projects" };
+const WORKSPACE_PICKER_ENABLED = window.__MERGEWRIGHT_WORKSPACE_PICKER_ENABLED__ !== false;
 
 function toApiUrl(url) {
   if (typeof url !== "string") {
@@ -688,6 +689,11 @@ async function initAndCreateProject() {
 }
 
 async function browseWorkspacePath() {
+  if (!WORKSPACE_PICKER_ENABLED) {
+    nodes.projectCrudStatus.textContent = "Finder picker unavailable in containerized API; enter workspace path manually.";
+    return;
+  }
+
   try {
     const payload = await fetchJson("/api/system/select-workspace", {
       method: "POST"
@@ -2176,6 +2182,11 @@ function wireTabs() {
 }
 
 function wireEvents() {
+  if (nodes.projectWorkspaceBrowseButton && !WORKSPACE_PICKER_ENABLED) {
+    nodes.projectWorkspaceBrowseButton.disabled = true;
+    nodes.projectWorkspaceBrowseButton.title = "Finder picker unavailable in containerized API.";
+  }
+
   for (const link of nodes.links) {
     link.addEventListener("click", () => navigateToPage(link.dataset.pageLink));
   }
