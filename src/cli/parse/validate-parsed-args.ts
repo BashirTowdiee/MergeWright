@@ -72,6 +72,12 @@ export function validateParsedArgs(parsed: ParsedArgs): void {
   if (parsed.command !== "probe-opencode" && (parsed.backendName || parsed.opencodeCommand || parsed.validateReadonlyContract)) {
     throw new Error("--backend, --command, and --validate-readonly-contract are only supported for probe-opencode.");
   }
+  if (parsed.goalArg && parsed.command !== "run-contract") {
+    throw new Error("--goal is only supported for run-contract.");
+  }
+  if (parsed.flowArg && parsed.command !== "run-contract") {
+    throw new Error("--flow is only supported for run-contract.");
+  }
 
   if (parsed.command === "run") {
     if (parsed.help) {
@@ -246,6 +252,26 @@ export function validateParsedArgs(parsed: ParsedArgs): void {
     }
     if (parsed.stdoutOnly || parsed.prSummary) {
       throw new Error("--pr-summary and --stdout-only are not supported for probe-opencode.");
+    }
+  }
+  if (parsed.command === "run-contract") {
+    if (parsed.help) {
+      return;
+    }
+    if (!parsed.goalArg?.trim()) {
+      throw new Error("run-contract requires --goal <text>.");
+    }
+    if (!parsed.workspaceArg?.trim()) {
+      throw new Error("run-contract requires --workspace <path>.");
+    }
+    if (parsed.configArg) {
+      throw new Error("--config is not supported for run-contract.");
+    }
+    if (parsed.repoOverride) {
+      throw new Error("--repo is not supported for run-contract.");
+    }
+    if (parsed.force) {
+      throw new Error("--force is not supported for run-contract.");
     }
   }
   if (parsed.command === "import-stage-plan") {

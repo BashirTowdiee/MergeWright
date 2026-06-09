@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import type { RunContract } from "../src/application/audited-flow/contract.js";
+import type { AuditedFlowAuditEventView } from "../src/application/read-models/audited-flow-read-model.js";
 import type { AppCommand } from "../src/application/commands/app-command.js";
 import type { RunDetail, RunSummary } from "../src/application/read-models/run-read-model.js";
+import type { AuditedFlowResult } from "../src/application/use-cases/execute-audited-flow-use-case.js";
 import { MergeWrightApiClient, WebApiError, type WebApiFetch } from "../src/web/api-client.js";
 import { toRunDetailViewModel, toRunListItemViewModel } from "../src/web/run-view-model.js";
 
@@ -73,6 +76,34 @@ const runDetail: RunDetail = {
     }
   ],
   warnings: []
+};
+
+const auditedFlowEvents: AuditedFlowAuditEventView[] = [
+  {
+    type: "run.created",
+    runId: "run-1",
+    occurredAt: "2026-06-09T00:00:00.000Z",
+    payload: {
+      flow: "feature-standard"
+    }
+  }
+];
+
+const auditedFlowResult: AuditedFlowResult = {
+  runId: "audited-run-1",
+  status: "passed",
+  stageResults: [
+    {
+      stageId: "plan",
+      kind: "plan",
+      executor: "deterministic-dry-run",
+      status: "passed",
+      summary: "Dry-run plan completed."
+    }
+  ],
+  auditPath: "/tmp/runs/audited-run-1/audit.ndjson",
+  artefactsDir: "/tmp/runs/audited-run-1",
+  dryRun: true
 };
 
 function createFetch(payloads: Record<string, unknown>, calls: Array<{ url: string; init?: Parameters<WebApiFetch>[1] }>): WebApiFetch {
@@ -162,6 +193,9 @@ test("MergeWrightApiClient fetches run detail and artifact metadata", async () =
               }
             ]
           }
+        },
+        "http://localhost:3000/runs/run-1/audit-events": {
+          events: auditedFlowEvents
         },
         "http://localhost:3000/runs/run-1/phase-artifacts": {
           phaseArtifacts: {
@@ -450,6 +484,7 @@ test("MergeWrightApiClient fetches run detail and artifact metadata", async () =
   assert.equal((await client.getRunReadiness("run-1")).status, "NEEDS_FIX");
   assert.equal((await client.getRunReview("run-1")).verdict, "FAIL");
   assert.equal((await client.getRunEvidence("run-1")).available, true);
+  assert.deepEqual(await client.getRunAuditEvents("run-1"), auditedFlowEvents);
   assert.equal((await client.getRunPhaseArtifacts("run-1")).phases.length, 1);
   assert.equal((await client.getRunComparison("run-1", "run-2")).deltas.risk, "lower");
   assert.equal((await client.getRunEvents("run-1", 20)).length, 1);
@@ -617,6 +652,38 @@ test("MergeWrightApiClient submits commands through the API", async () => {
         keyboardShortcuts: false
       }
     }
+  });
+});
+
+test("MergeWrightApiClient executes audited flows through the API", async () => {
+  const calls: Array<{ url: string; init?: Parameters<WebApiFetch>[1] }> = [];
+  const contract: RunContract = {
+    goal: "Validate audited flow client",
+    workspace: "/tmp/workspace",
+    flow: "feature-standard",
+    stages: [{ id: "plan", kind: "plan", executor: "deterministic-dry-run" }]
+  };
+  const client = new MergeWrightApiClient({
+    baseUrl: "http://localhost:3000",
+    fetch: createFetch(
+      {
+        "http://localhost:3000/audited-flows?projectId=default": {
+          run: auditedFlowResult
+        }
+      },
+      calls
+    )
+  });
+
+  const run = await client.executeAuditedFlow(contract, true, "default");
+
+  assert.deepEqual(run, auditedFlowResult);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.url, "http://localhost:3000/audited-flows?projectId=default");
+  assert.equal(calls[0]?.init?.method, "POST");
+  assert.deepEqual(JSON.parse(calls[0]?.init?.body ?? "{}"), {
+    contract,
+    dryRun: true
   });
 });
 

@@ -75,3 +75,12 @@ export { DefaultRetryPhaseUseCase, type RetryPhaseUseCase, type RetryPhaseUseCas
 export { DefaultSelectTaskUseCase, type SelectTaskUseCase } from "../../../src/application/use-cases/select-task-use-case.js";
 export { DefaultStartRunUseCase, type StartRunUseCase, type StartRunUseCaseHandler } from "../../../src/application/use-cases/start-run-use-case.js";
 export { DefaultUpdateCoordinationNoteUseCase, type UpdateCoordinationNoteUseCase } from "../../../src/application/use-cases/update-coordination-note-use-case.js";
+export {
+  DefaultExecuteAuditedFlowUseCase,
+  executeAuditedFlow,
+  type AuditedFlowResult,
+  type AuditedFlowStatus,
+  type ExecuteAuditedFlowDependencies,
+  type ExecuteAuditedFlowRequest,
+  type ExecuteAuditedFlowUseCase
+} from "../../../src/application/use-cases/execute-audited-flow-use-case.js";

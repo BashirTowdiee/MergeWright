@@ -1,7 +1,9 @@
+import type { RunContract } from "../application/audited-flow/contract.js";
 import type { AppCommand } from "../application/commands/app-command.js";
 import type { AppCommandExecutionOptions } from "../application/commands/app-command-service.js";
 import type { AppCommandResult } from "../application/commands/app-command-result.js";
 import type { CommandDescription } from "../application/commands/command-description.js";
+import type { AuditedFlowAuditEventView } from "../application/read-models/audited-flow-read-model.js";
 import type { PolicySnapshot, WriteSafetyStatusSnapshot } from "../application/read-models/policy-read-model.js";
 import type { ProjectDetail, ProjectHealth, ProjectSummary } from "../application/read-models/project-read-model.js";
 import type { ProviderInventory } from "../application/read-models/provider-read-model.js";
@@ -12,6 +14,7 @@ import type { RunPhaseArtifactsView } from "../application/read-models/run-phase
 import type { RunArtefact, RunArtefactContent, RunDetail, RunSummary } from "../application/read-models/run-read-model.js";
 import type { SettingsSnapshot, SettingsUpdate } from "../application/read-models/settings-read-model.js";
 import type { StagePlanDetail, StagePlanSummary } from "../application/read-models/stage-plan-read-model.js";
+import type { AuditedFlowResult } from "../application/use-cases/execute-audited-flow-use-case.js";
 import {
   getCommandEventsResponseSchema,
   getPolicyResponseSchema,
@@ -23,6 +26,7 @@ import {
   getRunEventsResponseSchema,
   getProjectHealthResponseSchema,
   getProjectResponseSchema,
+  getRunAuditEventsResponseSchema,
   getSettingsResponseSchema,
   getStagePlanResponseSchema,
   getRunArtifactContentResponseSchema,
@@ -36,6 +40,8 @@ import {
   listProjectsResponseSchema,
   createProjectResponseSchema,
   createProjectRequestSchema,
+  executeAuditedFlowRequestSchema,
+  executeAuditedFlowResponseSchema,
   updateProjectRequestSchema,
   updateProjectResponseSchema,
   updateProjectConfigRequestSchema,
@@ -233,6 +239,11 @@ export class MergeWrightApiClient {
     return getRunEvidenceResponseSchema.parse(payload).evidence;
   }
 
+  async getRunAuditEvents(runId: string, projectId?: string): Promise<readonly AuditedFlowAuditEventView[]> {
+    const payload = await this.request(withProjectQuery(`/runs/${encodeURIComponent(runId)}/audit-events`, projectId));
+    return getRunAuditEventsResponseSchema.parse(payload).events;
+  }
+
   async getRunComparison(runIdA: string, runIdB: string, projectId?: string): Promise<RunComparisonView> {
     const query = new URLSearchParams({
       runA: runIdA,
@@ -289,6 +300,16 @@ export class MergeWrightApiClient {
   async getStagePlan(stagePlanId: string, projectId?: string): Promise<StagePlanDetail> {
     const payload = await this.request(withProjectQuery(`/stage-plans/${encodeURIComponent(stagePlanId)}`, projectId));
     return getStagePlanResponseSchema.parse(payload).stagePlan;
+  }
+
+  async executeAuditedFlow(contract: RunContract, dryRun?: boolean, projectId?: string): Promise<AuditedFlowResult> {
+    const request = executeAuditedFlowRequestSchema.parse({ contract, dryRun });
+    const payload = await this.request(withProjectQuery("/audited-flows", projectId), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(request)
+    });
+    return executeAuditedFlowResponseSchema.parse(payload).run;
   }
 
   async submitCommand(command: AppCommand, options?: AppCommandExecutionOptions, projectId?: string): Promise<AppCommandResult> {

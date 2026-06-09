@@ -2,19 +2,23 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createApiServer, type CliCommandEvent } from "../src/api/create-api-server.js";
 import type { CliCommandGateway, CliCommandExecutionResult, CliGatewayRequest } from "../src/api/cli-command-gateway.js";
+import type { RunContract } from "../src/application/audited-flow/contract.js";
 import type { AppCommand } from "../src/application/commands/app-command.js";
 import type { AppCommandResult } from "../src/application/commands/app-command-result.js";
 import type { AppCommandExecutionOptions, AppCommandService } from "../src/application/commands/app-command-service.js";
 import type { CommandDescription } from "../src/application/commands/command-description.js";
+import type { AuditedFlowAuditQueryService } from "../src/application/queries/audited-flow-audit-query-service.js";
 import type { PolicySnapshot, WriteSafetyStatusSnapshot } from "../src/application/read-models/policy-read-model.js";
 import type { ProjectDetail, ProjectHealth, ProjectSummary } from "../src/application/read-models/project-read-model.js";
 import type { ProviderInventory } from "../src/application/read-models/provider-read-model.js";
+import type { AuditedFlowAuditEventView } from "../src/application/read-models/audited-flow-read-model.js";
 import type { ReviewItemView } from "../src/application/read-models/review-read-model.js";
 import type { RunEvidenceView, RunReadinessView, RunReviewView } from "../src/application/read-models/run-insights-read-model.js";
 import type { RunPhaseArtifactsView } from "../src/application/read-models/run-phase-artifacts-read-model.js";
 import type { RunDetail, RunSummary, RunArtefact, RunArtefactContent } from "../src/application/read-models/run-read-model.js";
 import type { SettingsSnapshot, SettingsUpdate } from "../src/application/read-models/settings-read-model.js";
 import type { StagePlanDetail, StagePlanSummary } from "../src/application/read-models/stage-plan-read-model.js";
+import type { AuditedFlowResult } from "../src/application/use-cases/execute-audited-flow-use-case.js";
 import type { ArtifactQueryService, GetArtifactContentInput, GetArtifactInput, ListArtifactsInput } from "../src/application/queries/artifact-query-service.js";
 import type { PolicyQueryService } from "../src/application/queries/policy-query-service.js";
 import type { ProjectQueryService } from "../src/application/queries/project-query-service.js";
@@ -400,6 +404,46 @@ const runComparisonView: RunComparisonView = {
   }
 };
 
+const auditedFlowEvents: AuditedFlowAuditEventView[] = [
+  {
+    type: "run.created",
+    runId: "run-1",
+    occurredAt: "2026-06-09T00:00:00.000Z",
+    payload: {
+      flow: "feature-standard"
+    }
+  },
+  {
+    type: "command.completed",
+    runId: "run-1",
+    occurredAt: "2026-06-09T00:00:02.000Z",
+    stageId: "checks",
+    executorId: "shell-check",
+    payload: {
+      name: "unit",
+      exitCode: 0,
+      success: true
+    }
+  }
+];
+
+const auditedFlowResult: AuditedFlowResult = {
+  runId: "audited-run-1",
+  status: "passed",
+  dryRun: true,
+  auditPath: "/tmp/runs/audited-run-1/audit.ndjson",
+  artefactsDir: "/tmp/runs/audited-run-1",
+  stageResults: [
+    {
+      stageId: "plan",
+      kind: "plan",
+      executor: "deterministic-dry-run",
+      status: "passed",
+      summary: "Dry-run plan completed."
+    }
+  ]
+};
+
 class FakeRunQueryService implements RunQueryService {
   readonly listCalls: ListRunsInput[] = [];
   readonly getCalls: GetRunInput[] = [];
@@ -516,6 +560,15 @@ class FakeStagePlanQueryService implements StagePlanQueryService {
       return stagePlanDetail;
     }
     return null;
+  }
+}
+
+class FakeAuditedFlowAuditQueryService implements AuditedFlowAuditQueryService {
+  readonly listCalls: Array<{ runId: string }> = [];
+
+  async listEvents(input: { runId: string }): Promise<AuditedFlowAuditEventView[]> {
+    this.listCalls.push(input);
+    return input.runId === runDetail.id ? auditedFlowEvents : [];
   }
 }
 
@@ -1347,6 +1400,24 @@ test("GET /runs/:runId/evidence returns evidence view", async () => {
   assert.deepEqual(runInsightsQueryService.evidenceCalls, ["run-1"]);
 });
 
+test("GET /runs/:runId/audit-events returns audited flow events", async () => {
+  const auditedFlowAuditQueryService = new FakeAuditedFlowAuditQueryService();
+  const server = createApiServer({ runQueryService: new FakeRunQueryService(), auditedFlowAuditQueryService });
+  const response = await server.inject({ method: "GET", url: "/runs/run-1/audit-events" });
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json(), { events: auditedFlowEvents });
+  assert.deepEqual(auditedFlowAuditQueryService.listCalls, [{ runId: "run-1" }]);
+});
+
+test("GET /runs/:runId/audit-events returns an empty list when audit service is missing", async () => {
+  const server = createApiServer({ runQueryService: new FakeRunQueryService() });
+  const response = await server.inject({ method: "GET", url: "/runs/run-1/audit-events" });
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json(), { events: [] });
+});
+
 test("GET /runs/:runId/phase-artifacts returns phase-scoped artifacts", async () => {
   const artifactQueryService = new FakeArtifactQueryService();
   const server = createApiServer({
@@ -1555,6 +1626,70 @@ test("GET /stage-plans returns 503 when stage plan query service is missing", as
   assert.deepEqual(response.json(), {
     code: "STAGE_PLAN_QUERY_SERVICE_UNAVAILABLE",
     message: "Stage plan query service is not configured."
+  });
+});
+
+test("POST /audited-flows executes the audited flow use case", async () => {
+  const calls: Array<{ contract: RunContract; dryRun?: boolean }> = [];
+  const contract: RunContract = {
+    goal: "Validate audited flow route",
+    workspace: "/tmp/workspace",
+    flow: "feature-standard",
+    stages: [{ id: "plan", kind: "plan", executor: "deterministic-dry-run" }]
+  };
+  const server = createApiServer({
+    runQueryService: new FakeRunQueryService(),
+    executeAuditedFlow: async (input) => {
+      calls.push(input);
+      return auditedFlowResult;
+    }
+  });
+
+  const response = await server.inject({
+    method: "POST",
+    url: "/audited-flows",
+    payload: {
+      contract,
+      dryRun: true
+    }
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json(), { run: auditedFlowResult });
+  assert.deepEqual(calls, [{ contract, dryRun: true }]);
+});
+
+test("POST /audited-flows validates payload and service availability", async () => {
+  const unavailableServer = createApiServer({ runQueryService: new FakeRunQueryService() });
+  const invalid = await unavailableServer.inject({
+    method: "POST",
+    url: "/audited-flows",
+    payload: { contract: { flow: "feature-standard" } }
+  });
+
+  assert.equal(invalid.statusCode, 400);
+  assert.deepEqual(invalid.json(), {
+    code: "VALIDATION_FAILED",
+    message: "Invalid audited flow request."
+  });
+
+  const unavailable = await unavailableServer.inject({
+    method: "POST",
+    url: "/audited-flows",
+    payload: {
+      contract: {
+        goal: "Validate audited flow route",
+        workspace: "/tmp/workspace",
+        flow: "feature-standard",
+        stages: [{ id: "plan", kind: "plan", executor: "deterministic-dry-run" }]
+      }
+    }
+  });
+
+  assert.equal(unavailable.statusCode, 503);
+  assert.deepEqual(unavailable.json(), {
+    code: "AUDITED_FLOW_EXECUTION_UNAVAILABLE",
+    message: "Audited flow execution is not configured."
   });
 });
 

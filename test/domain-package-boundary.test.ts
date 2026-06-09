@@ -14,7 +14,12 @@ test("domain workspace boundary re-exports command policy and result codes", asy
   assert.ok(source.includes("COMMAND_RISKS"));
   assert.ok(source.includes("requiresConfirmationForRisk"));
   assert.ok(source.includes("type CommandRisk"));
+  assert.ok(source.includes("type RunContract"));
+  assert.ok(source.includes("type StageExecutor"));
+  assert.ok(source.includes("validateRunContract"));
   assert.ok(source.includes("../../../src/application/commands/app-command-error.js"));
   assert.ok(source.includes("../../../src/application/commands/command-risk.js"));
+  assert.ok(source.includes("../../../src/application/audited-flow/contract.js"));
+  assert.ok(source.includes("../../../src/application/audited-flow/stage-executor.js"));
   assert.equal(source.includes("Package boundary placeholder"), false);
 });

@@ -234,6 +234,23 @@ export function renderHelpText(command?: string): string {
     ].join("\n");
   }
 
+  if (command === "run-contract") {
+    return [
+      "Usage: agent-stage run-contract --goal <text> --workspace <path> [--flow <name>] [--dry-run]",
+      "",
+      "Runs the audited workflow runner slice with a deterministic no-write executor.",
+      "  --goal <text>            Required run goal used to build the example contract.",
+      "  --workspace <path>       Required workspace path recorded in the contract.",
+      "  --flow <name>            Optional flow name. Defaults to feature-standard.",
+      "  --dry-run                Marks the run as dry-run while still writing audited artefacts.",
+      "",
+      "Notes:",
+      "  - Writes artefacts under .artifacts/runs/audited-flow/<run-id>/.",
+      "  - Does not require --config.",
+      "  - Does not enable workspace writes."
+    ].join("\n");
+  }
+
   if (command === "import-stage-plan") {
     return [
       "Usage: agent-stage import-stage-plan --from <path> --out <path> [--force]",

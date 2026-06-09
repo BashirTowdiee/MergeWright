@@ -10,6 +10,11 @@ import type { AppCommandResult } from "../../../src/application/commands/app-com
 import { DefaultAppCommandService } from "../../../src/application/commands/default-app-command-service.js";
 import { FilesystemCommandAuditStore } from "../../../src/application/commands/filesystem-command-audit-store.js";
 import { DefaultArtifactQueryService } from "../../../src/application/queries/artifact-query-service.js";
+import { DeterministicStageExecutor } from "../../../src/application/audited-flow/deterministic-stage-executor.js";
+import { StageExecutorRegistry } from "../../../src/application/audited-flow/executor-registry.js";
+import { ShellCheckStageExecutor } from "../../../src/application/audited-flow/shell-check-stage-executor.js";
+import type { RunContract } from "../../../src/application/audited-flow/contract.js";
+import { DefaultAuditedFlowAuditQueryService } from "../../../src/application/queries/audited-flow-audit-query-service.js";
 import { FilesystemRunReadRepository } from "../../../src/application/queries/filesystem-run-read-repository.js";
 import { StaticPolicyQueryService } from "../../../src/application/queries/policy-query-service.js";
 import { FileProjectCatalogQueryService } from "../../../src/application/queries/project-query-service.js";
@@ -20,6 +25,8 @@ import { DefaultRunInsightsQueryService } from "../../../src/application/queries
 import { DefaultRunQueryService } from "../../../src/application/queries/run-query-service.js";
 import { FileSettingsQueryService } from "../../../src/application/queries/settings-query-service.js";
 import { FilesystemStagePlanQueryService } from "../../../src/application/queries/stage-plan-query-service.js";
+import type { AuditedFlowResult } from "../../../src/application/use-cases/execute-audited-flow-use-case.js";
+import { DefaultExecuteAuditedFlowUseCase } from "../../../src/application/use-cases/execute-audited-flow-use-case.js";
 import { continueRun } from "../../../src/continue-run.js";
 import { loadAndValidateConfig, resolveConfigPath } from "../../../src/config.js";
 import { initProject as initProjectFiles } from "../../../src/init-project.js";
@@ -116,6 +123,7 @@ async function main(): Promise<void> {
 
     const runRepository = new FilesystemRunReadRepository({ runsRoot: context.runsRoot });
     const runQueryService = new DefaultRunQueryService(runRepository);
+    const auditedFlowAuditQueryService = new DefaultAuditedFlowAuditQueryService(runQueryService);
     const runInsightsQueryService = new DefaultRunInsightsQueryService({ runQueryService });
     const runComparisonQueryService = new DefaultRunComparisonQueryService({
       runQueryService,
@@ -151,9 +159,19 @@ async function main(): Promise<void> {
       runsRoot: context.runsRoot,
       changeReportPolicy: context.config.changeReport
     });
+    const executeAuditedFlowUseCase = new DefaultExecuteAuditedFlowUseCase({
+      executorRegistry: new StageExecutorRegistry([
+        new DeterministicStageExecutor(),
+        new ShellCheckStageExecutor({
+          orchestratorRoot: options.orchestratorRoot,
+          config: context.config
+        })
+      ])
+    });
 
     return {
       runQueryService,
+      auditedFlowAuditQueryService,
       runInsightsQueryService,
       runComparisonQueryService,
       reviewQueryService,
@@ -163,7 +181,14 @@ async function main(): Promise<void> {
       settingsQueryService,
       stagePlanQueryService,
       commandService,
-      cliCommandGateway
+      cliCommandGateway,
+      executeAuditedFlow: async ({ contract, dryRun }: { contract: RunContract; dryRun?: boolean }): Promise<AuditedFlowResult> =>
+        await executeAuditedFlowUseCase.execute({
+          contract,
+          dryRun,
+          orchestratorRoot: options.orchestratorRoot,
+          runsRoot: context.runsRoot
+        })
     };
   }
 

@@ -25,7 +25,8 @@ const expectedExports = [
   "src/application/use-cases/mark-task-reviewed-use-case.js",
   "src/application/use-cases/retry-phase-use-case.js",
   "src/application/use-cases/select-task-use-case.js",
-  "src/application/use-cases/update-coordination-note-use-case.js"
+  "src/application/use-cases/update-coordination-note-use-case.js",
+  "src/application/use-cases/execute-audited-flow-use-case.js"
 ];
 
 const expectedNamedExports = [
@@ -45,7 +46,9 @@ const expectedNamedExports = [
   "DefaultRetryPhaseUseCase",
   "DefaultSelectTaskUseCase",
   "DefaultStartRunUseCase",
-  "DefaultUpdateCoordinationNoteUseCase"
+  "DefaultUpdateCoordinationNoteUseCase",
+  "DefaultExecuteAuditedFlowUseCase",
+  "executeAuditedFlow"
 ];
 
 test("application package exposes command, event, query, and use-case boundaries", async () => {

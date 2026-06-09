@@ -1,8 +1,8 @@
 # MergeWright
 
-`mergewright` is a local-first AI software delivery harness for controlled, auditable engineering workflows. It keeps the CLI as the scriptable command surface and is moving the web app into the primary human interface for running, supervising, reviewing, and approving CLI-equivalent workflows.
+`mergewright` is a local-first AI software delivery harness for controlled, auditable engineering workflows. It keeps the CLI as the scriptable command surface and is evolving toward an audited workflow runner for AI-assisted software changes.
 
-The web app should become the main interface for day-to-day MergeWright use: launch and continue runs, inspect artefacts, review blockers, execute safe next actions, and expose team-visible review evidence. The CLI remains the automation backbone for scripts, exact commands, CI-style usage, and dogfooding.
+The web app remains the best place for run visibility, approvals, and audit review: launch and continue runs, inspect artefacts, review blockers, execute safe next actions, and expose team-visible review evidence. The CLI remains the automation backbone for scripts, exact commands, CI-style usage, and dogfooding.
 
 It supports Planner -> Builder -> Reviewer workflows, bounded fix loops, write-safety gates, run artefacts, AI Change Reports, and Stage Plans for human-gated multi-stage delivery.
 
@@ -17,7 +17,7 @@ Start here:
 
 | Area | Link |
 | --- | --- |
-| Product direction | [Product roadmap](docs/product/04-roadmap.md), [delivery harness roadmap](docs/roadmap/delivery-harness.md) |
+| Product direction | [Product roadmap](docs/product/04-roadmap.md), [audited workflow runner direction](docs/product/05-audited-workflow-runner-direction.md), [delivery harness roadmap](docs/roadmap/delivery-harness.md) |
 | Web interface | [Web interface implementation plan](docs/ux/04-web-interface-implementation-plan.md) |
 | Architecture | [Architecture overview](docs/architecture/overview.md) |
 | CLI | [Command reference](docs/cli/commands.md) |
@@ -48,7 +48,9 @@ Web app -> Fastify API -> application services -> CLI-compatible workflows/use c
 CLI     -> application services -> CLI-compatible workflows/use cases -> adapters
 ```
 
-The web app is the primary human control room. It should make the CLI workflows usable through a richer interface without making React components own orchestration logic or parse terminal stdout.
+The web app is the primary human control room for approvals, visibility, and audit review. It should make the CLI workflows usable through a richer interface without making React components own orchestration logic or parse terminal stdout.
+
+MCP should act as a trigger surface for high-level audited run execution. It should start or inspect MergeWright-owned flows rather than orchestrating internal steps itself.
 
 This keeps the project focused on trust, repeatability, evidence, team-visible review, and human-controlled acceptance rather than generic agent orchestration.
 

@@ -1,0 +1,59 @@
+import path from "node:path";
+import { DeterministicStageExecutor } from "../../application/audited-flow/deterministic-stage-executor.js";
+import type { RunContract } from "../../application/audited-flow/contract.js";
+import { StageExecutorRegistry } from "../../application/audited-flow/executor-registry.js";
+import { DefaultExecuteAuditedFlowUseCase } from "../../application/use-cases/execute-audited-flow-use-case.js";
+import type { CommandHandler } from "../command-context.js";
+
+export const handleRunContractCommand: CommandHandler = async ({ args, orchestratorRoot, writeLine, deps }) => {
+  if (!args.goalArg?.trim()) {
+    throw new Error("run-contract requires --goal <text>.");
+  }
+  if (!args.workspaceArg?.trim()) {
+    throw new Error("run-contract requires --workspace <path>.");
+  }
+
+  const contract = buildExampleRunContract({
+    goal: args.goalArg,
+    workspace: path.resolve(args.workspaceArg),
+    flow: args.flowArg?.trim() || "feature-standard"
+  });
+
+  const handler =
+    deps.runContractHandler ??
+    (async (input: { contract: RunContract; orchestratorRoot: string; dryRun: boolean }) =>
+      new DefaultExecuteAuditedFlowUseCase({
+        executorRegistry: new StageExecutorRegistry([new DeterministicStageExecutor()])
+      }).execute({
+        contract: input.contract,
+        orchestratorRoot: input.orchestratorRoot,
+        dryRun: input.dryRun
+      }));
+
+  const result = await handler({
+    contract,
+    orchestratorRoot,
+    dryRun: args.dryRun
+  });
+
+  writeLine(`audited flow run id: ${result.runId}`);
+  writeLine(`status: ${result.status}`);
+  writeLine(`audit path: ${result.auditPath}`);
+  writeLine(`artefacts: ${result.artefactsDir}`);
+}
+
+function buildExampleRunContract(input: { goal: string; workspace: string; flow: string }): RunContract {
+  return {
+    goal: input.goal.trim(),
+    workspace: input.workspace,
+    flow: input.flow,
+    audit: { mode: "required" },
+    stages: [
+      { id: "plan", kind: "plan", executor: "deterministic-dry-run", model: "gpt-5.5-medium" },
+      { id: "build", kind: "build", executor: "deterministic-dry-run", model: "gpt-5.5-xhigh" },
+      { id: "check", kind: "check", executor: "deterministic-dry-run" },
+      { id: "review", kind: "review", executor: "deterministic-dry-run", model: "configured-review-model" },
+      { id: "final-review", kind: "final-review", executor: "deterministic-dry-run", model: "configured-final-review-model" }
+    ]
+  };
+}

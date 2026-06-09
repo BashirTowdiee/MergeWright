@@ -1,7 +1,9 @@
 import Fastify from "fastify";
 import type { FastifyInstance } from "fastify";
+import type { RunContract } from "../application/audited-flow/contract.js";
 import type { AppCommand } from "../application/commands/app-command.js";
 import type { AppCommandService } from "../application/commands/app-command-service.js";
+import type { AuditedFlowAuditQueryService } from "../application/queries/audited-flow-audit-query-service.js";
 import type { ArtifactQueryService } from "../application/queries/artifact-query-service.js";
 import type { PolicyQueryService } from "../application/queries/policy-query-service.js";
 import type { ProjectQueryService } from "../application/queries/project-query-service.js";
@@ -12,6 +14,7 @@ import type { RunInsightsQueryService } from "../application/queries/run-insight
 import type { RunQueryService } from "../application/queries/run-query-service.js";
 import type { SettingsQueryService } from "../application/queries/settings-query-service.js";
 import type { StagePlanQueryService } from "../application/queries/stage-plan-query-service.js";
+import type { AuditedFlowResult } from "../application/use-cases/execute-audited-flow-use-case.js";
 import {
   addReviewCommentRequestSchema,
   addReviewCommentResponseSchema,
@@ -38,6 +41,7 @@ import {
   getProjectParamsSchema,
   getProjectResponseSchema,
   getSettingsResponseSchema,
+  getRunAuditEventsResponseSchema,
   getRunEvidenceResponseSchema,
   getRunReadinessResponseSchema,
   getRunReviewResponseSchema,
@@ -62,6 +66,8 @@ import {
   listRunArtifactsResponseSchema,
   listRunsQuerySchema,
   listRunsResponseSchema,
+  executeAuditedFlowRequestSchema,
+  executeAuditedFlowResponseSchema,
   previewCommandRequestSchema,
   previewCommandResponseSchema,
   submitCommandRequestSchema,
@@ -82,12 +88,14 @@ export interface CreateApiServerOptions {
   readonly reviewQueryService?: ReviewQueryService;
   readonly settingsQueryService?: SettingsQueryService;
   readonly runQueryService?: RunQueryService;
+  readonly auditedFlowAuditQueryService?: AuditedFlowAuditQueryService;
   readonly artifactQueryService?: ArtifactQueryService;
   readonly stagePlanQueryService?: StagePlanQueryService;
   readonly resolveProjectScopedServices?: (projectId: string) => Promise<ProjectScopedServices | null>;
   readonly resolveDefaultProjectId?: () => Promise<string | null>;
   readonly commandService?: AppCommandService;
   readonly cliCommandGateway?: CliCommandGateway;
+  readonly executeAuditedFlow?: (input: { contract: RunContract; dryRun?: boolean }) => Promise<AuditedFlowResult>;
   readonly onCliCommandEvent?: (event: CliCommandEvent) => void;
   readonly initProject?: (input: { name: string; workspacePath: string; force: boolean }) => Promise<{ configPath: string }>;
   readonly selectWorkspacePath?: () => Promise<string | null>;
@@ -95,6 +103,7 @@ export interface CreateApiServerOptions {
 
 export interface ProjectScopedServices {
   readonly runQueryService: RunQueryService;
+  readonly auditedFlowAuditQueryService?: AuditedFlowAuditQueryService;
   readonly runInsightsQueryService?: RunInsightsQueryService;
   readonly runComparisonQueryService?: RunComparisonQueryService;
   readonly reviewQueryService?: ReviewQueryService;
@@ -105,6 +114,7 @@ export interface ProjectScopedServices {
   readonly settingsQueryService?: SettingsQueryService;
   readonly commandService?: AppCommandService;
   readonly cliCommandGateway?: CliCommandGateway;
+  readonly executeAuditedFlow?: (input: { contract: RunContract; dryRun?: boolean }) => Promise<AuditedFlowResult>;
 }
 
 type CliCommandEventStatus = "started" | "completed" | "failed";
@@ -189,6 +199,7 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
 
     return {
       runQueryService: options.runQueryService,
+      auditedFlowAuditQueryService: options.auditedFlowAuditQueryService,
       runInsightsQueryService: options.runInsightsQueryService,
       runComparisonQueryService: options.runComparisonQueryService,
       reviewQueryService: options.reviewQueryService,
@@ -198,7 +209,8 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
       artifactQueryService: options.artifactQueryService,
       stagePlanQueryService: options.stagePlanQueryService,
       commandService: options.commandService,
-      cliCommandGateway: options.cliCommandGateway
+      cliCommandGateway: options.cliCommandGateway,
+      executeAuditedFlow: options.executeAuditedFlow
     } satisfies ProjectScopedServices;
   }
 
@@ -732,6 +744,48 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
     return getProjectHealthResponseSchema.parse({ health });
   });
 
+  server.post("/audited-flows", async (request, reply) => {
+    const body = executeAuditedFlowRequestSchema.safeParse(request.body);
+    if (!body.success) {
+      return reply.code(400).send(
+        errorResponseSchema.parse({
+          code: "VALIDATION_FAILED",
+          message: "Invalid audited flow request."
+        })
+      );
+    }
+
+    const projectId = parseProjectId((request.query as Record<string, unknown> | undefined)?.projectId);
+    const scoped = await resolveScopedServices(projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const executeAuditedFlow = scoped.executeAuditedFlow;
+    if (!executeAuditedFlow) {
+      return reply.code(503).send(
+        errorResponseSchema.parse({
+          code: "AUDITED_FLOW_EXECUTION_UNAVAILABLE",
+          message: "Audited flow execution is not configured."
+        })
+      );
+    }
+
+    try {
+      const run = await executeAuditedFlow({
+        contract: body.data.contract,
+        dryRun: body.data.dryRun
+      });
+      return executeAuditedFlowResponseSchema.parse({ run });
+    } catch (error) {
+      return reply.code(400).send(
+        errorResponseSchema.parse({
+          code: "AUDITED_FLOW_EXECUTION_FAILED",
+          message: error instanceof Error ? error.message : String(error)
+        })
+      );
+    }
+  });
+
   server.get("/runs", async (request, reply) => {
     const query = listRunsQuerySchema.safeParse(request.query);
     if (!query.success) {
@@ -976,6 +1030,31 @@ export function createApiServer(options: CreateApiServerOptions): FastifyInstanc
     }
 
     return getRunEvidenceResponseSchema.parse({ evidence });
+  });
+
+  server.get("/runs/:runId/audit-events", async (request, reply) => {
+    const params = getRunParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      return reply.code(400).send(
+        errorResponseSchema.parse({
+          code: "VALIDATION_FAILED",
+          message: "Invalid run id."
+        })
+      );
+    }
+
+    const projectId = parseProjectId((request.query as Record<string, unknown> | undefined)?.projectId);
+    const scoped = await resolveScopedServices(projectId, reply);
+    if (!scoped) {
+      return;
+    }
+    const auditedFlowAuditQueryService = scoped.auditedFlowAuditQueryService;
+    if (!auditedFlowAuditQueryService) {
+      return getRunAuditEventsResponseSchema.parse({ events: [] });
+    }
+
+    const events = await auditedFlowAuditQueryService.listEvents({ runId: params.data.runId });
+    return getRunAuditEventsResponseSchema.parse({ events });
   });
 
   server.get("/runs/:runId/artifacts", async (request, reply) => {

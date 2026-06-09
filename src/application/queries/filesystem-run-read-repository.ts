@@ -1,5 +1,7 @@
-import { readFile, stat } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
+import type { RunContract } from "../audited-flow/contract.js";
+import type { AuditedFlowResult } from "../use-cases/execute-audited-flow-use-case.js";
 import { listRunDirectories, readRunDetails, readRunSummary } from "../../runs.js";
 import type { RunDetails, RunSummary as LegacyRunSummary } from "../../runs.js";
 import type { RunMetadata } from "../../run-metadata.js";
@@ -57,7 +59,7 @@ export class FilesystemRunReadRepository implements RunReadRepository {
 
   async listRuns(): Promise<RunSummary[]> {
     const runIds = await listRunDirectories(this.runsRoot);
-    const summaries = await Promise.all(runIds.map(async (runId) => mapRunSummary(await readRunSummary(this.runsRoot, runId))));
+    const summaries = await Promise.all(runIds.map(async (runId) => this.readRunSummary(runId)));
     return summaries;
   }
 
@@ -67,6 +69,10 @@ export class FilesystemRunReadRepository implements RunReadRepository {
     }
 
     try {
+      const auditedFlow = await readAuditedFlowRun(path.resolve(this.runsRoot, runId));
+      if (auditedFlow) {
+        return auditedFlow;
+      }
       const details = await readRunDetails(this.runsRoot, runId);
       return await mapRunDetail(details);
     } catch (error) {
@@ -76,6 +82,25 @@ export class FilesystemRunReadRepository implements RunReadRepository {
       }
       throw error;
     }
+  }
+
+  private async readRunSummary(runId: string): Promise<RunSummary> {
+    const runDir = path.resolve(this.runsRoot, runId);
+    const auditedFlow = await readAuditedFlowRun(runDir);
+    if (auditedFlow) {
+      return {
+        id: auditedFlow.id,
+        title: auditedFlow.title,
+        status: auditedFlow.status,
+        subtitle: `audited flow · ${auditedFlow.mode}`,
+        startedAt: undefined,
+        completedAt: undefined,
+        branch: auditedFlow.branch,
+        mode: auditedFlow.mode,
+        warnings: [...auditedFlow.warnings]
+      };
+    }
+    return mapRunSummary(await readRunSummary(this.runsRoot, runId));
   }
 }
 
@@ -335,6 +360,141 @@ async function readOptionalReadinessSnapshot(runDir: string): Promise<RunReadine
       changedFileCount: Array.isArray(report.changedFiles) ? report.changedFiles.length : undefined,
       missingEvidenceWarnings: []
     };
+  } catch {
+    return undefined;
+  }
+}
+
+async function readAuditedFlowRun(runDir: string): Promise<RunDetail | null> {
+  const contract = await readOptionalJson<RunContract>(path.join(runDir, "run-contract.json"));
+  const result = await readOptionalJson<AuditedFlowResult>(path.join(runDir, "result.json"));
+  if (!contract || !result) {
+    return null;
+  }
+
+  const failedStage = result.stageResults.find((stage) => stage.status === "failed");
+  const blockingStage = result.stageResults.find((stage) => stage.status === "needs-approval");
+  const checkStage = result.stageResults.find((stage) => stage.kind === "check");
+  const artefactPaths = await collectArtefactPathsSafe(runDir);
+  const artefacts = await Promise.all(artefactPaths.map(async (artefactPath) => toRunArtefact(runDir, artefactPath)));
+  const phases = result.stageResults.map((stage) => ({
+    id: stage.stageId,
+    label: stage.stageId,
+    status: mapAuditedStageStatus(stage.status),
+    summary: stage.summary,
+    artefactIds: artefacts
+      .filter((artefact) => artifactPathBelongsToAuditedStage(artefact.path, stage.stageId))
+      .map((artefact) => artefact.id),
+    blockedReason: stage.status === "failed" ? stage.summary : undefined
+  })) satisfies RunPhase[];
+
+  return {
+    id: result.runId,
+    title: contract.goal,
+    goal: contract.goal,
+    status: mapAuditedRunStatus(result.status),
+    workspaceRoot: contract.workspace,
+    runDir,
+    branch: undefined,
+    mode: result.dryRun ? "dry-run" : "read-only",
+    provider: result.stageResults[0]?.executor,
+    model: contract.stages.find((stage) => typeof stage.model === "string" && stage.model.length > 0)?.model,
+    phases,
+    artefacts,
+    safeActions: [],
+    blockedReason:
+      result.status === "needs-approval"
+        ? blockingStage?.summary ?? "Run is waiting for approval."
+        : result.status === "failed"
+          ? failedStage?.summary ?? "Audited flow failed."
+          : undefined,
+    reviewerFindings: [],
+    readiness: {
+      source: "fallback",
+      status: result.status === "passed" ? "READY" : result.status === "needs-approval" ? "NEEDS_REVIEW" : "NEEDS_FIX",
+      reviewerVerdict: "unavailable",
+      checksState: checkStage ? mapAuditedChecksState(checkStage.status) : "unknown",
+      missingEvidenceWarnings: []
+    },
+    warnings: []
+  };
+}
+
+function mapAuditedRunStatus(status: AuditedFlowResult["status"]): RunStatus {
+  if (status === "passed") {
+    return "passed";
+  }
+  if (status === "failed") {
+    return "failed";
+  }
+  return "blocked";
+}
+
+function mapAuditedStageStatus(status: AuditedFlowResult["stageResults"][number]["status"]): RunPhase["status"] {
+  if (status === "passed") {
+    return "passed";
+  }
+  if (status === "failed") {
+    return "failed";
+  }
+  if (status === "skipped") {
+    return "skipped";
+  }
+  return "blocked";
+}
+
+function mapAuditedChecksState(status: AuditedFlowResult["stageResults"][number]["status"]): RunReadinessSnapshot["checksState"] {
+  if (status === "failed") {
+    return "failed";
+  }
+  if (status === "skipped") {
+    return "skipped";
+  }
+  if (status === "passed") {
+    return "passed";
+  }
+  return "unknown";
+}
+
+function artifactPathBelongsToAuditedStage(artifactPath: string, stageId: string): boolean {
+  const prefix = `stages/${stageId.toLowerCase().replace(/[^a-z0-9._-]+/g, "-")}/`;
+  return artifactPath.toLowerCase().startsWith(prefix);
+}
+
+async function collectArtefactPathsSafe(runDir: string): Promise<string[]> {
+  try {
+    return await collectArtefactPaths(runDir);
+  } catch {
+    return [];
+  }
+}
+
+async function collectArtefactPaths(runDir: string): Promise<string[]> {
+  const result: string[] = [];
+  const queue = [runDir];
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) {
+      continue;
+    }
+    const entries = await readdir(current, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.resolve(current, entry.name);
+      if (entry.isDirectory()) {
+        queue.push(fullPath);
+      } else if (entry.isFile()) {
+        result.push(path.relative(runDir, fullPath).replace(/\\/g, "/"));
+      }
+    }
+  }
+
+  return result.sort((a, b) => a.localeCompare(b));
+}
+
+async function readOptionalJson<T>(filePath: string): Promise<T | undefined> {
+  try {
+    return JSON.parse(await readFile(filePath, "utf8")) as T;
   } catch {
     return undefined;
   }

@@ -3,6 +3,7 @@ import { handleBackfillEvidenceCommand } from "./commands/backfill-evidence.comm
 import { handleInitProjectCommand } from "./commands/init-project.command.js";
 import { handleImportStagePlanCommand } from "./commands/import-stage-plan.command.js";
 import { handleProbeOpenCodeCommand } from "./commands/probe-opencode.command.js";
+import { handleRunContractCommand } from "./commands/run-contract.command.js";
 import { handleCheckWriteSafetyCommand } from "./commands/check-write-safety.command.js";
 import { handleRunCommand } from "./commands/run.command.js";
 import { handleContinueRunCommand } from "./commands/continue-run.command.js";
@@ -26,6 +27,7 @@ export const commandHandlers = {
   "init-project": handleInitProjectCommand,
   "import-stage-plan": handleImportStagePlanCommand,
   "probe-opencode": handleProbeOpenCodeCommand,
+  "run-contract": handleRunContractCommand,
   "check-write-safety": handleCheckWriteSafetyCommand,
   "backfill-evidence": handleBackfillEvidenceCommand,
   "run": handleRunCommand,

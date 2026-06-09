@@ -173,6 +173,24 @@ export function parseSharedFlags(parsed: ParsedArgs, rest: string[]): void {
       i += 1;
       continue;
     }
+    if (token === "--goal") {
+      const value = rest[i + 1];
+      if (!value) {
+        throw new Error("Missing value for --goal");
+      }
+      parsed.goalArg = value;
+      i += 1;
+      continue;
+    }
+    if (token === "--flow") {
+      const value = rest[i + 1];
+      if (!value) {
+        throw new Error("Missing value for --flow");
+      }
+      parsed.flowArg = value;
+      i += 1;
+      continue;
+    }
     if (token === "--from") {
       const value = rest[i + 1];
       if (!value) {

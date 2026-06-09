@@ -5,6 +5,8 @@ import type { ProgressLogger } from "../progress-logger.js";
 import type { OpenFileResult } from "../open-file.js";
 import type { AutoChainExecutionSummary } from "../auto-chain.js";
 import type { WriteSafetyResult } from "../write-safety.js";
+import type { RunContract } from "../application/audited-flow/contract.js";
+import type { AuditedFlowResult } from "../application/use-cases/execute-audited-flow-use-case.js";
 
 export interface ParsedArgs {
   command?: string;
@@ -15,6 +17,8 @@ export interface ParsedArgs {
   projectName?: string;
   configArg?: string;
   modesArg?: string;
+  goalArg?: string;
+  flowArg?: string;
   workspaceArg?: string;
   repoOverride?: string;
   preset?: PipelinePreset;
@@ -86,6 +90,11 @@ export interface RunCommandDeps {
     progressLogger: ProgressLogger;
   }) => Promise<AutoChainExecutionSummary>;
   openPlanHandler?: (filePath: string) => Promise<OpenFileResult>;
+  runContractHandler?: (args: {
+    contract: RunContract;
+    orchestratorRoot: string;
+    dryRun: boolean;
+  }) => Promise<AuditedFlowResult>;
 }
 
 export interface CheckWriteSafetyRunResult {

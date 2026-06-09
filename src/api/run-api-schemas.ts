@@ -171,6 +171,98 @@ export const getCommandEventsResponseSchema = z.object({
   events: z.array(commandEventSchema)
 });
 
+export const auditedFlowAuditEventSchema = z.object({
+  type: z.enum([
+    "run.created",
+    "flow.selected",
+    "stage.started",
+    "prompt.generated",
+    "executor.invoked",
+    "executor.completed",
+    "command.started",
+    "command.completed",
+    "files.changed",
+    "stage.completed",
+    "run.completed",
+    "run.failed"
+  ]),
+  runId: z.string(),
+  occurredAt: z.string(),
+  stageId: z.string().optional(),
+  executorId: z.string().optional(),
+  payload: z.record(z.string(), z.unknown()).optional()
+});
+
+export const getRunAuditEventsResponseSchema = z.object({
+  events: z.array(auditedFlowAuditEventSchema)
+});
+
+export const auditedFlowStageKindSchema = z.enum([
+  "plan",
+  "build",
+  "check",
+  "review",
+  "fix",
+  "final-review",
+  "approval",
+  "report",
+  "github"
+]);
+
+export const runContractStageSchema = z.object({
+  id: z.string().min(1),
+  kind: auditedFlowStageKindSchema,
+  executor: z.string().min(1),
+  model: z.string().optional(),
+  required: z.boolean().optional(),
+  onlyIf: z.array(z.string()).optional()
+});
+
+export const runContractSchema = z.object({
+  id: z.string().optional(),
+  goal: z.string().min(1),
+  workspace: z.string().min(1),
+  flow: z.string().min(1),
+  stages: z.array(runContractStageSchema).min(1),
+  requiredChecks: z.array(z.string()).optional(),
+  requiredEvidence: z.array(z.string()).optional(),
+  allowedPaths: z.array(z.string()).optional(),
+  forbiddenPaths: z.array(z.string()).optional(),
+  stopBeforePr: z.boolean().optional(),
+  audit: z.object({
+    mode: z.enum(["required", "best-effort"])
+  }).optional()
+});
+
+export const auditedFlowStageResultSchema = z.object({
+  stageId: z.string(),
+  kind: auditedFlowStageKindSchema,
+  executor: z.string(),
+  status: z.enum(["passed", "failed", "skipped", "needs-approval"]),
+  summary: z.string(),
+  artefacts: z.array(z.object({ kind: z.string(), path: z.string() })).optional(),
+  changedFiles: z.array(z.string()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional()
+});
+
+export const executeAuditedFlowRequestSchema = z.object({
+  contract: runContractSchema,
+  dryRun: z.boolean().optional()
+});
+
+export const auditedFlowResultSchema = z.object({
+  runId: z.string(),
+  status: z.enum(["passed", "failed", "needs-approval"]),
+  stageResults: z.array(auditedFlowStageResultSchema),
+  auditPath: z.string(),
+  artefactsDir: z.string(),
+  dryRun: z.boolean()
+});
+
+export const executeAuditedFlowResponseSchema = z.object({
+  run: auditedFlowResultSchema
+});
+
 export const cliCommandPreviewResponseSchema = z.object({
   requestId: z.string().optional(),
   command: z.string(),

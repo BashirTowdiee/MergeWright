@@ -1,5 +1,5 @@
 version: 1
-last_updated: 2026-06-01
+last_updated: 2026-06-09
 project:
   name: mergewright
   type: npm-workspaces-typescript-monorepo
@@ -69,6 +69,7 @@ areas:
       - apps/api/tsconfig.json
       - apps/api/src/server.ts
       - src/api/run-api-schemas.ts
+      - src/application/queries/audited-flow-audit-query-service.ts
     tests:
       - test/api-server.test.ts
       - test/app-manifest-boundary.test.ts
@@ -186,6 +187,7 @@ areas:
       - src/cli/command-registry.ts
       - src/cli/known-commands.ts
       - src/cli/commands
+      - src/cli/commands/run-contract.command.ts
       - src/cli/commands/compare-runs.command.ts
       - src/cli/commands/prove.command.ts
       - src/cli/commands/review-modes.command.ts
@@ -197,6 +199,7 @@ areas:
       - test/cli-dispatch.test.ts
       - test/cli-core-boundary.test.ts
       - test/cli-progress-log-policy.test.ts
+      - test/run-contract-cli.test.ts
 
   - id: src.workflows
     path: src/workflows
@@ -222,14 +225,18 @@ areas:
 
   - id: src.application
     path: src/application
-    purpose: Use cases, command service, events, queries, read-models.
+    purpose: Use cases, audited-flow contracts/executors, command service, events, queries, read-models.
     public_entrypoints:
       - src/application/commands/app-command.ts
       - src/application/commands/default-app-command-service.ts
       - src/application/events/app-event-bus.ts
     important_files:
+      - src/application/audited-flow
+      - src/application/read-models/audited-flow-read-model.ts
       - src/application/use-cases
+      - src/application/use-cases/execute-audited-flow-use-case.ts
       - src/application/queries
+      - src/application/queries/audited-flow-audit-query-service.ts
       - src/application/queries/filesystem-run-read-repository.ts
       - src/application/queries/policy-query-service.ts
       - src/application/queries/project-query-service.ts
@@ -250,6 +257,7 @@ areas:
       - src/application/read-models/settings-read-model.ts
       - src/application/read-models/stage-plan-read-model.ts
     tests:
+      - test/audited-flow.test.ts
       - test/app-command-service.test.ts
       - test/evented-app-command-service.test.ts
       - test/filesystem-run-read-repository.test.ts
@@ -343,6 +351,7 @@ areas:
       - docs/architecture/overview.md
       - docs/cli/commands.md
     important_files:
+      - docs/product/05-audited-workflow-runner-direction.md
       - docs/workflows/classic-run.md
       - docs/workflows/stage-plan.md
       - docs/safety/write-safety.md

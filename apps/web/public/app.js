@@ -49,6 +49,7 @@ const state = {
   selectedRunReadiness: undefined,
   selectedRunReview: undefined,
   selectedRunEvidence: undefined,
+  selectedRunAuditEvents: [],
   selectedRunPhaseArtifacts: undefined,
   selectedPhaseId: undefined,
   selectedRunComparison: undefined,
@@ -149,6 +150,8 @@ const nodes = {
   detailRunDir: document.getElementById("detailRunDir"),
   detailProvider: document.getElementById("detailProvider"),
   detailModel: document.getElementById("detailModel"),
+  detailAuditEventsPill: document.getElementById("detailAuditEventsPill"),
+  detailAuditEventsOutput: document.getElementById("detailAuditEventsOutput"),
   runArtifactScope: document.getElementById("runArtifactScope"),
   clearPhaseFilterButton: document.getElementById("clearPhaseFilterButton"),
   runArtifactsCount: document.getElementById("runArtifactsCount"),
@@ -1351,6 +1354,9 @@ function renderRunDetail() {
     nodes.detailRunDir.textContent = "-";
     nodes.detailProvider.textContent = "-";
     nodes.detailModel.textContent = "-";
+    nodes.detailAuditEventsPill.textContent = "0 events";
+    nodes.detailAuditEventsPill.className = "pill neutral";
+    nodes.detailAuditEventsOutput.textContent = "No run selected.";
     nodes.runArtifactScope.textContent = "all phases";
     nodes.runArtifactScope.className = "pill neutral";
     nodes.runArtifactsCount.textContent = "0";
@@ -1389,6 +1395,7 @@ function renderRunDetail() {
   nodes.detailRunDir.textContent = run.runDir || "-";
   nodes.detailProvider.textContent = run.provider || "-";
   nodes.detailModel.textContent = run.model || "-";
+  renderRunAuditPanel(state.selectedRunAuditEvents || []);
 
   const visibleArtifacts = getVisibleRunArtifacts();
   renderRunArtifacts(visibleArtifacts);
@@ -1450,6 +1457,30 @@ function renderSafeActions(actions) {
     item.append(row, note);
     nodes.safeActionsList.append(item);
   }
+}
+
+function renderRunAuditPanel(events) {
+  nodes.detailAuditEventsPill.className = `pill ${events.length > 0 ? "blue" : "neutral"}`;
+  nodes.detailAuditEventsPill.textContent = `${events.length} events`;
+  nodes.detailAuditEventsOutput.textContent =
+    events.length > 0
+      ? events
+          .map((event) => {
+            const parts = [event.occurredAt, event.type];
+            if (event.stageId) {
+              parts.push(`stage=${event.stageId}`);
+            }
+            if (event.executorId) {
+              parts.push(`executor=${event.executorId}`);
+            }
+            const payload =
+              event.payload && Object.keys(event.payload).length > 0
+                ? ` ${JSON.stringify(event.payload)}`
+                : "";
+            return `${parts.join(" ")}${payload}`;
+          })
+          .join("\n")
+      : "No audited-flow events found for this run.";
 }
 
 function getSelectedPhaseLabel() {
@@ -1777,6 +1808,7 @@ async function selectRun(runId) {
   state.selectedRunReadiness = undefined;
   state.selectedRunReview = undefined;
   state.selectedRunEvidence = undefined;
+  state.selectedRunAuditEvents = [];
   state.selectedRunPhaseArtifacts = undefined;
   state.selectedPhaseId = undefined;
   renderRunTable();
@@ -1807,6 +1839,13 @@ async function selectRun(runId) {
     state.selectedRunEvidence = evidencePayload.evidence;
   } catch {
     state.selectedRunEvidence = undefined;
+  }
+
+  try {
+    const auditPayload = await fetchJson(`/api/runs/${encodeURIComponent(runId)}/audit-events`);
+    state.selectedRunAuditEvents = Array.isArray(auditPayload.events) ? auditPayload.events : [];
+  } catch {
+    state.selectedRunAuditEvents = [];
   }
 
   try {
