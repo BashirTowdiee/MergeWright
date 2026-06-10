@@ -21,6 +21,7 @@ Start here:
 | Web interface | [Web interface implementation plan](docs/ux/04-web-interface-implementation-plan.md) |
 | Architecture | [Architecture overview](docs/architecture/overview.md) |
 | CLI | [Command reference](docs/cli/commands.md) |
+| MCP | [MCP server setup](docs/cli/mcp.md) |
 | Workflows | [Classic run](docs/workflows/classic-run.md), [Stage Plan](docs/workflows/stage-plan.md) |
 | Configuration | [Execution backends](docs/configuration/execution-backends.md) |
 | Safety | [Write safety](docs/safety/write-safety.md), [Write mode](docs/safety/write-mode.md) |
@@ -86,6 +87,17 @@ npm install
 npm run build
 npm run mergewright -- --help
 ```
+
+Start the MCP stdio server with a protocol-clean entrypoint:
+
+```bash
+npm run build --workspace @mergewright/mcp
+node dist/apps/mcp/src/main.js --orchestrator-root /absolute/path/to/mergewright
+```
+
+`npm run mergewright -- mcp` exists as a human convenience launch path, but it is not suitable for MCP clients because npm and the prelaunch build write to stdout before the server starts.
+
+See [docs/cli/mcp.md](docs/cli/mcp.md) for client configuration examples and the full MCP tool surface.
 
 Start the API + web control room (demo-guided slice):
 

@@ -95,6 +95,7 @@ export interface RunCommandDeps {
     orchestratorRoot: string;
     dryRun: boolean;
   }) => Promise<AuditedFlowResult>;
+  mcpServerHandler?: (args: { orchestratorRoot: string }) => Promise<void>;
 }
 
 export interface CheckWriteSafetyRunResult {

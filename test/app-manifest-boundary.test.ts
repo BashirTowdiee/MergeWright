@@ -37,6 +37,15 @@ test("CLI app manifest exposes its built entrypoints", async () => {
   assert.equal(manifest.exports?.["."]?.default, "../../dist/apps/cli/src/main.js");
 });
 
+test("MCP app manifest exposes its built entrypoints", async () => {
+  const manifest = await readManifest("apps/mcp/package.json");
+
+  assert.equal(manifest.main, "../../dist/apps/mcp/src/main.js");
+  assert.equal(manifest.types, "../../dist/apps/mcp/src/main.d.ts");
+  assert.equal(manifest.exports?.["."]?.types, "../../dist/apps/mcp/src/main.d.ts");
+  assert.equal(manifest.exports?.["."]?.default, "../../dist/apps/mcp/src/main.js");
+});
+
 test("Web app manifest exposes Next.js runtime scripts", async () => {
   const manifest = await readManifest("apps/web/package.json");
 

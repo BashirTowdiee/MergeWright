@@ -78,6 +78,30 @@ export function validateParsedArgs(parsed: ParsedArgs): void {
   if (parsed.flowArg && parsed.command !== "run-contract") {
     throw new Error("--flow is only supported for run-contract.");
   }
+  if (parsed.command === "mcp") {
+    if (parsed.help) {
+      return;
+    }
+    if (parsed.configArg) {
+      throw new Error("--config is not supported for mcp.");
+    }
+    if (parsed.repoOverride) {
+      throw new Error("--repo is not supported for mcp.");
+    }
+    if (parsed.workspaceArg) {
+      throw new Error("--workspace is not supported for mcp.");
+    }
+    if (parsed.goalArg || parsed.flowArg) {
+      throw new Error("--goal and --flow are not supported for mcp.");
+    }
+    if (parsed.force) {
+      throw new Error("--force is not supported for mcp.");
+    }
+    if (parsed.jsonOutput || parsed.prSummary || parsed.stdoutOnly) {
+      throw new Error("--json, --pr-summary, and --stdout-only are not supported for mcp.");
+    }
+    return;
+  }
 
   if (parsed.command === "run") {
     if (parsed.help) {

@@ -71,6 +71,8 @@ function renderTopLevelHelpText(): string {
     "  prove <run-id> --config <config-path> [--json] [--verbose]",
     "  review-modes <run-id> --config <config-path> [--modes architecture,tests,regression,security,docs,maintainability] [--json] [--verbose]",
     "  report-run <run-id> --config <config-path> [--json] [--pr-summary] [--stdout-only] [--force] [--verbose]",
+    "  run-contract --goal <text> --workspace <path> [--flow <name>] [--dry-run]",
+    "  mcp",
     "  tui",
     "  tui-spike",
     "  init-project <name> --workspace <path> [--force] [--verbose]",

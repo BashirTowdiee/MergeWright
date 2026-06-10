@@ -1,5 +1,5 @@
 version: 1
-last_updated: 2026-06-09
+last_updated: 2026-06-11
 project:
   name: mergewright
   type: npm-workspaces-typescript-monorepo
@@ -72,6 +72,26 @@ areas:
       - src/application/queries/audited-flow-audit-query-service.ts
     tests:
       - test/api-server.test.ts
+      - test/app-manifest-boundary.test.ts
+
+  - id: apps.mcp
+    path: apps/mcp
+    purpose: Runnable stdio MCP app boundary for audited-flow execution, project inspection, and CLI-gateway MCP tools.
+    public_entrypoints:
+      - apps/mcp/src/cli.ts
+      - apps/mcp/src/main.ts
+      - apps/mcp/src/server.ts
+      - src/mcp/server.ts
+    important_files:
+      - apps/mcp/package.json
+      - apps/mcp/tsconfig.json
+      - src/mcp/runtime.ts
+      - src/application/audited-flow/default-run-contract.ts
+      - src/application/queries/audited-flow-run-files.ts
+      - docs/cli/mcp.md
+    tests:
+      - test/mcp-cli.test.ts
+      - test/mcp-server.test.ts
       - test/app-manifest-boundary.test.ts
 
   - id: apps.web
@@ -187,6 +207,7 @@ areas:
       - src/cli/command-registry.ts
       - src/cli/known-commands.ts
       - src/cli/commands
+      - src/cli/commands/mcp.command.ts
       - src/cli/commands/run-contract.command.ts
       - src/cli/commands/compare-runs.command.ts
       - src/cli/commands/prove.command.ts
@@ -200,6 +221,7 @@ areas:
       - test/cli-core-boundary.test.ts
       - test/cli-progress-log-policy.test.ts
       - test/run-contract-cli.test.ts
+      - test/mcp-cli.test.ts
 
   - id: src.workflows
     path: src/workflows
@@ -232,10 +254,12 @@ areas:
       - src/application/events/app-event-bus.ts
     important_files:
       - src/application/audited-flow
+      - src/application/audited-flow/default-run-contract.ts
       - src/application/read-models/audited-flow-read-model.ts
       - src/application/use-cases
       - src/application/use-cases/execute-audited-flow-use-case.ts
       - src/application/queries
+      - src/application/queries/audited-flow-run-files.ts
       - src/application/queries/audited-flow-audit-query-service.ts
       - src/application/queries/filesystem-run-read-repository.ts
       - src/application/queries/policy-query-service.ts
@@ -350,7 +374,9 @@ areas:
       - docs/README.md
       - docs/architecture/overview.md
       - docs/cli/commands.md
+      - docs/cli/mcp.md
     important_files:
+      - docs/cli/mcp.md
       - docs/product/05-audited-workflow-runner-direction.md
       - docs/workflows/classic-run.md
       - docs/workflows/stage-plan.md

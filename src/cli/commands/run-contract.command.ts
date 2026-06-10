@@ -1,4 +1,5 @@
 import path from "node:path";
+import { buildDefaultAuditedFlowContract } from "../../application/audited-flow/default-run-contract.js";
 import { DeterministicStageExecutor } from "../../application/audited-flow/deterministic-stage-executor.js";
 import type { RunContract } from "../../application/audited-flow/contract.js";
 import { StageExecutorRegistry } from "../../application/audited-flow/executor-registry.js";
@@ -43,17 +44,5 @@ export const handleRunContractCommand: CommandHandler = async ({ args, orchestra
 }
 
 function buildExampleRunContract(input: { goal: string; workspace: string; flow: string }): RunContract {
-  return {
-    goal: input.goal.trim(),
-    workspace: input.workspace,
-    flow: input.flow,
-    audit: { mode: "required" },
-    stages: [
-      { id: "plan", kind: "plan", executor: "deterministic-dry-run", model: "gpt-5.5-medium" },
-      { id: "build", kind: "build", executor: "deterministic-dry-run", model: "gpt-5.5-xhigh" },
-      { id: "check", kind: "check", executor: "deterministic-dry-run" },
-      { id: "review", kind: "review", executor: "deterministic-dry-run", model: "configured-review-model" },
-      { id: "final-review", kind: "final-review", executor: "deterministic-dry-run", model: "configured-final-review-model" }
-    ]
-  };
+  return buildDefaultAuditedFlowContract(input);
 }

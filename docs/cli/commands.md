@@ -11,6 +11,8 @@ Supported commands:
 - `prove`
 - `review-modes`
 - `report-run`
+- `run-contract`
+- `mcp`
 - `init-project`
 - `check-write-safety`
 - `probe-opencode`
@@ -25,6 +27,7 @@ Supported commands:
 See splits:
 
 - Classic: [run.md](./run.md), [continue-run.md](./continue-run.md)
+- Audited flow and MCP: `run-contract`, [mcp.md](./mcp.md)
 - Stage Plan: [stage-plan-commands.md](./stage-plan-commands.md)
 - Reports: [reports.md](./reports.md)
 - Safety/provider utilities: [safety.md](./safety.md), [providers.md](./providers.md)

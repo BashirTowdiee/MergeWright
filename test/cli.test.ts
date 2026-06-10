@@ -16,6 +16,8 @@ test("top-level help contains command list and safety notes", async () => {
   assert.match(text, /prove <run-id>/);
   assert.match(text, /review-modes <run-id>/);
   assert.match(text, /report-run <run-id>/);
+  assert.match(text, /run-contract --goal <text> --workspace <path>/);
+  assert.match(text, /mcp/);
   assert.match(text, /read-only sandbox/);
   assert.match(text, /No auto-commit or auto-push/);
 });

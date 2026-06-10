@@ -81,15 +81,36 @@ MCP should trigger audited runs. MCP clients should not orchestrate internal Mer
 Preferred MCP shape:
 
 ```text
-execute_audited_flow(runContract)
-get_run(runId)
-get_run_events(runId)
-approve_stage(runId, stageId)
-cancel_run(runId)
-export_audit(runId)
+execute_audited_flow(input)
+get_audited_flow_run(runId)
+get_audited_flow_events(runId)
+export_audited_flow_audit(runId)
 ```
 
-Avoid exposing lots of low-level tools that let an external chatbot decide each internal step. That breaks the audit boundary.
+Project and control tools are acceptable when they stay above orchestration internals and reuse shared query or command services rather than exposing agent-by-agent step control.
+
+Current acceptable MCP surface:
+
+```text
+execute_audited_flow
+get_audited_flow_run
+get_audited_flow_events
+export_audited_flow_audit
+list_projects
+get_settings
+get_project
+list_runs
+get_run_detail
+get_provider_inventory
+get_policy_snapshot
+get_write_safety_status
+preview_cli_command
+execute_cli_command
+```
+
+Controlled non-deterministic executors are acceptable when MergeWright still owns selection, audit, and stage boundaries. The current example is `shell-check` for `check` stages with explicit project or config context.
+
+Avoid exposing lots of low-level tools that let an external chatbot decide each internal step. That still breaks the audit boundary.
 
 Bad shape:
 
@@ -122,15 +143,12 @@ CLI responsibilities:
 Representative commands:
 
 ```bash
-mw init
-mw mcp
-mw run feature --goal "add a HackerNews top stories page" --agent codex
-mw runs
-mw audit <run-id>
-mw logs <run-id>
-mw approve-stage <run-id> <stage-id>
-mw export-audit <run-id> --format json
-mw doctor
+npm run mergewright -- init-project "My App" --workspace /path/to/repo
+node dist/apps/mcp/src/main.js --orchestrator-root /path/to/mergewright
+npm run mergewright -- run-contract --goal "add a HackerNews top stories page" --workspace /path/to/repo --dry-run
+npm run mergewright -- list-runs --config .artifacts/projects/my-app/config.json
+npm run mergewright -- show-run <run-id> --config .artifacts/projects/my-app/config.json
+npm run mergewright -- check-write-safety --config .artifacts/projects/my-app/config.json
 ```
 
 ### GitHub
@@ -277,7 +295,7 @@ The previous web-first roadmap should be adjusted as follows:
 2. Promote Run Contract to the primary product primitive.
 3. Add Stage Executor contracts before expanding backend support.
 4. Add `execute_audited_flow` as the high-level application use case.
-5. Add MCP as a trigger surface over `execute_audited_flow`.
+5. Add MCP as a high-level trigger and inspection surface over shared audited-flow, query, and typed command services.
 6. Keep CLI commands as explicit run/control/audit operations.
 7. Reposition the web app as an audit, approval, and run-visibility dashboard.
 8. Add GitHub App or GitHub Action integration as the team adoption path.

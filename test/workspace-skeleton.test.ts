@@ -30,7 +30,7 @@ async function readPackageJson(path: string): Promise<PackageJson> {
   return readJson<PackageJson>(join(path, "package.json"));
 }
 
-const appWorkspaces = ["api", "cli", "web"] as const;
+const appWorkspaces = ["api", "cli", "mcp", "web"] as const;
 const packageWorkspaces = ["application", "domain", "adapters", "config", "shared"] as const;
 
 test("root package declares npm workspace globs for apps and packages", async () => {
@@ -63,6 +63,7 @@ test("workspace skeleton declares explicit app and package boundaries", async ()
   const expectedPackages = new Map([
     ["apps/cli", "@mergewright/cli"],
     ["apps/api", "@mergewright/api"],
+    ["apps/mcp", "@mergewright/mcp"],
     ["apps/web", "@mergewright/web"],
     ["packages/application", "@mergewright/application"],
     ["packages/domain", "@mergewright/domain"],

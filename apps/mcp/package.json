@@ -1,0 +1,19 @@
+{
+  "name": "@mergewright/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MergeWright MCP stdio application boundary.",
+  "main": "../../dist/apps/mcp/src/main.js",
+  "types": "../../dist/apps/mcp/src/main.d.ts",
+  "exports": {
+    ".": {
+      "types": "../../dist/apps/mcp/src/main.d.ts",
+      "default": "../../dist/apps/mcp/src/main.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node ../../dist/apps/mcp/src/main.js"
+  }
+}

@@ -251,6 +251,35 @@ export function renderHelpText(command?: string): string {
     ].join("\n");
   }
 
+  if (command === "mcp") {
+    return [
+      "Usage: agent-stage mcp",
+      "",
+      "Starts the MergeWright MCP server on stdio.",
+      "",
+      "Tools:",
+      "  - execute_audited_flow",
+      "  - get_audited_flow_run",
+      "  - get_audited_flow_events",
+      "  - export_audited_flow_audit",
+      "  - list_projects",
+      "  - get_settings",
+      "  - get_project",
+      "  - list_runs",
+      "  - get_run_detail",
+      "  - get_provider_inventory",
+      "  - get_policy_snapshot",
+      "  - get_write_safety_status",
+      "  - preview_cli_command",
+      "  - execute_cli_command",
+      "",
+      "Launch notes:",
+      "  - For MCP clients, prefer the built entrypoint: node dist/apps/mcp/src/main.js --orchestrator-root <path>",
+      "  - npm run mergewright -- mcp is a human convenience command, but npm/build stdout is not protocol-clean for MCP clients.",
+      "  - See docs/cli/mcp.md for client setup examples."
+    ].join("\n");
+  }
+
   if (command === "import-stage-plan") {
     return [
       "Usage: agent-stage import-stage-plan --from <path> --out <path> [--force]",
@@ -396,6 +425,8 @@ export function renderHelpText(command?: string): string {
     "  review-modes <run-id> --config <config-path> [--modes architecture,tests,regression,security,docs,maintainability] [--json] [--verbose]",
     "  report-run <run-id> --config <config-path> [--json] [--pr-summary] [--stdout-only] [--force] [--verbose]",
     "  backfill-evidence <run-id> --config <config-path> [--dry-run] [--verbose]",
+    "  run-contract --goal <text> --workspace <path> [--flow <name>] [--dry-run]",
+    "  mcp",
     "  init-project <name> --workspace <path> [--force] [--verbose]",
     "  check-write-safety --config <config-path>",
     "  probe-opencode [--config <config-path>] [--backend <name>] [--command <command>] [--json] [--validate-readonly-contract]",

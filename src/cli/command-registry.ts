@@ -2,6 +2,7 @@ import type { CommandHandler } from "./command-context.js";
 import { handleBackfillEvidenceCommand } from "./commands/backfill-evidence.command.js";
 import { handleInitProjectCommand } from "./commands/init-project.command.js";
 import { handleImportStagePlanCommand } from "./commands/import-stage-plan.command.js";
+import { handleMcpCommand } from "./commands/mcp.command.js";
 import { handleProbeOpenCodeCommand } from "./commands/probe-opencode.command.js";
 import { handleRunContractCommand } from "./commands/run-contract.command.js";
 import { handleCheckWriteSafetyCommand } from "./commands/check-write-safety.command.js";
@@ -26,6 +27,7 @@ import { handleReassessStagePlanCommand } from "./commands/stage-plan/reassess-s
 export const commandHandlers = {
   "init-project": handleInitProjectCommand,
   "import-stage-plan": handleImportStagePlanCommand,
+  mcp: handleMcpCommand,
   "probe-opencode": handleProbeOpenCodeCommand,
   "run-contract": handleRunContractCommand,
   "check-write-safety": handleCheckWriteSafetyCommand,
