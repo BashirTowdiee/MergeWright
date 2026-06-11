@@ -156,9 +156,9 @@ test("codex-cli config still validates unchanged", () => {
     }
   };
   config.agents = {
-    planner: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" },
-    builder: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "medium" },
-    reviewer: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" }
+    planner: { backend: "codex", model: "gpt-5.5", reasoningEffort: "high" },
+    builder: { backend: "codex", model: "gpt-5.5", reasoningEffort: "medium" },
+    reviewer: { backend: "codex", model: "gpt-5.5", reasoningEffort: "high" }
   };
 
   const validated = validateConfig(config);

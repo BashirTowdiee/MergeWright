@@ -80,9 +80,9 @@ async function makeFixture(options?: {
       codex: { type: "codex-cli" }
     },
     agents: {
-      planner: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" },
-      builder: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "medium" },
-      reviewer: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" }
+      planner: { backend: "codex", model: "gpt-5.5", reasoningEffort: "high" },
+      builder: { backend: "codex", model: "gpt-5.5", reasoningEffort: "medium" },
+      reviewer: { backend: "codex", model: "gpt-5.5", reasoningEffort: "high" }
     },
         pipeline: { finalReview: true, maxFixLoops: 1 },
         commands: { checks: [] },
@@ -245,7 +245,7 @@ test("explicit codexExecutor override is preserved after adapter wiring", async 
 
   assert.equal(requests.length, 1);
   assert.equal(requests[0].role, "planner");
-  assert.equal(requests[0].model, "gpt-5.3-codex");
+  assert.equal(requests[0].model, "gpt-5.5");
   assert.equal(requests[0].workspaceRoot, workspaceRoot);
   const plannerCommand = JSON.parse(await readFile(path.join(result.runDir, "03-planner-command.args.json"), "utf8")) as {
     backend?: unknown;
@@ -419,7 +419,7 @@ test("planner command artefact includes backend metadata via configured adapter"
     backendName: "codex",
     backendType: "codex-cli",
     agentRole: "planner",
-    model: "gpt-5.3-codex",
+    model: "gpt-5.5",
     reasoningEffort: "high"
   });
   } finally {
@@ -531,9 +531,9 @@ test("runsDir inside target workspace still fails", async () => {
       codex: { type: "codex-cli" }
     },
     agents: {
-      planner: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" },
-      builder: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "medium" },
-      reviewer: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" }
+      planner: { backend: "codex", model: "gpt-5.5", reasoningEffort: "high" },
+      builder: { backend: "codex", model: "gpt-5.5", reasoningEffort: "medium" },
+      reviewer: { backend: "codex", model: "gpt-5.5", reasoningEffort: "high" }
     },
         pipeline: { finalReview: true, maxFixLoops: 1 },
         commands: { checks: [] },
@@ -1398,7 +1398,7 @@ test("planner + builder execution calls injected executor twice with correct rol
   assert.equal(calls.length, 2);
   assert.equal(calls[0].role, "planner");
   assert.equal(calls[1].role, "builder");
-  assert.equal(calls[1].model, "gpt-5.3-codex");
+  assert.equal(calls[1].model, "gpt-5.5");
   assert.equal(calls[1].reasoningEffort, "medium");
   assert.equal(calls[1].prompt, "Implement Stage D builder");
 
@@ -1533,7 +1533,7 @@ test("planner + reviewer mode calls injected executor twice and reviewer uses re
   assert.equal(calls.length, 2);
   assert.equal(calls[0].role, "planner");
   assert.equal(calls[1].role, "reviewer");
-  assert.equal(calls[1].model, "gpt-5.3-codex");
+  assert.equal(calls[1].model, "gpt-5.5");
   assert.equal(calls[1].reasoningEffort, "high");
   assert.match(calls[1].prompt, /EXTRACTED=Implement Stage D builder/);
   assert.match(calls[1].prompt, /STATE=Builder was not executed in Stage E/);
@@ -1704,7 +1704,7 @@ test("planner + reviewer + planFix calls injected executor in planner, reviewer,
     }
   });
   assert.deepEqual(roles, ["planner", "reviewer", "planner"]);
-  assert.equal(calls[2].model, "gpt-5.3-codex");
+  assert.equal(calls[2].model, "gpt-5.5");
   assert.equal(calls[2].reasoningEffort, "high");
   const decision = JSON.parse(await readFile(path.join(result.runDir, "review-to-fix-decision.json"), "utf8")) as {
     decision: string;
@@ -1965,7 +1965,7 @@ test("planner + reviewer + planFix + executeFix + fix_required executes fix with
     calls.map((call) => call.role),
     ["planner", "reviewer", "planner", "builder"]
   );
-  assert.equal(calls[3].model, "gpt-5.3-codex");
+  assert.equal(calls[3].model, "gpt-5.5");
   assert.equal(calls[3].reasoningEffort, "medium");
   assert.equal(calls[3].prompt, "Apply focused fix.");
   assert.equal(await readFile(path.join(result.runDir, "fix-prompt.executed.md"), "utf8"), "Apply focused fix.");
@@ -2636,9 +2636,9 @@ test("runChecks true writes check artefacts for passing command", async () => {
       codex: { type: "codex-cli" }
     },
     agents: {
-      planner: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" },
-      builder: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "medium" },
-      reviewer: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" }
+      planner: { backend: "codex", model: "gpt-5.5", reasoningEffort: "high" },
+      builder: { backend: "codex", model: "gpt-5.5", reasoningEffort: "medium" },
+      reviewer: { backend: "codex", model: "gpt-5.5", reasoningEffort: "high" }
     },
         pipeline: { finalReview: true, maxFixLoops: 1 },
         commands: { checks: [{ name: "unit-tests", command: "npm", args: ["test"], cwd: "orchestrator" }] },
@@ -2697,9 +2697,9 @@ test("failing check writes diagnostics and throws; second check is not run", asy
       codex: { type: "codex-cli" }
     },
     agents: {
-      planner: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" },
-      builder: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "medium" },
-      reviewer: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" }
+      planner: { backend: "codex", model: "gpt-5.5", reasoningEffort: "high" },
+      builder: { backend: "codex", model: "gpt-5.5", reasoningEffort: "medium" },
+      reviewer: { backend: "codex", model: "gpt-5.5", reasoningEffort: "high" }
     },
         pipeline: { finalReview: true, maxFixLoops: 1 },
         commands: {
@@ -2766,9 +2766,9 @@ test("checks support workspace and orchestrator cwd", async () => {
       codex: { type: "codex-cli" }
     },
     agents: {
-      planner: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" },
-      builder: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "medium" },
-      reviewer: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" }
+      planner: { backend: "codex", model: "gpt-5.5", reasoningEffort: "high" },
+      builder: { backend: "codex", model: "gpt-5.5", reasoningEffort: "medium" },
+      reviewer: { backend: "codex", model: "gpt-5.5", reasoningEffort: "high" }
     },
         pipeline: { finalReview: true, maxFixLoops: 1 },
         commands: {

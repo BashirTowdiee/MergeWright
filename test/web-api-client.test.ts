@@ -436,7 +436,7 @@ test("MergeWrightApiClient fetches run detail and artifact metadata", async () =
               defaultConfigPath: "/tmp/config.json",
               runsRoot: "/tmp/runs",
               defaultProvider: "codex-local",
-              defaultModel: "gpt-5.3-codex",
+              defaultModel: "gpt-5.5",
               defaultMode: "preview-first"
             },
             retention: {
@@ -589,7 +589,7 @@ test("MergeWrightApiClient submits commands through the API", async () => {
               defaultConfigPath: "/tmp/config.json",
               runsRoot: "/tmp/runs",
               defaultProvider: "opencode-local",
-              defaultModel: "gpt-5.3-codex",
+              defaultModel: "gpt-5.5",
               defaultMode: "read-only"
             },
             retention: {

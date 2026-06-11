@@ -13,9 +13,9 @@
     }
   },
   "agents": {
-    "planner": { "backend": "codex-local", "model": "gpt-5.3-codex", "reasoningEffort": "high" },
-    "builder": { "backend": "codex-local", "model": "gpt-5.3-codex", "reasoningEffort": "high" },
-    "reviewer": { "backend": "codex-local", "model": "gpt-5.3-codex", "reasoningEffort": "high" }
+    "planner": { "backend": "codex-local", "model": "gpt-5.5", "reasoningEffort": "high" },
+    "builder": { "backend": "codex-local", "model": "gpt-5.5", "reasoningEffort": "high" },
+    "reviewer": { "backend": "codex-local", "model": "gpt-5.5", "reasoningEffort": "high" }
   },
   "pipeline": {
     "finalReview": true,

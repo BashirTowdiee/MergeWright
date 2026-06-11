@@ -238,7 +238,7 @@ const settingsSnapshot: SettingsSnapshot = {
     defaultConfigPath: "/tmp/config.json",
     runsRoot: "/tmp/runs",
     defaultProvider: "codex-local",
-    defaultModel: "gpt-5.3-codex",
+    defaultModel: "gpt-5.5",
     defaultMode: "preview-first"
   },
   retention: {
@@ -983,7 +983,7 @@ test("PUT /projects/:projectId/config updates project config", async () => {
       config: {
         runsDir: ".artifacts/runs/default",
         defaultProvider: "opencode-local",
-        defaultModel: "gpt-5.3-codex"
+        defaultModel: "gpt-5.5"
       }
     }
   });
@@ -994,7 +994,7 @@ test("PUT /projects/:projectId/config updates project config", async () => {
     projectId: "default",
     runsDir: ".artifacts/runs/default",
     defaultProvider: "opencode-local",
-    defaultModel: "gpt-5.3-codex"
+    defaultModel: "gpt-5.5"
   });
 });
 

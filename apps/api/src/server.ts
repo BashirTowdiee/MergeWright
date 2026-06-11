@@ -83,7 +83,7 @@ async function main(): Promise<void> {
         defaultConfigPath: bootstrapConfigPath ?? ".artifacts/projects/default/config.json",
         runsRoot: bootstrapRunsRoot,
         defaultProvider: bootstrapConfig?.agents.planner.backend ?? "codex",
-        defaultModel: bootstrapConfig?.agents.planner.model ?? "gpt-5.3-codex",
+        defaultModel: bootstrapConfig?.agents.planner.model ?? "gpt-5.5",
         defaultMode: "preview-first"
       },
       retention: {

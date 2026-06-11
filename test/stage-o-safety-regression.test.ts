@@ -17,9 +17,9 @@ const requestBase: Omit<AgentExecutionRequest, "role" | "model" | "reasoningEffo
 
 test("Codex exec args always include read-only sandbox for planner/builder/reviewer", () => {
   const roles: Array<{ role: "planner" | "builder" | "reviewer"; model: string; reasoningEffort: string }> = [
-    { role: "planner", model: "gpt-5.3-codex", reasoningEffort: "high" },
-    { role: "builder", model: "gpt-5.3-codex", reasoningEffort: "medium" },
-    { role: "reviewer", model: "gpt-5.3-codex", reasoningEffort: "low" }
+    { role: "planner", model: "gpt-5.5", reasoningEffort: "high" },
+    { role: "builder", model: "gpt-5.5", reasoningEffort: "medium" },
+    { role: "reviewer", model: "gpt-5.5", reasoningEffort: "low" }
   ];
 
   for (const roleCfg of roles) {

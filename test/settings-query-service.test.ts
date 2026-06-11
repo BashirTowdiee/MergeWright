@@ -16,7 +16,7 @@ test("FileSettingsQueryService returns defaults when no file exists", async () =
         defaultConfigPath: "/tmp/config.json",
         runsRoot: "/tmp/runs",
         defaultProvider: "codex-local",
-        defaultModel: "gpt-5.3-codex",
+        defaultModel: "gpt-5.5",
         defaultMode: "preview-first"
       },
       retention: {
@@ -50,7 +50,7 @@ test("FileSettingsQueryService persists updates", async () => {
         defaultConfigPath: "/tmp/config.json",
         runsRoot: "/tmp/runs",
         defaultProvider: "codex-local",
-        defaultModel: "gpt-5.3-codex",
+        defaultModel: "gpt-5.5",
         defaultMode: "preview-first"
       },
       retention: {
@@ -104,7 +104,7 @@ test("FileSettingsQueryService rejects invalid updates", async () => {
         defaultConfigPath: "/tmp/config.json",
         runsRoot: "/tmp/runs",
         defaultProvider: "codex-local",
-        defaultModel: "gpt-5.3-codex",
+        defaultModel: "gpt-5.5",
         defaultMode: "preview-first"
       },
       retention: {
@@ -142,7 +142,7 @@ test("FileSettingsQueryService falls back when stored file is malformed", async 
         defaultConfigPath: "",
         runsRoot: 42,
         defaultProvider: "codex-local",
-        defaultModel: "gpt-5.3-codex",
+        defaultModel: "gpt-5.5",
         defaultMode: "bad-mode"
       },
       retention: {
@@ -165,7 +165,7 @@ test("FileSettingsQueryService falls back when stored file is malformed", async 
         defaultConfigPath: "/tmp/config.json",
         runsRoot: "/tmp/runs",
         defaultProvider: "codex-local",
-        defaultModel: "gpt-5.3-codex",
+        defaultModel: "gpt-5.5",
         defaultMode: "preview-first"
       },
       retention: {

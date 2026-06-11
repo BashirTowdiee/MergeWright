@@ -54,7 +54,7 @@ export class MergeWrightMcpRuntime {
           defaultConfigPath: ".artifacts/projects/default/config.json",
           runsRoot: path.resolve(this.orchestratorRoot, ".artifacts", "runs", "default"),
           defaultProvider: "codex",
-          defaultModel: "gpt-5.3-codex",
+          defaultModel: "gpt-5.5",
           defaultMode: "preview-first"
         },
         retention: {

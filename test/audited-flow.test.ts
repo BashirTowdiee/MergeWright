@@ -333,9 +333,9 @@ function makeConfig(checks: OrchestratorConfig["commands"]["checks"], workspaceR
       codex: { type: "codex-cli" }
     },
     agents: {
-      planner: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "medium" },
-      builder: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "medium" },
-      reviewer: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "medium" }
+      planner: { backend: "codex", model: "gpt-5.5", reasoningEffort: "medium" },
+      builder: { backend: "codex", model: "gpt-5.5", reasoningEffort: "medium" },
+      reviewer: { backend: "codex", model: "gpt-5.5", reasoningEffort: "medium" }
     },
     pipeline: {
       finalReview: true,

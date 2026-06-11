@@ -97,7 +97,7 @@ async function createAuditedFlowFixture(): Promise<{ runsRoot: string; runId: st
         goal: "Run audited flow checks",
         workspace: "/tmp/audited-workspace",
         flow: "feature-standard",
-        stages: [{ id: "checks", kind: "check", executor: "shell-check", model: "gpt-5.3-codex" }]
+        stages: [{ id: "checks", kind: "check", executor: "shell-check", model: "gpt-5.5" }]
       },
       null,
       2

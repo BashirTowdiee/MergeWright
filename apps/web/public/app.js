@@ -401,7 +401,7 @@ function renderSettingsOverview() {
 
   nodes.settingsConfigPath.value = settings?.project.defaultConfigPath || project?.configPath || "config.example.json";
   nodes.settingsRunsRoot.value = settings?.project.runsRoot || project?.runsRoot || "";
-  nodes.settingsDefaultModel.value = settings?.project.defaultModel || "gpt-5.3-codex";
+  nodes.settingsDefaultModel.value = settings?.project.defaultModel || "gpt-5.5";
   nodes.settingsDefaultMode.value = settings?.project.defaultMode || "preview-first";
   nodes.settingsEvidenceRetention.value = String(settings?.retention.evidenceDays ?? 30);
   nodes.settingsArtifactRetention.value = String(settings?.retention.artifactDays ?? 30);

@@ -12,7 +12,7 @@ const agentRequestBase: AgentExecutionRequest = {
   role: "planner",
   backendName: "codex-local",
   backendType: "codex-cli",
-  model: "gpt-5.3-codex",
+  model: "gpt-5.5",
   reasoningEffort: "high",
   workspaceRoot: "/tmp/workspace",
   outputLastMessagePath: "/tmp/orchestrator/runs/out.md",
@@ -25,7 +25,7 @@ const agentRequestBase: AgentExecutionRequest = {
 const codexRequestBase: CodexRunRequest = {
   prompt: "plan this stage",
   role: "planner",
-  model: "gpt-5.3-codex",
+  model: "gpt-5.5",
   reasoningEffort: "high",
   workspaceRoot: "/tmp/workspace",
   outputLastMessagePath: "/tmp/orchestrator/runs/out.md",
@@ -63,7 +63,7 @@ test("CodexCliBackend dry-run preserves Codex command semantics", async () => {
 
   assert.equal(result.backendName, "codex-local");
   assert.equal(result.backendType, "codex-cli");
-  assert.equal(result.model, "gpt-5.3-codex");
+  assert.equal(result.model, "gpt-5.5");
   assert.equal(result.command, expected.command);
   assert.deepEqual(result.args, expected.args);
   assert.equal(result.cwd, expected.cwd);

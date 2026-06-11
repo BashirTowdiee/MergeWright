@@ -126,9 +126,9 @@ async function makeAutoChainFixture(): Promise<{ orchestratorRoot: string; confi
       codex: { type: "codex-cli" }
     },
     agents: {
-      planner: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" },
-      builder: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "medium" },
-      reviewer: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" }
+      planner: { backend: "codex", model: "gpt-5.5", reasoningEffort: "high" },
+      builder: { backend: "codex", model: "gpt-5.5", reasoningEffort: "medium" },
+      reviewer: { backend: "codex", model: "gpt-5.5", reasoningEffort: "high" }
     },
         pipeline: { finalReview: true, maxFixLoops: 1 },
         commands: { checks: [] },

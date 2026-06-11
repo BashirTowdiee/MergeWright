@@ -16,7 +16,7 @@ import {
 const requestBase: AgentExecutionRequest = {
   prompt: "plan this stage",
   role: "planner",
-  model: "gpt-5.3-codex",
+  model: "gpt-5.5",
   reasoningEffort: "high",
   workspaceRoot: "/tmp/workspace",
   outputLastMessagePath: "/tmp/orchestrator/runs/out.md",
@@ -42,7 +42,7 @@ test("builds args with mandatory safety flags and excludes prompt from argv", ()
   assert.deepEqual(command.args.slice(0, 11), [
     "exec",
     "-m",
-    "gpt-5.3-codex",
+    "gpt-5.5",
     "-c",
     'model_reasoning_effort="high"',
     "-C",

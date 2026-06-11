@@ -45,7 +45,7 @@ test("mock backend implements the execution backend contract", async () => {
     role: "planner",
     backendName: "codex-local",
     backendType: "codex-cli",
-    model: "gpt-5.3-codex",
+    model: "gpt-5.5",
     reasoningEffort: "high",
     workspaceRoot: "/tmp/workspace",
     outputLastMessagePath: "/tmp/orchestrator/runs/out.md",
@@ -71,7 +71,7 @@ test("mock backend implements the execution backend contract", async () => {
 
   assert.equal(result.backendName, "codex-local");
   assert.equal(result.backendType, "codex-cli");
-  assert.equal(result.model, "gpt-5.3-codex");
+  assert.equal(result.model, "gpt-5.5");
   assert.equal(result.success, true);
   assert.equal(result.outputLastMessagePath, "/tmp/orchestrator/runs/out.md");
   assert.equal(result.outputLastMessage, "mock output");

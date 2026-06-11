@@ -138,7 +138,7 @@ test("FileProjectCatalogQueryService updates project config defaults", async () 
   const updated = await service.updateProjectConfig("default", {
     runsDir: ".artifacts/runs/default",
     defaultProvider: "opencode-local",
-    defaultModel: "gpt-5.3-codex"
+    defaultModel: "gpt-5.5"
   });
   assert.ok(updated);
   assert.equal(updated?.defaultProvider, "opencode-local");
@@ -149,7 +149,7 @@ test("FileProjectCatalogQueryService updates project config defaults", async () 
   assert.equal(persisted.agents.planner.backend, "opencode-local");
   assert.equal(persisted.agents.builder.backend, "opencode-local");
   assert.equal(persisted.agents.reviewer.backend, "opencode-local");
-  assert.equal(persisted.agents.planner.model, "gpt-5.3-codex");
-  assert.equal(persisted.agents.builder.model, "gpt-5.3-codex");
-  assert.equal(persisted.agents.reviewer.model, "gpt-5.3-codex");
+  assert.equal(persisted.agents.planner.model, "gpt-5.5");
+  assert.equal(persisted.agents.builder.model, "gpt-5.5");
+  assert.equal(persisted.agents.reviewer.model, "gpt-5.5");
 });

@@ -217,7 +217,7 @@ async function createProjectFixture(): Promise<{
       defaultConfigPath: configRelativePath,
       runsRoot,
       defaultProvider: "codex",
-      defaultModel: "gpt-5.3-codex",
+      defaultModel: "gpt-5.5",
       defaultMode: "preview-first"
     },
     retention: {
@@ -258,9 +258,9 @@ function makeConfig(workspaceRoot: string): OrchestratorConfig {
       }
     },
     agents: {
-      planner: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" },
-      builder: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "medium" },
-      reviewer: { backend: "codex", model: "gpt-5.3-codex", reasoningEffort: "high" }
+      planner: { backend: "codex", model: "gpt-5.5", reasoningEffort: "high" },
+      builder: { backend: "codex", model: "gpt-5.5", reasoningEffort: "medium" },
+      reviewer: { backend: "codex", model: "gpt-5.5", reasoningEffort: "high" }
     },
     pipeline: {
       finalReview: true,
