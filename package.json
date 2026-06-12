@@ -33,7 +33,7 @@
     "docker:dev:rebuild": "docker compose build --no-cache"
   },
   "devDependencies": {
-    "@types/node": "^25.9.1",
+    "@types/node": "^25.9.3",
     "@types/react": "^19.2.15",
     "typescript": "^6.0.3"
   },
